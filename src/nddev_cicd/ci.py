@@ -100,7 +100,9 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         name = "tool." + tool
         result["expected"].append(name)
         item = run(command, root, output / f"{name}.log", timeout=60, env=env)
-        if item["status"] == "success" and not re.search(pattern, Path(item["log"]).read_text()):
+        if item["status"] == "success" and not re.search(
+            pattern, Path(item["log"]).read_text(), re.MULTILINE
+        ):
             item.update(status="failure", detail="Executed tool version differs from selected contract")
         result["results"].append({"name": name, **item})
     cancelled = False
@@ -237,6 +239,13 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             try:
                 item["tests_executed"] = reports.tests(root, extra["report"], Path(item["log"]))
             except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
+                item.update(status="failure", detail=str(error))
+        if extra.get("report", {}).get("path"):
+            try:
+                item["retained_reports"] = reports.retain(
+                    root, extra["report"], output / "native-reports" / ("extra." + name)
+                )
+            except (Invalid, OSError) as error:
                 item.update(status="failure", detail=str(error))
         result["results"].append({"name": "extra." + name, **item})
     result.update(reports.aggregate(result["expected"], result["results"]))

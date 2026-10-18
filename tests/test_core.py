@@ -332,6 +332,19 @@ examples=["python3","-c","assert 2*3==6"]
     assert result["status"] == "failure" and "tool.python" in result["failed"]
     tool = next(item for item in result["results"] if item["name"] == "tool.python")
     assert tool["detail"] == "Executed tool version differs from selected contract"
+    path = root / ".github/nddev-ci.toml"
+    path.write_text(
+        path.read_text()
+        .replace(
+            'command=["python3","--version"]',
+            'command=["python3","-c","import sys; print(\'bootstrap information\', file=sys.stderr); print(\'Python \' + sys.version.split()[0])"]',
+        )
+        .replace('pattern="^Python 0.0.0$"', 'pattern="^Python [0-9]+[.][0-9]+[.][0-9]+$"')
+    )
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "select real wrapper output")
+    wrapped = ci.execute(root, config.load(root), tmp_path / "wrapper-report")
+    assert wrapped["status"] == "success"
 
 
 def test_selected_extra_cannot_reuse_an_old_positive_report(repository, tmp_path):
