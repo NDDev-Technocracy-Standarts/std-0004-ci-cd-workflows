@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm]
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +41,13 @@ jobs:
         with:
           node-version: '24.22.0'
           package-manager-cache: false
+      - name: Select Ruby and the lockfile's Bundler without shared cache
+        if: ${{ matrix.profile == 'ruby' }}
+        uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1.329.0
+        with:
+          ruby-version: '3.3'
+          bundler: '4.0.23'
+          bundler-cache: false
       - name: Select the declared native JDK
         if: ${{ matrix.profile == 'jvm' }}
         run: |

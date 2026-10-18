@@ -26,6 +26,7 @@ SOURCES = {
     "flutter": "lib/main.dart",
     "swift": "Sources/CiwfFixture/Checksum.swift",
     "jvm": "src/main/java/example/Checksum.java",
+    "ruby": "lib/native_checksum.rb",
 }
 
 
