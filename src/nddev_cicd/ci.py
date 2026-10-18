@@ -1,0 +1,183 @@
+"""Execute selected native profiles; aggregate every required operation exactly once."""
+
+from __future__ import annotations
+
+import copy
+import os
+import platform
+import subprocess
+import sys
+from pathlib import Path
+
+from . import config, documentation, reports
+from .model import Invalid, atomic_json, contained, digest, identity, source_identity
+from .process import run
+
+
+def _execute(root: Path, contract: dict, output: Path) -> dict:
+    profiles = config.catalog()
+    selected = contract["profiles"]
+    unknown = set(selected) - profiles.keys()
+    if unknown:
+        raise Invalid(f"Unsupported selected profiles: {sorted(unknown)}")
+    output.mkdir(parents=True, exist_ok=True)
+    (root / ".nddev-reports").mkdir(exist_ok=True)
+    result = {
+        "schema": 1,
+        "identity": source_identity(root),
+        "platform": platform.platform(),
+        "architecture": platform.machine(),
+        "selection": selected,
+        "results": [],
+        "expected": [],
+    }
+    result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
+    result["identity"]["locks"] = {
+        path: digest(root / path)
+        for path in (
+            "uv.lock",
+            "Cargo.lock",
+            "package-lock.json",
+            "pnpm-lock.yaml",
+            "go.sum",
+            "composer.lock",
+            "Gemfile.lock",
+            "packages.lock.json",
+            "pubspec.lock",
+            "renv.lock",
+        )
+        if (root / path).is_file()
+    }
+    commands = contract.get("commands", {})
+    env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
+    if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
+        raise Invalid("Credentials are not project contract values")
+    for profile_id in selected:
+        definition = profiles[profile_id]
+        manifests = definition.get("manifests", [])
+        if manifests and not any(list(root.glob(pattern)) for pattern in manifests):
+            raise Invalid(f"{profile_id} has no matching native manifest: {manifests}")
+        setup_failed = False
+        for stage, default in definition["stages"].items():
+            name = f"{profile_id}.{stage}"
+            result["expected"].append(name)
+            entry: dict = {"name": name, "status": "failure"}
+            report = {}
+            result["results"].append(entry)
+            # Write expected/results incrementally so interruptions never yield a complete green report.
+            result["status"] = "failure"
+            atomic_json(output / "result.json", result)
+            try:
+                if setup_failed:
+                    entry.update(status="unavailable", detail="Required profile setup did not succeed")
+                    continue
+                if stage == "syntax" and profile_id == "documentation":
+                    entry.update(documentation.check(root, contract.get("documentation")), status="success")
+                    continue
+                if profile_id == "architecture" and stage == "scope":
+                    scopes = contract.get("architecture", {}).get("scopes", [])
+                    if not scopes or any(
+                        not list(contained(root, scope, exists=True).rglob("*")) for scope in scopes
+                    ):
+                        raise Invalid("Architecture needs existing nonempty module scopes")
+                    entry.update(status="success", scopes=scopes)
+                    continue
+                command = commands.get(profile_id, {}).get(stage, default)
+                if isinstance(command, list) and command and command[0] == "@library":
+                    command = [sys.executable, "-m", "nddev_cicd", command[1], "--root", str(root)]
+                if command is None:
+                    raise Invalid(f"Selected {name} requires a native project command")
+                if stage == "test":
+                    # Old reports cannot make a no-op test command green.
+                    report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
+                    pattern = report.get("path", "")
+                    if pattern:
+                        if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
+                            raise Invalid("Test reports must stay in the caller checkout")
+                        for old in root.glob(pattern):
+                            if not old.resolve().is_relative_to(root.resolve()) or old.is_symlink():
+                                raise Invalid("Test report path escapes the caller checkout")
+                            if old.is_file():
+                                from .model import git
+
+                                if git(root, "ls-files", "--", str(old.relative_to(root))):
+                                    raise Invalid("Do not remove tracked files as old test reports")
+                                old.unlink()
+                entry.update(
+                    run(
+                        command,
+                        root,
+                        output / f"{name}.log",
+                        timeout=contract.get("timeouts", {}).get(profile_id, 900),
+                        env=env,
+                    )
+                )
+                if stage == "setup" and entry["status"] != "success":
+                    setup_failed = True
+                if entry["status"] == "success" and stage == "test":
+                    entry["tests_executed"] = reports.tests(root, report, Path(entry["log"]))
+                if entry["status"] == "success" and stage == "generate":
+                    documentation.generation_clean(root)
+            except (Invalid, ValueError, OSError) as error:
+                entry.update(status="failure", detail=str(error))
+    for name, extra in contract.get("extras", {}).items():
+        if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
+            raise Invalid("Each selected extra needs a concrete purpose, command and finite timeout")
+        result["expected"].append("extra." + name)
+        item = run(
+            extra["command"], root, output / f"extra-{name}.log", timeout=extra.get("timeout", 600), env=env
+        )
+        result["results"].append({"name": "extra." + name, **item})
+    result.update(reports.aggregate(result["expected"], result["results"]))
+    result["inputs_digest"] = identity(result["identity"])
+    atomic_json(output / "result.json", result)
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with Path(summary).open("a", encoding="utf-8") as stream:
+            stream.write("\n| Native check | Result |\n|---|---|\n")
+            for entry in result["results"]:
+                stream.write(f"| {entry['name']} | {entry['status']} |\n")
+    return result
+
+
+def execute(root: Path, contract: dict, output: Path) -> dict:
+    contract = copy.deepcopy(contract)
+    cache_root = os.environ.get("NDDEV_CACHE_ROOT")
+    if "rust" not in contract["profiles"] or not cache_root:
+        return _execute(root, contract, output)
+    from .cache import namespace
+
+    inputs = {
+        "repository": os.environ.get("GITHUB_REPOSITORY", str(root.resolve())),
+        "platform": platform.platform(),
+        "architecture": platform.machine(),
+        "trust": os.environ.get("NDDEV_TRUST_SCOPE", "local"),
+        "configuration": {"rust": contract.get("rust", {}), "contract": digest(root / contract["_path"])},
+        "toolchain": (root / "rust-toolchain.toml").read_text()
+        if (root / "rust-toolchain.toml").exists()
+        else (root / "rust-toolchain").read_text()
+        if (root / "rust-toolchain").exists()
+        else subprocess.check_output(["rustc", "-vV"], cwd=root, text=True).strip(),
+        "lock": digest(root / "Cargo.lock") if (root / "Cargo.lock").exists() else "missing",
+    }
+    with namespace(Path(cache_root), inputs) as owned:
+        env = contract.setdefault("environment", {})
+        env["CARGO_TARGET_DIR"] = str(owned / "target")
+        env["CARGO_HOME"] = str(owned / "downloads")
+        if contract.get("rust", {}).get("sccache"):
+            env.update(
+                {
+                    "RUSTC_WRAPPER": "sccache",
+                    "CARGO_INCREMENTAL": "0",
+                    "SCCACHE_DIR": str(owned / "compiler"),
+                    "SCCACHE_CACHE_SIZE": "2G",
+                    "SCCACHE_SERVER_UDS": str(owned / "sccache.sock"),
+                }
+            )
+        result = _execute(root, contract, output)
+        if contract.get("rust", {}).get("sccache"):
+            stats = run(["sccache", "--show-stats"], root, output / "sccache-stats.log", env=env)
+            if stats["status"] != "success":
+                result.update(status="failure", cache_statistics=stats)
+                atomic_json(output / "result.json", result)
+        return result
