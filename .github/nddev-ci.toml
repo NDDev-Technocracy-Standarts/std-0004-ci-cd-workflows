@@ -1,0 +1,36 @@
+schema = 1
+profiles = ["python", "architecture", "documentation", "workflows"]
+
+[architecture]
+scopes = ["src/nddev_cicd"]
+
+[commands.architecture]
+dependencies = ["uv", "run", "lint-imports"]
+
+[commands.documentation]
+external-links = ["lychee", "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
+generate = ["uv", "run", "python", "-m", "nddev_cicd", "reference", "--check"]
+examples = ["uv", "run", "python", "-m", "doctest", "docs/examples.md"]
+
+[commands.workflows]
+security = ["uv", "run", "zizmor", "--offline", "--no-progress", ".github"]
+
+[artifacts]
+files = ["dist/*.whl", "dist/*.tar.gz", "dist/target-fixture/index.html"]
+
+[timeouts]
+python = 900
+workflows = 120
+
+[extras.delivery-fixture]
+purpose="Bind a nonproduction HTTP target to the actual tested revision and built wheel for post-merge delivery."
+command=["uv","run","python","scripts/build-delivery-fixture.py"]
+timeout=30
+
+[extras.secrets]
+purpose="Protect the public source boundary with a native full-history secret scan."
+command=["gitleaks","git","--redact","--no-banner"]
+timeout=120
+
+[package]
+commands=[["nddev-cicd","profiles"]]

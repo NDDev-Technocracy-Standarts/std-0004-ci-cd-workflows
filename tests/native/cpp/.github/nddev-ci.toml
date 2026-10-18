@@ -1,0 +1,5 @@
+schema=1
+profiles=["c-cpp"]
+[commands.c-cpp]
+format=["clang-format","--dry-run","--Werror","src/main.cpp"]
+lint=["clang-tidy","-p","build","src/main.cpp","--warnings-as-errors=*"]

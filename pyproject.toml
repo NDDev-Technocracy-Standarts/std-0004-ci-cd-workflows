@@ -1,0 +1,51 @@
+[project]
+name = "nddev-cicd"
+version = "0.1.0"
+description = "Native shared CI/CD operations for thin GitHub workflows and composite actions"
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0.3,<7"]
+
+[project.scripts]
+nddev-cicd = "nddev_cicd.__main__:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.14,<1",
+    "basedpyright>=1.29,<2",
+    "import-linter>=2,<3",
+    "zizmor==1.30.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "nddev_cicd"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["native"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.basedpyright]
+include = ["src"]
+typeCheckingMode = "standard"
+
+[tool.importlinter]
+root_package = "nddev_cicd"
+
+[[tool.importlinter.contracts]]
+name = "Native domain operations do not depend on the CLI"
+type = "forbidden"
+source_modules = ["nddev_cicd.artifacts", "nddev_cicd.cache", "nddev_cicd.routing"]
+forbidden_modules = ["nddev_cicd.__main__", "nddev_cicd.ci", "nddev_cicd.delivery"]

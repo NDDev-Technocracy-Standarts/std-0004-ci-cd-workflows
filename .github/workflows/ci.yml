@@ -1,0 +1,207 @@
+name: source-ci
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: source-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Prepare pinned job-local native tools
+        run: scripts/prepare-linux-tools.sh security
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@a0307bf29b68d0c18bf3ea4f97914e0602f3d12a # 0.1.0 draft
+  native:
+    name: native (${{ matrix.profile }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Select the declared native Node toolchain
+        if: ${{ matrix.profile == 'node' }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
+      - name: Select the R SDK declared by the native lockfile
+        if: ${{ matrix.profile == 'r' }}
+        uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: '4.5.2'
+          Ncpus: '2'
+      - name: Select Ruby and the lockfile's Bundler without shared cache
+        if: ${{ matrix.profile == 'ruby' }}
+        uses: ruby/setup-ruby@651ff0d62c5c79bed6d53ec518387aae20e72c1a # v1.329.0
+        with:
+          ruby-version: '3.3'
+          bundler: '4.0.23'
+          bundler-cache: false
+      - name: Select the declared native JDK
+        if: ${{ matrix.profile == 'jvm' || matrix.profile == 'android' }}
+        run: |
+          test -n "$JAVA_HOME_21_X64"
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_21_X64/bin" >> "$GITHUB_PATH"
+      - name: Select the native .NET SDK
+        if: ${{ matrix.profile == 'dotnet' }}
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.112'
+      - name: Select native Flutter without external cache ownership
+        if: ${{ matrix.profile == 'flutter' }}
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+          cache: 'false'
+          pub-cache: 'false'
+      - name: Select the fixture minimum supported Rust compiler
+        if: ${{ matrix.profile == 'rust' }}
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: '1.99.0'
+          components: rustfmt, clippy
+      - name: Prepare pinned native Rust policy tools
+        if: ${{ matrix.profile == 'rust' }}
+        run: scripts/prepare-linux-tools.sh rust
+      - name: Prepare native source security tools
+        if: ${{ matrix.profile == 'security' }}
+        run: scripts/prepare-linux-tools.sh security
+      - name: Prepare the native shell test framework
+        if: ${{ matrix.profile == 'shell' }}
+        run: scripts/prepare-linux-tools.sh shell
+      - name: Select the declared native Android SDK
+        if: ${{ matrix.profile == 'android' }}
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: '15859902'
+          packages: 'platforms;android-36 build-tools;36.0.0 platform-tools'
+          log-accepted-android-sdk-licenses: false
+      - name: Select the actual native IaC toolchain
+        if: ${{ matrix.profile == 'infrastructure' }}
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: '1.13.1'
+          tofu_wrapper: false
+          cache: false
+      - name: Prepare native container and infrastructure scanners
+        if: ${{ matrix.profile == 'infrastructure' || matrix.profile == 'container' }}
+        env:
+          NDDEV_SCAN_CAPABILITY: ${{ matrix.profile }}
+        run: scripts/prepare-linux-tools.sh "$NDDEV_SCAN_CAPABILITY"
+      - name: Prepare versioned Qt with its runtime dependency
+        if: ${{ matrix.profile == 'qt' }}
+        run: scripts/prepare-qt.sh
+      - name: Execute native fixture and reject invalid source
+        env:
+          NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
+          RENV_PATHS_ROOT: ${{ runner.temp }}/renv
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle
+          ANDROID_USER_HOME: ${{ runner.temp }}/android-user
+          RENV_CONFIG_CONSENT: 'TRUE'
+          NDDEV_CACHE_ROOT: ${{ matrix.profile == 'rust' && format('{0}/nddev-native-cache', runner.temp) || '' }}
+        run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
+      - name: Deliver and verify the actual built Android package
+        if: ${{ matrix.profile == 'android' }}
+        env:
+          NDDEV_ANDROID_APK: ${{ runner.temp }}/native-fixture/positive/mobile/fixture.apk
+        run: uv run --locked pytest -q tests/native_delivery.py -k mobile
+      - name: Retain actual native logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-fixture
+          if-no-files-found: error
+          retention-days: 3
+  admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      windows: ${{ steps.windows.outputs.runner }}
+      macos: ${{ steps.macos.outputs.runner }}
+    steps:
+      - id: windows
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@a0307bf29b68d0c18bf3ea4f97914e0602f3d12a # 0.1.0 draft
+        with:
+          policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
+      - id: macos
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@a0307bf29b68d0c18bf3ea4f97914e0602f3d12a # 0.1.0 draft
+        with:
+          policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
+  windows:
+    needs: admission
+    runs-on: ${{ fromJSON(needs.admission.outputs.windows) }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Execute real Windows Python package and rejected source
+        run: uv run --locked python tests/run_native.py python --output "$RUNNER_TEMP/native-windows"
+  macos:
+    needs: admission
+    runs-on: ${{ fromJSON(needs.admission.outputs.macos) }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Execute real Apple ARM Swift package and rejected source
+        run: uv run --locked python tests/run_native.py swift --output "$RUNNER_TEMP/native-swift"
+  delivery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Exercise native registries, target concurrency and data-compatible recovery
+        run: uv run --locked pytest -q tests/native_delivery.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+  gate:
+    needs: [source, native, admission, windows, macos, delivery]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - env:
+          NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery"} and all(v["result"]=="success" for v in jobs.values()), jobs'

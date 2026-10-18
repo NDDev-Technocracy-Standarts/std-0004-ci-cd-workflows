@@ -1,0 +1,64 @@
+name: Native source CI
+description: Execute the caller's selected native profile contract with an isolated pinned library runtime.
+inputs:
+  working-directory:
+    description: Existing caller project directory inside the workspace
+    default: .
+  contract:
+    description: Contained caller TOML path
+    default: .github/nddev-ci.toml
+  result-key:
+    description: Unique job identity; primary owns the deployable bundle
+    default: primary
+  python:
+    description: Actual caller Python major.minor (library runtime is independent)
+    default: '3.13'
+outputs:
+  status:
+    description: Set to success only after complete native validation
+    value: ${{ steps.native.outputs.status }}
+  result-directory:
+    description: Job-local result and selected artifact directory
+    value: ${{ steps.native.outputs.directory }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        version: '0.13.1'
+        enable-cache: 'false'
+    - name: Run selected native checks
+      id: native
+      shell: bash
+      env:
+        NDDEV_ACTION_PATH: ${{ github.action_path }}
+        NDDEV_LIBRARY_REPOSITORY: ${{ github.action_repository }}
+        NDDEV_LIBRARY_REF: ${{ github.action_ref }}
+        NDDEV_CONTRACT: ${{ inputs.contract }}
+        NDDEV_WORKING_DIRECTORY: ${{ inputs.working-directory }}
+        NDDEV_RESULT_KEY: ${{ inputs.result-key }}
+        UV_PYTHON: ${{ inputs.python }}
+      run: |
+        set -euo pipefail
+        [[ "$NDDEV_RESULT_KEY" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
+        library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        export NDDEV_LIBRARY_REPOSITORY="${NDDEV_LIBRARY_REPOSITORY:-$GITHUB_REPOSITORY}"
+        export NDDEV_LIBRARY_REF="${NDDEV_LIBRARY_REF:-$(git -C "$library" rev-parse HEAD)}"
+        export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-library-runtime"
+        export UV_CACHE_DIR="$RUNNER_TEMP/nddev-downloads"
+        project_root="$(uv run --project "$library" --locked --no-dev --python 3.13 python -c \
+          'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_WORKING_DIRECTORY"],exists=True))')"
+        directory="$RUNNER_TEMP/nddev-source"
+        echo "directory=$directory" >> "$GITHUB_OUTPUT"
+        uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd ci \
+          --root "$project_root" --contract "$NDDEV_CONTRACT" --output "$directory"
+        echo "status=success" >> "$GITHUB_OUTPUT"
+    - name: Retain native results and selected deployable files
+      if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: nddev-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.result-key }}
+        path: ${{ steps.native.outputs.directory }}
+        if-no-files-found: error
+        retention-days: 3
+        compression-level: 0

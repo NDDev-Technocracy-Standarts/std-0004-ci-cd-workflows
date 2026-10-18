@@ -1,0 +1,38 @@
+name: integrated-delivery-smoke
+on:
+  push:
+    branches: [dev, main]
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+concurrency:
+  group: integrated-smoke-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Prepare only the authorized temporary target and select the merged source run
+        id: fixture
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --locked python scripts/delivery-smoke.py prepare "$RUNNER_TEMP/integrated-smoke"
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/deliver@a0307bf29b68d0c18bf3ea4f97914e0602f3d12a # 0.1.0 draft
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          run-id: ${{ steps.fixture.outputs.run_id }}
+          target-config: ${{ steps.fixture.outputs.target }}
+      - name: Verify actual served revision and stop the owned fixture server
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        run: uv run --locked python scripts/delivery-smoke.py finish "$RUNNER_TEMP/integrated-smoke"

@@ -1,0 +1,69 @@
+apiVersion: std-0000.nddev.ai/v1alpha2
+kind: Standard
+metadata:
+  id: std-0004
+  name: ci-cd-workflows
+  title: NDDev CI/CD Workflows
+  owner: rldyourmnd
+spec:
+  edition:
+    version: 0.1.0
+    status: draft
+  purpose: Define a public modular CI/CD contract and reusable implementation with complete applicable
+    feedback, no additional spend and coherent artifact delivery.
+  scope:
+    applies-to:
+    - The selected CI/CD library modules and their authorized project invocations, including source validation,
+      build artifacts, delivery and maintenance.
+    excludes:
+    - GitHub task tracking, branches, merge policy and agent task execution owned by the applicable STD-0002/STD-0003
+      editions.
+    - Repository structure and common standards authoring owned by STD-0001 and STD-0000.
+    - Purchases, paid overage, visibility changes to existing private repositories and automatic fleet-wide
+      adoption.
+    - A new runner manager, agent scheduler, universal source analyzer, prose-attestation platform or
+      credentials database.
+    - Claiming universal language, hardware, security or production correctness from a schema or a finite
+      test suite.
+  conformance: A selected implementation or invocation conforms when its actual behavior meets every applicable
+    active requirement. The standard uses explicit review criteria; the implementation binds genuine
+    automated checks only to properties they establish. Unavailable or unexecuted work is not passed.
+    Technical modules are independently usable; private authoring tools are not runtime dependencies.
+    NDDev departures follow actual scoped user decisions.
+  tags:
+  - ci
+  - cd
+  - workflows
+  - quality
+  - delivery
+  - reuse
+  entrypoint: AGENTS.md
+  corpus:
+  - path: spec/intent.md
+  - path: spec/foundation.md
+  - path: spec/ci.md
+  - path: spec/performance.md
+  - path: spec/delivery.md
+  - path: spec/maintenance.md
+  sources: spec/sources.yaml
+  verification: spec/verification.yaml
+  outputs:
+    ledger: generated/outputs.json
+    corpus: generated/corpus.json
+    index: generated/index.md
+  relations:
+  - type: authored-under
+    target: std-0000
+    edition: 1.2.0
+  - type: organized-by
+    target: std-0001
+    edition: 1.2.0
+  - type: see-also
+    target: std-0002
+    edition: 0.1.0
+    note: NDDev engineering execution; no proprietary corpus is imported into public runtime.
+  - type: see-also
+    target: std-0003
+    edition: 0.1.0
+    note: NDDev GitHub workflow; CI/CD consumes the established integration model.
+  must-understand: []

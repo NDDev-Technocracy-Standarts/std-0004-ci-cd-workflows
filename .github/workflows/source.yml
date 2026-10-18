@@ -1,0 +1,45 @@
+name: Reusable source validation
+on:
+  workflow_call:
+    inputs:
+      contract:
+        type: string
+        default: .github/nddev-ci.toml
+      python:
+        type: string
+        default: '3.13'
+    outputs:
+      library-ref:
+        description: Exact implementation commit to use for the delivery composite
+        value: ${{ jobs.source.outputs.library-ref }}
+      status:
+        description: Success only when actual selected source checks completed
+        value: ${{ jobs.source.outputs.status }}
+permissions:
+  contents: read
+jobs:
+  source:
+    if: ${{ github.event_name == 'pull_request' && github.event.repository.visibility == 'public' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      library-ref: 'a0307bf29b68d0c18bf3ea4f97914e0602f3d12a'
+      status: ${{ steps.native.outputs.status }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@a0307bf29b68d0c18bf3ea4f97914e0602f3d12a # 0.1.0 draft
+        id: native
+        with:
+          contract: ${{ inputs.contract }}
+          python: ${{ inputs.python }}
+  gate:
+    needs: [source]
+    if: ${{ !cancelled() && github.event.repository.visibility == 'public' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - env:
+          RESULT: ${{ needs.source.result }}
+        run: test "$RESULT" = success
