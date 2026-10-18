@@ -1,0 +1,22 @@
+apiVersion: nddev.ai/v1alpha3
+kind: Repository
+metadata:
+  id: std-0004-ci-cd-workflows
+  locator: github:NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows
+  owner: rldyourmnd
+spec:
+  standard:
+    id: std-0001
+    version: 1.2.0
+  role: component
+  profiles:
+  - docs
+  - python
+  system:
+    id: nddev-standards
+    root: github:NDDev-Technocracy-Standarts/std-0000-standards-system
+  producers:
+  - name: std0000
+    ledger: generated/outputs.json
+  - name: native-profile-reference
+    ledger: generated/profiles-outputs.json

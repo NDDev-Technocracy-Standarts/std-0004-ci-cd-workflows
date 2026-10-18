@@ -1,0 +1,130 @@
+apiVersion: std-0000.nddev.ai/v1alpha1
+kind: SourceRegister
+sources:
+- key: gha-reuse
+  title: 'GitHub: reuse workflow configurations'
+  url: https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations
+  supports: Caller context, permission propagation and self-hosted runner visibility constrain reusable
+    workflow composition.
+  limits: Provider limits and access rules are version-sensitive. This is not proof of a specific cross-organization
+    installation.
+- key: gha-composite
+  title: 'GitHub: composite actions'
+  url: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action
+  supports: Shared steps execute inside a caller-owned job.
+  limits: A composite action does not select a job runner or safely hide arbitrary untrusted commands.
+- key: gha-events
+  title: 'GitHub: workflow events'
+  url: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
+  supports: PR contexts, merge refs and downstream event semantics differ.
+  limits: An event or successful old run alone does not prove the integrated artifact is eligible.
+- key: gha-billing
+  title: 'GitHub: Actions billing'
+  url: https://docs.github.com/en/billing/concepts/product-billing/github-actions
+  supports: Standard public hosted execution and self-hosted execution have distinct billing from private
+    hosted use and storage.
+  limits: Actual allowance, budgets and account policy must be observed; no fixed number is a perpetual
+    standard guarantee.
+- key: gha-secrets
+  title: 'GitHub: Actions secrets'
+  url: https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+  supports: Repository-scoped secrets, fork restrictions and private-Free organization-secret limitations.
+  limits: Access does not authorize a deployment; masking is not complete data-loss prevention.
+- key: gha-security
+  title: 'GitHub: secure use of Actions'
+  url: https://docs.github.com/en/actions/reference/security/secure-use
+  supports: Privileged event, untrusted code, token and persistent self-hosted runner trust boundaries.
+  limits: The implementation needs appropriate concrete controls, not a claim that every container is
+    isolated.
+- key: gha-concurrency
+  title: 'GitHub: workflow concurrency'
+  url: https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
+  supports: Concurrency groups and cancellation are repository-scoped coordination mechanisms.
+  limits: A deployment-attempt key does not serialize one target; no cross-repository lock is implied.
+- key: gha-artifacts
+  title: 'GitHub: upload-artifact'
+  url: https://github.com/actions/upload-artifact
+  supports: Artifact packaging, permission behavior, compression and retention options.
+  limits: Action version and actual payload need verification. An artifact digest alone is not authenticated
+    provenance.
+- key: blacksmith-runners
+  title: 'Blacksmith: instance types and free units'
+  url: https://docs.blacksmith.sh/blacksmith-runners/overview
+  supports: The free pool is 3000 normalized x64 2-vCPU minutes per organization/month, with platform
+    conversions; runner/app coverage matters.
+  limits: This is a dated observation, not a guarantee of account entitlement, unlimited wall-clock minutes
+    or a hard billing stop.
+- key: blacksmith-settings
+  title: 'Blacksmith: settings'
+  url: https://docs.blacksmith.sh/introduction/settings
+  supports: GitHub login, inherited organization membership and spending notification behavior.
+  limits: An email alert after exceeding a threshold is not evidence of zero-overage enforcement.
+- key: blacksmith-pricing
+  title: 'Blacksmith: pricing'
+  url: https://www.blacksmith.sh/pricing
+  supports: Free and paid service surfaces and possible OSS arrangements are separate.
+  limits: No sponsorship or approval for NDDev is established by this page; verify actual account and
+    terms.
+- key: cargo-cache
+  title: 'Cargo: build cache'
+  url: https://doc.rust-lang.org/cargo/reference/build-cache.html
+  supports: Target outputs and intermediate build directories can have different locations; native tooling
+    describes what is reusable.
+  limits: Supported environment variables depend on Cargo version; build-dir layout alone does not establish
+    cache correctness.
+- key: cargo-config
+  title: 'Cargo: configuration'
+  url: https://doc.rust-lang.org/cargo/reference/config.html
+  supports: Global download-cache cleanup is separate from project build-output retention.
+  limits: Configuration defaults and availability must match the selected Cargo version.
+- key: sccache-local
+  title: 'sccache: local storage'
+  url: https://github.com/mozilla/sccache/blob/main/docs/Local.md
+  supports: Local backend ownership and bounded storage must match the server model.
+  limits: Independent concurrent servers must not be assumed safe on one storage directory.
+- key: sccache-rust
+  title: 'sccache: Rust constraints'
+  url: https://github.com/mozilla/sccache/blob/main/docs/Rust.md
+  supports: Rust cache eligibility and incremental-compilation interactions constrain useful configurations.
+  limits: The cache does not cover every linked result, and performance depends on workload.
+- key: import-linter
+  title: Import Linter
+  url: https://import-linter.readthedocs.io/en/latest/index.html
+  supports: Python import, layer and independence contracts are directly checkable.
+  limits: Import graphs do not establish complete semantic architecture or all dynamic dependencies.
+- key: dependency-cruiser
+  title: dependency-cruiser
+  url: https://github.com/sverweij/dependency-cruiser
+  supports: Dependency graph rules can detect forbidden edges and cycles in JS/TS projects.
+  limits: Project resolution settings and dynamic/framework entrypoints must be considered.
+- key: archunit
+  title: ArchUnit
+  url: https://www.archunit.org/userguide/html/000_Index.html
+  supports: JVM architecture tests can express dependency, layer and cycle constraints.
+  limits: No fixed hexagonal directory skeleton or proof of all design quality follows.
+- key: python-doctest
+  title: 'Python: doctest'
+  url: https://docs.python.org/3/library/doctest.html
+  supports: Executable examples can be checked against actual program output.
+  limits: Only executed examples are established; adjacent prose is not mechanically certified.
+- key: slsa
+  title: SLSA 1.2
+  url: https://slsa.dev/spec/v1.2/
+  supports: Build provenance describes source/build/artifact relationships and level-specific guarantees.
+  limits: A checksum, self-written JSON record or local signature alone does not establish a SLSA level.
+- key: docker-cache
+  title: 'Docker: GitHub Actions cache backend'
+  url: https://docs.docker.com/build/cache/backends/gha/
+  supports: Cache scope and export/import choices affect BuildKit reuse and transfer costs.
+  limits: A backend is not automatically free; cache mounts and final artifacts have distinct lifecycles.
+- key: osv
+  title: OSV-Scanner
+  url: https://google.github.io/osv-scanner/
+  supports: Native dependency and vulnerability analysis can support non-commercial-service-dependent
+    scanning.
+  limits: Database freshness, supported lock formats and tool errors need explicit handling.
+- key: dora-feedback
+  title: 'DORA: continuous integration'
+  url: https://dora.dev/capabilities/continuous-integration/
+  supports: Fast and reliable integrated feedback supports delivery quality.
+  limits: Team-level empirical guidance does not prescribe a fixed number of agents, jobs, reruns or approvals.

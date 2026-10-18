@@ -1,0 +1,10 @@
+schema=1
+profiles=["container"]
+[commands.container]
+build=["python3","native.py","build"]
+test=["python3","native.py","test"]
+scan=["python3","native.py","scan"]
+sbom=["python3","native.py","sbom"]
+[reports.container]
+kind="junit"
+path=".nddev-reports/container.xml"
