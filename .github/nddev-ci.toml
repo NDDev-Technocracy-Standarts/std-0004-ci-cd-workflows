@@ -26,3 +26,8 @@ workflows = 120
 purpose="Bind a nonproduction HTTP target to the actual tested revision and built wheel for post-merge delivery."
 command=["uv","run","python","scripts/build-delivery-fixture.py"]
 timeout=30
+
+[extras.secrets]
+purpose="Protect the public source boundary with a native full-history secret scan."
+command=["gitleaks","git","--redact","--no-banner"]
+timeout=120

@@ -14,8 +14,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Prepare pinned job-local native tools
-        run: scripts/prepare-linux-tools.sh
+        run: scripts/prepare-linux-tools.sh security
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@33e5670b840e16b39540231fc6a3bed8ab8af996 # 0.1.0 draft
   native:
     name: native (${{ matrix.profile }})
@@ -78,6 +79,7 @@ jobs:
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
         with:
           toolchain: '1.99.0'
+          components: rustfmt, clippy
       - name: Prepare pinned native Rust policy tools
         if: ${{ matrix.profile == 'rust' }}
         run: scripts/prepare-linux-tools.sh rust
