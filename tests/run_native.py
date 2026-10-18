@@ -19,6 +19,7 @@ SOURCES = {
     "cpp": "src/main.cpp",
     "node": "checksum.js",
     "dotnet": "src/Checksum/Class1.cs",
+    "sql": "migrations/002.sql",
 }
 
 
