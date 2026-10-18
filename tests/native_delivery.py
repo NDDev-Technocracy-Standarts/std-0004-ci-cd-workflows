@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from nddev_cicd import artifacts, delivery
+from nddev_cicd import artifacts, cache, delivery
 from nddev_cicd.model import Invalid, git, source_identity
 
 
@@ -98,6 +98,44 @@ def test_real_target_serialization(repository, tmp_path):
         assert state["generation"] == 1 and state["pending"] is False
         assert state["artifact"] in [candidate[1]["artifact_identity"] for candidate in candidates]
         assert state["revision"] in (target / "current/public/index.html").read_text()
+
+
+def test_separate_targets_do_not_share_a_deployment_lock(repository, tmp_path):
+    root = repository({"input.txt": "independent targets"})
+    source = source_identity(root)
+    (root / "index.html").write_text(source["tested_revision"])
+    archive = tmp_path / "site.tar.gz"
+    manifest = artifacts.pack(root, ["index.html"], archive, source)
+    targets = [tmp_path / "first", tmp_path / "second"]
+    for target in targets:
+        target.mkdir()
+    context = multiprocessing.get_context("spawn")
+    queues = [context.Queue(), context.Queue()]
+    processes = []
+    with contextlib.ExitStack() as resources:
+        settings = [
+            {
+                "module": "static-web",
+                "target_directory": str(target),
+                "generation": 1,
+                "expected_previous": None,
+                "health_url": resources.enter_context(web(target / "current")),
+            }
+            for target in targets
+        ]
+        with cache.lock(targets[0] / ".nddev-deploy.lock"):
+            for index in range(2):
+                process = context.Process(
+                    target=execute_candidate, args=(archive, manifest, source, settings[index], queues[index])
+                )
+                processes.append(process)
+                process.start()
+            assert queues[1].get(timeout=20) == "success"
+            assert not (targets[0] / ".nddev-deployment.json").exists()
+        assert queues[0].get(timeout=20) == "success"
+        for process in processes:
+            process.join(timeout=20)
+            assert process.exitcode == 0
 
 
 def test_real_python_registry_publish_and_consumer(repository, tmp_path, monkeypatch):
