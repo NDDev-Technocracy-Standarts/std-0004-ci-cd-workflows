@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import os
 import platform
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -14,9 +15,41 @@ from .model import Invalid, atomic_json, contained, digest, identity, source_ide
 from .process import run
 
 
+def selection(root: Path, contract: dict) -> tuple[list[str], dict | None]:
+    selected = list(contract["profiles"])
+    impact_record = None
+    if contract.get("impact"):
+        from .impact import affected
+
+        specification = contract["impact"]
+        components = specification.get("components", {})
+        if not components or any(not item.get("profiles") for item in components.values()):
+            raise Invalid("Every impact component requires explicit native profiles")
+        source = source_identity(root)
+        shared = list(specification.get("shared", [])) + [
+            contract["_path"],
+            "**/*lock*",
+            "go.sum",
+            ".github/workflows/*",
+        ]
+        chosen = affected(
+            root, source.get("base") or "missing-base", source["tested_revision"], components, shared
+        )
+        selected = sorted(set(selected) | {p for name in chosen for p in components[name]["profiles"]})
+        impact_record = {
+            "base": source.get("base"),
+            "selected_components": chosen,
+            "not_applicable": {
+                name: "No changed declared input or dependent" for name in components if name not in chosen
+            },
+        }
+
+    return selected, impact_record
+
+
 def _execute(root: Path, contract: dict, output: Path) -> dict:
     profiles = config.catalog()
-    selected = contract["profiles"]
+    selected, impact_record = selection(root, contract)
     unknown = set(selected) - profiles.keys()
     if unknown:
         raise Invalid(f"Unsupported selected profiles: {sorted(unknown)}")
@@ -31,6 +64,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         "results": [],
         "expected": [],
     }
+    result["impact"] = impact_record
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
     result["identity"]["locks"] = {
         path: digest(root / path)
@@ -52,6 +86,18 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
         raise Invalid("Credentials are not project contract values")
+    for tool, specification in contract.get("tools", {}).items():
+        if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", tool) or not isinstance(specification, dict):
+            raise Invalid("Tool identities require bounded names and explicit native version checks")
+        command, pattern = specification.get("command"), specification.get("pattern")
+        if not command or not isinstance(pattern, str) or not pattern:
+            raise Invalid("Each tool requires its native version command and expected version pattern")
+        name = "tool." + tool
+        result["expected"].append(name)
+        item = run(command, root, output / f"{name}.log", timeout=60, env=env)
+        if item["status"] == "success" and not re.search(pattern, Path(item["log"]).read_text()):
+            item.update(status="failure", detail="Executed tool version differs from selected contract")
+        result["results"].append({"name": name, **item})
     for profile_id in selected:
         definition = profiles[profile_id]
         manifests = definition.get("manifests", [])
@@ -143,7 +189,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
 def execute(root: Path, contract: dict, output: Path) -> dict:
     contract = copy.deepcopy(contract)
     cache_root = os.environ.get("NDDEV_CACHE_ROOT")
-    if "rust" not in contract["profiles"] or not cache_root:
+    if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)
     from .cache import namespace
 
@@ -153,11 +199,20 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
         "architecture": platform.machine(),
         "trust": os.environ.get("NDDEV_TRUST_SCOPE", "local"),
         "configuration": {"rust": contract.get("rust", {}), "contract": digest(root / contract["_path"])},
-        "toolchain": (root / "rust-toolchain.toml").read_text()
-        if (root / "rust-toolchain.toml").exists()
-        else (root / "rust-toolchain").read_text()
-        if (root / "rust-toolchain").exists()
-        else subprocess.check_output(["rustc", "-vV"], cwd=root, text=True).strip(),
+        "toolchain": subprocess.check_output(["rustc", "-vV"], cwd=root, text=True).strip(),
+        "compiler_environment": {
+            key: contract.get("environment", {}).get(key, os.environ.get(key, ""))
+            for key in (
+                "RUSTFLAGS",
+                "CARGO_ENCODED_RUSTFLAGS",
+                "RUSTUP_TOOLCHAIN",
+                "CC",
+                "CXX",
+                "CFLAGS",
+                "CXXFLAGS",
+                "CARGO_BUILD_TARGET",
+            )
+        },
         "lock": digest(root / "Cargo.lock") if (root / "Cargo.lock").exists() else "missing",
     }
     with namespace(Path(cache_root), inputs) as owned:

@@ -19,7 +19,10 @@ def tests(root: Path, specification: dict, log: Path) -> int:
             raise Invalid("Selected tests produced no contained report")
         total = 0
         for path in files:
-            node = ET.parse(path).getroot()
+            try:
+                node = ET.parse(path).getroot()
+            except ET.ParseError as error:
+                raise Invalid(f"Malformed native XML test report: {path.name}") from error
             if kind == "trx":
                 results = [x for x in node.iter() if x.tag.endswith("UnitTestResult")]
                 if any(x.attrib.get("outcome") != "Passed" for x in results):

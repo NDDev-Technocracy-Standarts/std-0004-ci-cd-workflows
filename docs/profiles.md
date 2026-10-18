@@ -277,7 +277,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/ctest.xml"
     }
   },
   "qt": {
@@ -321,7 +321,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/qt.xml"
     }
   },
   "dart-flutter": {
@@ -507,7 +507,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/swift.xml"
     }
   },
   "php": {
@@ -553,7 +553,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/phpunit.xml"
     }
   },
   "ruby": {
@@ -587,7 +587,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/rspec.xml"
     }
   },
   "r": {
@@ -625,7 +625,7 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "junit",
-      "path": ".nddev-reports/*.xml"
+      "path": ".nddev-reports/testthat.xml"
     }
   },
   "sql-data": {

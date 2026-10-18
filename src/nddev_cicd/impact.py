@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from graphlib import CycleError, TopologicalSorter
 from pathlib import Path, PurePosixPath
 
 from .model import Invalid
@@ -14,6 +15,14 @@ def affected(root: Path, base: str, head: str, components: dict, shared: list[st
     for value in components.values():
         if set(value.get("depends_on", [])) - components.keys():
             raise Invalid("Unknown component dependency")
+    try:
+        list(
+            TopologicalSorter(
+                {name: value.get("depends_on", []) for name, value in components.items()}
+            ).static_order()
+        )
+    except CycleError as error:
+        raise Invalid("Component dependencies contain a cycle") from error
     result = subprocess.run(
         ["git", "-C", str(root), "diff", "--name-only", "--no-renames", "-z", base, head],
         check=False,
@@ -29,7 +38,12 @@ def affected(root: Path, base: str, head: str, components: dict, shared: list[st
         for name, value in components.items()
         if any(PurePosixPath(path).match(pattern) for path in paths for pattern in value["paths"])
     }
-    if paths and not selected:
+    if any(
+        not any(
+            PurePosixPath(path).match(pattern) for value in components.values() for pattern in value["paths"]
+        )
+        for path in paths
+    ):
         return sorted(components)
     while True:
         additions = {

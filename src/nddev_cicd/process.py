@@ -58,7 +58,12 @@ def run(
                 if os.name != "nt":
                     os.killpg(child.pid, signal.SIGTERM)
                 else:
-                    child.terminate()
+                    subprocess.run(
+                        ["taskkill", "/PID", str(child.pid), "/T", "/F"],
+                        check=False,
+                        stdout=stream,
+                        stderr=subprocess.STDOUT,
+                    )
                 try:
                     child.wait(timeout=5)
                 except subprocess.TimeoutExpired:

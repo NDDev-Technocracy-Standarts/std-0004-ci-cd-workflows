@@ -290,3 +290,40 @@ def test_github_lineage_rejects_other_tree_and_attempt(monkeypatch):
     responses[f"repos/{repository}/git/commits/{revision}"]["tree"] = {"sha": "f" * 40}
     with pytest.raises(Invalid):
         github.eligible(repository, 1, revision, run["path"], source)
+
+
+def test_impact_unknown_changed_path_keeps_all_obligations(repository):
+    root = repository({"core/a": "one", "other/contract": "two"})
+    base = git(root, "rev-parse", "HEAD")
+    (root / "core/a").write_text("changed")
+    (root / "other/contract").write_text("changed")
+    git(root, "add", "-A")
+    git(root, "commit", "-qm", "mixed known and unknown inputs")
+    components = {"core": {"paths": ["core/*"]}, "separate": {"paths": ["separate/*"]}}
+    assert impact.affected(root, base, "HEAD", components, []) == ["core", "separate"]
+    components["core"]["depends_on"] = ["separate"]
+    components["separate"]["depends_on"] = ["core"]
+    with pytest.raises(Invalid):
+        impact.affected(root, base, "HEAD", components, [])
+
+
+def test_requested_tool_version_is_actually_checked(repository, tmp_path):
+    root = repository(
+        {
+            "README.md": "# Source\n",
+            ".github/nddev-ci.toml": """schema=1
+profiles=["documentation"]
+[tools.python]
+command=["python3","--version"]
+pattern="^Python 0.0.0$"
+[commands.documentation]
+external-links=["git","diff","--exit-code"]
+generate=["git","diff","--exit-code"]
+examples=["python3","-c","assert 2*3==6"]
+""",
+        }
+    )
+    result = ci.execute(root, config.load(root), tmp_path / "report")
+    assert result["status"] == "failure" and "tool.python" in result["failed"]
+    tool = next(item for item in result["results"] if item["name"] == "tool.python")
+    assert tool["detail"] == "Executed tool version differs from selected contract"

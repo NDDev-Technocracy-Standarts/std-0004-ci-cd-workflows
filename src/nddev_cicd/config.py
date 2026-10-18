@@ -27,13 +27,27 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "environment",
         "package",
         "rust",
+        "impact",
         "delivery",
     }
-    if config.get("schema") != 1 or set(config) - allowed:
+    if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
     profiles = config.get("profiles", [])
-    if not profiles or not all(isinstance(x, str) for x in profiles) or len(set(profiles)) != len(profiles):
+    if (
+        not isinstance(profiles, list)
+        or not profiles
+        or not all(isinstance(x, str) for x in profiles)
+        or len(set(profiles)) != len(profiles)
+    ):
         raise Invalid("Select a nonempty unique profile list")
+    definitions = catalog()
+    for profile, commands in config.get("commands", {}).items():
+        if (
+            profile not in definitions
+            or not isinstance(commands, dict)
+            or set(commands) - definitions[profile]["stages"].keys()
+        ):
+            raise Invalid(f"Unknown profile/native stage override: {profile}")
     config["_path"] = relative
     return config
 
