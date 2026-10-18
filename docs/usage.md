@@ -122,3 +122,7 @@ that actual installed compiler through its native job/extra commands; no unexecu
 `[["project-cli", "check"]]`. They execute inside the same isolated consumer environment outside the
 checkout, using the actual caller interpreter. Every command must belong to the built distribution;
 system executables or a source checkout cannot satisfy this installed-CLI check.
+
+Trusted command strings use Bash with `-euo pipefail` on Unix and PowerShell 7.3 or newer with native
+error propagation on Windows. Prefer argument arrays for project-native data arguments. The Python
+fixture exercises both successful quoting and an earlier failing process in a native shell pipeline.

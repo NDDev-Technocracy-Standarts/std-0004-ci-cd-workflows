@@ -24,7 +24,10 @@ def run(
                 "-NoProfile",
                 "-NonInteractive",
                 "-Command",
-                "$ErrorActionPreference='Stop'; " + command + "; if ($LASTEXITCODE) { exit $LASTEXITCODE }",
+                "if ($PSVersionTable.PSVersion -lt [version]'7.3') { throw 'Native command strings require PowerShell 7.3 or newer' }; "
+                "$ErrorActionPreference='Stop'; $PSNativeCommandUseErrorActionPreference=$true; "
+                + command
+                + "; if ($LASTEXITCODE) { exit $LASTEXITCODE }",
             ]
             if os.name == "nt"
             else ["bash", "--noprofile", "--norc", "-euo", "pipefail", "-c", command]

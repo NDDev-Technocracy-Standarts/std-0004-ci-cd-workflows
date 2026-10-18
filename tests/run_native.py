@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -14,6 +16,7 @@ from pathlib import Path
 from nddev_cicd.ci import execute
 from nddev_cicd.config import load
 from nddev_cicd.package_check import check as consumer_check
+from nddev_cicd.process import run
 
 SOURCES = {
     "python": "src/ciwf_fixture/__init__.py",
@@ -86,6 +89,19 @@ def exercise(name: str, output: Path) -> dict:
         if positive["status"] != "success":
             raise RuntimeError(f"Native {name} fixture failed: {positive.get('failed')}; logs: {output}")
         if name == "python":
+            executable = (
+                "'" + sys.executable.replace("'", "''") + "'"
+                if os.name == "nt"
+                else shlex.quote(sys.executable)
+            )
+            invoke = "& " + executable if os.name == "nt" else executable
+            pipeline = invoke + " -c 'import sys; sys.exit(0)' | " + invoke + " -c 'print(42)'"
+            quoting = run(pipeline, root, output / "native-pipeline-positive.log")
+            assert quoting["status"] == "success" and "42" in Path(quoting["log"]).read_text()
+            failure = run(
+                pipeline.replace("sys.exit(0)", "sys.exit(7)"), root, output / "native-pipeline-failure.log"
+            )
+            assert failure["status"] == "failure", "The shell pipeline lost an earlier native process failure"
             try:
                 consumer_check(root, {"commands": [["python", "--version"]]})
             except subprocess.CalledProcessError:
