@@ -22,6 +22,7 @@ SOURCES = {
     "sql": "migrations/002.sql",
     "advanced": "checksum.py",
     "shell": "checksum.sh",
+    "qt": "src/fixture_identity.cpp",
 }
 
 

@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell]
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,6 +52,9 @@ jobs:
       - name: Prepare the native shell test framework
         if: ${{ matrix.profile == 'shell' }}
         run: scripts/prepare-linux-tools.sh shell
+      - name: Prepare versioned Qt with its runtime dependency
+        if: ${{ matrix.profile == 'qt' }}
+        run: scripts/prepare-qt.sh
       - name: Execute native fixture and reject invalid source
         env:
           NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}
