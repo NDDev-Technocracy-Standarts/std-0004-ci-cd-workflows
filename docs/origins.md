@@ -29,3 +29,6 @@ and MIT grant are retained in `tests/native/r/renv/`; the fixture package's orig
 The Android fixture retains the verified Gradle wrapper JAR with its embedded license, an external
 copy of that license and its original script headers. The wrapper and distribution SHA256 values
 were checked against the official Gradle 9.5.0 release. Its selected native target is Android API 36.
+
+Generated Flutter web scaffolding/assets retain the Flutter SDK BSD notice in
+`tests/native/flutter/FLUTTER-LICENSE`; the SDK version is declared by the native fixture.
