@@ -87,22 +87,6 @@ sources:
   url: https://github.com/mozilla/sccache/blob/main/docs/Rust.md
   supports: Rust cache eligibility and incremental-compilation interactions constrain useful configurations.
   limits: The cache does not cover every linked result, and performance depends on workload.
-- key: nextest-archives
-  title: 'Nextest: archiving'
-  url: https://nexte.st/docs/ci-features/archiving/
-  supports: Separating test compilation and execution can avoid repeated compatible builds.
-  limits: Archives still need compatible OS/ABI, fixtures and runtime dependencies.
-- key: nextest-slots
-  title: 'Nextest: resource slots'
-  url: https://nexte.st/docs/configuration/threads-required/
-  supports: Heavy tests can reserve more execution slots in the existing runner.
-  limits: This controls one test process, not the aggregate capacity of every organization on a machine.
-- key: playwright-shards
-  title: 'Playwright: sharding'
-  url: https://playwright.dev/docs/test-sharding
-  supports: Parallel test distribution and report merging are native capabilities.
-  limits: Sharding does not remove shared state or guarantee equal durations; project fixtures must be
-    isolated.
 - key: import-linter
   title: Import Linter
   url: https://import-linter.readthedocs.io/en/latest/index.html

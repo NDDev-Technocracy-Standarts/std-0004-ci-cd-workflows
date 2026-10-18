@@ -9,7 +9,18 @@
 /// ```
 #[must_use]
 pub fn checksum(text: &str) -> u8 {
-    text.bytes().fold(0u8, u8::wrapping_add)
+    #[cfg(feature = "iterator")]
+    {
+        text.bytes().fold(0u8, u8::wrapping_add)
+    }
+    #[cfg(not(feature = "iterator"))]
+    {
+        let mut total = 0u8;
+        for value in text.bytes() {
+            total = total.wrapping_add(value);
+        }
+        total
+    }
 }
 
 #[cfg(test)]
@@ -20,5 +31,7 @@ mod tests {
     fn checksum_is_stable() {
         assert_eq!(checksum("ci"), 204);
         assert_eq!(checksum(""), 0);
+        assert_eq!(checksum("ю"), 95);
+        assert_eq!(checksum(&"x".repeat(3)), 104);
     }
 }

@@ -104,3 +104,14 @@ Documentation may exclude an exact historical directory with a trailing-slash `e
 Current source links stay checked. `network_outages` maps native connection failures/timeouts to an
 actual Issue; `access_outages.URL` requires the exact 403/429 status, reason and Issue. These remain
 unavailable in results and limitations. HTTP 404 and other broken responses cannot use this path.
+
+Target JSON rejects unknown or inapplicable fields. Pending recovery binds the same module/resource
+selectors, artifact and generation; correcting a health endpoint does not retarget a service/project.
+Compose uses `--no-deps` for precisely selected services and inspects their running immutable image
+references before acceptance or recovery. APK/AAB native manifests and IPA/XCArchive application
+metadata are inspected; signing remains explicitly unverified by this generic artifact adapter.
+Native signing checks and any store submission need their separately authorized SDK/account path.
+
+The bundled Rust fixture declares and executes Rust 1.99.0 as its minimum compiler and tests both its
+default and declared alternate feature implementation. A consumer declaring a different MSRV selects
+that actual installed compiler through its native job/extra commands; no unexecuted MSRV is inferred.

@@ -4,19 +4,61 @@ from __future__ import annotations
 
 import json
 import os
+import plistlib
 import re
 import subprocess
 import time
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import yaml
 
 from .artifacts import unpack, verify
 from .cache import lock
-from .model import Invalid, atomic_json, contained, digest
+from .model import Invalid, atomic_json, contained, digest, identity
 
 MODULES = {"static-web", "systemd-binary", "compose", "packages", "mobile-artifacts"}
+
+
+def mobile_format(path: Path) -> dict:
+    """Inspect native mobile packaging, separately from signing or store authorization."""
+    if path.suffix == ".xcarchive" and path.is_dir():
+        metadata = plistlib.loads((path / "Info.plist").read_bytes())
+        if not metadata.get("ApplicationProperties") or not list(
+            path.glob("Products/Applications/*.app/Info.plist")
+        ):
+            raise Invalid("XCArchive has no native application metadata")
+        return {"format": "xcarchive", "signing": "not-verified"}
+    if not path.is_file() or path.suffix not in {".apk", ".aab", ".ipa"}:
+        raise Invalid("Select a native APK, AAB, IPA or contained XCArchive")
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = archive.namelist()
+            if any(Path(name).is_absolute() or ".." in Path(name).parts for name in names):
+                raise Invalid("Mobile package contains an escaping member")
+            if path.suffix in {".apk", ".aab"}:
+                name = "AndroidManifest.xml" if path.suffix == ".apk" else "base/manifest/AndroidManifest.xml"
+                if not 0 < archive.getinfo(name).file_size <= 16 * 1024 * 1024:
+                    raise Invalid("Android package has no bounded native manifest")
+                archive.read(name)  # Validate the actual native manifest bytes and ZIP CRC.
+            else:
+                entries = [name for name in names if re.fullmatch(r"Payload/[^/]+\.app/Info\.plist", name)]
+                if len(entries) != 1 or archive.getinfo(entries[0]).file_size > 1024 * 1024:
+                    raise Invalid("IPA has no unique bounded native application metadata")
+                metadata = plistlib.loads(archive.read(entries[0]))
+                executable = metadata.get("CFBundleExecutable")
+                if (
+                    not metadata.get("CFBundleIdentifier")
+                    or not isinstance(executable, str)
+                    or "/" in executable
+                ):
+                    raise Invalid("IPA application identity/executable is unavailable")
+                if archive.getinfo(str(Path(entries[0]).parent / executable)).file_size <= 0:
+                    raise Invalid("IPA application executable is empty")
+    except (zipfile.BadZipFile, KeyError, ValueError) as error:
+        raise Invalid("Mobile file is not the declared native package") from error
+    return {"format": path.suffix.lstrip("."), "signing": "not-verified"}
 
 
 def native(arguments: list[str], cwd: Path) -> None:
@@ -61,12 +103,72 @@ def activate(root: Path, release: Path) -> None:
     os.replace(pending, current)
 
 
+def compose_state(config: dict, release: Path) -> list[str]:
+    """Verify selected running services and their actual immutable image references without mutation."""
+    compose = contained(release, config.get("compose_file", "compose.yaml"), exists=True)
+    services = yaml.safe_load(compose.read_text())["services"]
+    output = subprocess.check_output(
+        [
+            "docker",
+            "compose",
+            "--project-name",
+            config["project"],
+            "--file",
+            str(compose),
+            "ps",
+            "--all",
+            "--format",
+            "json",
+        ],
+        text=True,
+        timeout=30,
+    ).strip()
+    rows = (
+        json.loads(output) if output.startswith("[") else [json.loads(line) for line in output.splitlines()]
+    )
+    selected = config["services"]
+    for name in selected:
+        actual = [row for row in rows if row.get("Service") == name]
+        if not actual or any(
+            row.get("State") != "running" or row.get("Health") not in {"", "healthy"} for row in actual
+        ):
+            raise Invalid("Selected Compose services are not actually running/healthy")
+        for row in actual:
+            installed = json.loads(
+                subprocess.check_output(["docker", "inspect", row["ID"]], text=True, timeout=30)
+            )[0]
+            if installed["Config"]["Image"] != services[name]["image"]:
+                raise Invalid("Running Compose image differs from the tested immutable configuration")
+    return selected
+
+
 def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, authorized: bool) -> dict:
     if not authorized:
         raise Invalid("Target mutation requires an actual authorized trusted delivery context")
     module = config.get("module")
     if module not in MODULES:
         raise Invalid("Unsupported native delivery module")
+    common = {
+        "module",
+        "target_directory",
+        "generation",
+        "expected_previous",
+        "backup_command",
+        "data_migration",
+        "backup_waiver",
+        "rollback_compatible",
+        "recover_partial",
+        "reconcile_command",
+    }
+    fields = {
+        "static-web": {"entrypoint", "health_url", "health_contains", "version_url"},
+        "systemd-binary": {"service", "user_service", "health_url", "health_contains", "version_url"},
+        "compose": {"compose_file", "services", "project", "health_url", "health_contains", "version_url"},
+        "packages": {"publisher", "package_file", "registry"},
+        "mobile-artifacts": {"mobile_files"},
+    }
+    if set(config) - common - fields[module]:
+        raise Invalid("Unknown or inapplicable native target setting")
     target_name = config.get("target_directory")
     if not isinstance(target_name, str) or not target_name.strip() or not Path(target_name).is_absolute():
         raise Invalid("Use an explicit absolute existing target directory")
@@ -82,6 +184,26 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
     verify(archive, manifest, expected)
     revision = manifest["source"]["tested_revision"]
     artifact = manifest["artifact_identity"]
+    target_contract = identity(
+        {
+            key: config[key]
+            for key in (
+                "module",
+                "target_directory",
+                "entrypoint",
+                "service",
+                "user_service",
+                "compose_file",
+                "services",
+                "project",
+                "publisher",
+                "package_file",
+                "registry",
+                "mobile_files",
+            )
+            if key in config
+        }
+    )
     with lock(target / ".nddev-deploy.lock"):
         state_path = target / ".nddev-deployment.json"
         state = (
@@ -98,6 +220,8 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
                 )
             if state.get("module") != module:
                 raise Invalid("Recovery module differs from the pending target")
+            if state.get("target_contract") != target_contract:
+                raise Invalid("Recovery cannot retarget the pending native operation")
             release = target / ".nddev-releases" / artifact
             for name, entry in manifest["files"].items():
                 actual = contained(release, name, exists=True)
@@ -106,8 +230,13 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
             if module in {"static-web", "systemd-binary"} and (target / "current").resolve() != release:
                 raise Invalid("Current files differ; complete target recovery outside this retry")
             if module in {"static-web", "systemd-binary", "compose"}:
+                if module == "compose":
+                    state["services"] = compose_state(config, release)
                 state["health"] = health(config, revision)
             else:
+                if module == "mobile-artifacts":
+                    for relative in config["mobile_files"]:
+                        mobile_format(contained(release, relative, exists=True))
                 verification = config.get("reconcile_command")
                 if not verification:
                     raise Invalid(
@@ -163,6 +292,7 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
             "previous_artifact": state.get("artifact"),
             "pending": True,
             "module": module,
+            "target_contract": target_contract,
             "previous_release": str(previous) if previous else None,
         }
         atomic_json(state_path, record)
@@ -201,10 +331,12 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
                         "--detach",
                         "--wait",
                         "--no-build",
+                        "--no-deps",
                         *expected_services,
                     ],
                     release,
                 )
+                record["services"] = compose_state(config, release)
             elif module == "systemd-binary":
                 service = config.get("service", "")
                 if not re.fullmatch(r"[A-Za-z0-9_.@-]+\.service", service):
@@ -233,13 +365,13 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
                     raise Invalid("Supported native publishers: python, npm, nuget")
             else:
                 files = config.get("mobile_files", [])
-                if not files or any(
-                    Path(name).suffix not in {".apk", ".aab", ".ipa", ".xcarchive"} for name in files
-                ):
+                if not files:
                     raise Invalid("Select actual configured mobile deliverable files")
+                record["mobile_packages"] = {}
                 for relative in files:
-                    if contained(release, relative, exists=True).stat().st_size == 0:
-                        raise Invalid("Empty mobile artifact")
+                    record["mobile_packages"][relative] = mobile_format(
+                        contained(release, relative, exists=True)
+                    )
                 record["boundary"] = "artifact-delivery; store submission not performed"
             if module in {"compose", "systemd-binary", "static-web"}:
                 record["health"] = health(config, revision)

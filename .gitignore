@@ -28,3 +28,5 @@ generated/.std0000-prior/
 vendor/
 .phpunit.result.cache
 *.gem
+
+.gradle/

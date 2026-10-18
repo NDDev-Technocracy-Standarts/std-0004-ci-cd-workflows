@@ -25,7 +25,8 @@ hidden parallel periodic CI system. No unrelated runner is provisioned merely be
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.impact]
 criteria: Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.
 since: 0.1.0
 sources:
@@ -45,7 +46,8 @@ moved to an unobserved future run solely to make a PR fast.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.reports]
 criteria: Inject a missing report, zero-test result and skipped required job; the aggregate cannot pass.
 since: 0.1.0
 applies-when: The subject summarizes or gates validation results.
@@ -62,7 +64,8 @@ name what actually ran rather than repeat requested versions or capabilities.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.inputs]
 criteria: Distinguish changed base, changed library and unchanged deterministic inputs without fabricating
   a green status.
 since: 0.1.0
@@ -81,7 +84,8 @@ repetition; material changes require the corresponding affected check.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.profiles]
 criteria: Run native positive and failure fixtures for claimed profiles and inspect actual tool/version
   outputs.
 since: 0.1.0
@@ -99,10 +103,13 @@ execution, cross-compilation and unverified hardware; declaring a language in YA
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.gates]
 criteria: Check representative blocking and advisory cases, including scanner failure versus a confirmed
   finding.
 since: 0.1.0
+sources:
+- osv
 applies-when: The subject applies quality or security gates.
 ```
 
@@ -117,7 +124,8 @@ reproducible assertion failure or silently convert flaky behavior into an uncond
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.architecture]
 criteria: A real forbidden dependency fails; a conforming fixture passes; a missing declared module is
   not green.
 since: 0.1.0
@@ -139,7 +147,8 @@ specific dependency/layer/cycle constraints evaluated, not general architecture 
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.documents]
 criteria: Check generated drift and broken examples while preserving honest limits for prose review.
 since: 0.1.0
 sources:

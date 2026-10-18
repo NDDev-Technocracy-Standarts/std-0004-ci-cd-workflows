@@ -2,7 +2,7 @@ schema=1
 profiles=["rust"]
 [tools.rust]
 command=["rustc","--version"]
-pattern="^rustc 1[.]"
+pattern="^rustc 1[.]99[.]0"
 
 [rust]
 sccache=true
@@ -17,3 +17,9 @@ timeout=120
 purpose="Measure reuse of the same compiler store in a second fresh target"
 command=["cargo","build","--locked","--target-dir","target-probe-b"]
 timeout=120
+
+[extras.feature-set]
+purpose="Exercise the declared alternate implementation at the fixture minimum Rust version."
+command=["cargo","test","--locked","--all-features"]
+timeout=120
+report={kind="cargo"}

@@ -16,7 +16,14 @@ Source validation runs on PR updates; delivery is a separate integrated `dev`/`m
 Public Linux uses standard hosted capacity. Private Linux uses caller-owned existing self-hosted jobs.
 Windows/macOS paid-capable routes remain disabled without a confirmed compatible no-overage guarantee.
 
-Native subprocess, report, filesystem, cache concurrency and HTTP static-delivery fixtures are exercised
-by `uv run pytest`. Broad native-language fixtures and live pilot integration are being completed;
-profile presence alone does not claim hardware, SDK, deployment or provider verification.
+`uv run pytest` exercises the shared runtime invariants. `tests/run_native.py` builds/tests real
+fixtures for the 23 catalog families, with native SDK preparation in the PR workflow; the selected
+OS cells are Linux x64, public Windows x64 Python and public Apple ARM Swift. Deliberate source,
+report and dependency-graph failures are rejected. This is finite verification, not every SDK or OS.
+
+`tests/native_delivery.py` exercises isolated HTTP, OCI/Compose, systemd, HTTPS package registry and
+built Android APK targets. The systemd fixture requires an explicitly selected existing user manager;
+mobile delivery consumes the actual Android build. No production device, registry or store is changed.
+Integrated dev/main pushes separately validate native GitHub run/artifact lineage and install the
+already-tested fixture artifact into a temporary loopback target. Source is not rebuilt after merging.
 The source is [AGPL-3.0-only](LICENSE). See [origins](docs/origins.md) for the historical comparison.

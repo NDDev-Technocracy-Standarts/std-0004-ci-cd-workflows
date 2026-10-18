@@ -16,8 +16,13 @@ examples = ["uv", "run", "python", "-m", "doctest", "docs/examples.md"]
 security = ["uv", "run", "zizmor", "--offline", "--no-progress", ".github"]
 
 [artifacts]
-files = ["dist/*.whl", "dist/*.tar.gz"]
+files = ["dist/*.whl", "dist/*.tar.gz", "dist/target-fixture/index.html"]
 
 [timeouts]
 python = 900
 workflows = 120
+
+[extras.delivery-fixture]
+purpose="Bind a nonproduction HTTP target to the actual tested revision and built wheel for post-merge delivery."
+command=["uv","run","python","scripts/build-delivery-fixture.py"]
+timeout=30

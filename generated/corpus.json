@@ -60,15 +60,15 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "d796e260c32de1e3bffe8cc6e610d8169438cbd5257cc7cbe74d94325716962c"
+      "sha256": "3163579b80fbee5acc24fa82751219a1776ca39c7f824dd7cc80bf21addbc01b"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "732ddb1f7b22873aa615282c4f5fbf9606e39b18e7a0fec9527752cf5a21f5ab"
+      "sha256": "9c0872d9802e18721eacc3731801492c11a1054005b2b51981bae1ae765cfd7e"
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "4aa898edbb8ec824178e06d6cc6ed36b1b3cf8ffcd1aa20f7b345651820529cb"
+      "sha256": "661bf45219810597305fe364f48ca74b0357ed259a408ea7138f738ad2b2eabf"
     },
     {
       "path": "spec/intent.md",
@@ -80,15 +80,15 @@
     },
     {
       "path": "spec/performance.md",
-      "sha256": "41e1f45fcc281b6eace87dabd583b87d87c49d16b9eb2938598d1ba38788a5b0"
+      "sha256": "b0102895b360aa22f13daca9e5699a72e1834926553689ad03dd0067f30f2ebe"
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "297ab6440f90207e4909cbe55585318a39cc3edc183a34babcc42a83337a57b7"
+      "sha256": "807f57eb56f526e6eef9f80d8bd105da81a17fbcc957adebc19cbf48ac8d26d2"
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "1b51dde55c7785e212ac46f9729c4537d8bd19cc62c8cb4d15aff18a0faf1e87"
+      "sha256": "bd04536113dd9d426e85ae7c77be43cb49817d607075f2abccb9f81323e86689"
     },
     {
       "path": "standard.yml",
@@ -96,8 +96,111 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "2ef22ea2db3a3e10498f78d65b4244d2235bea3c7588f1e01787b332ab4e3282",
-  "verification": [],
+  "inputs-sha256": "68420f394d8c67631a68824712e56a6d5e2bd4fc43a38f2a2c2043d3e23cfc81",
+  "verification": [
+    {
+      "id": "runtime.architecture",
+      "kind": "check",
+      "target": "tests/native/architecture/.github/nddev-ci.toml",
+      "establishes": "The real Import Linter fixture accepts the correct graph and rejects a forbidden reverse dependency/cycle and an unmatched scope through tests/run_native.py."
+    },
+    {
+      "id": "runtime.artifact",
+      "kind": "test",
+      "target": "tests/test_core.py::test_artifact_bytes_mode_escape_and_tampering",
+      "establishes": "Selected artifact bytes, executable modes and content/source identities survive packaging/unpacking; traversal, tampering and unrelated source are rejected."
+    },
+    {
+      "id": "runtime.cache",
+      "kind": "test",
+      "target": "tests/test_core.py::test_cache_ownership_actual_lock_and_budget",
+      "establishes": "Owned native lock/reclamation scenarios preserve foreign and active data; native Rust fixtures measure target/sccache reuse with bounded stores. Host capacity remains an owner observation."
+    },
+    {
+      "id": "runtime.delivery",
+      "kind": "check",
+      "target": "tests/native_delivery.py",
+      "establishes": "Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and a built Android APK exercise the selected adapters. This is not production/store acceptance."
+    },
+    {
+      "id": "runtime.documents",
+      "kind": "test",
+      "target": "tests/test_core.py::test_docs_real_local_links_and_generation",
+      "establishes": "Current local links and canonical generation drift are checked. Executable doctests and Flutter localization generation exercise native examples; prose truth remains review."
+    },
+    {
+      "id": "runtime.gates",
+      "kind": "test",
+      "target": "tests/test_core.py::test_explicit_external_timeout_remains_unavailable_and_broken_urls_fail",
+      "establishes": "Declared native external transport/access limits remain unavailable with Issue references; broken responses remain failures. Findings still need project-specific review."
+    },
+    {
+      "id": "runtime.health",
+      "kind": "test",
+      "target": "tests/native_delivery.py::test_real_compose_immutable_image_and_health",
+      "establishes": "Actual native target scenarios expose the tested revision. Compose inspection also checks selected running immutable image identities; generic HTTP success is insufficient."
+    },
+    {
+      "id": "runtime.impact",
+      "kind": "test",
+      "target": "tests/test_core.py::test_impact_deletion_dependency_and_uncertainty",
+      "establishes": "Actual Git deletion/rename, dependents and missing-base cases retain required scopes; additional graph/unknown-path cases run in the same suite."
+    },
+    {
+      "id": "runtime.inputs",
+      "kind": "test",
+      "target": "tests/test_core.py::test_validation_cannot_change_its_locked_inputs",
+      "establishes": "Validation cannot silently replace the selected contract/native lock inputs; artifact manifests additionally bind actual source/tree/run/callee identities."
+    },
+    {
+      "id": "runtime.lineage",
+      "kind": "test",
+      "target": "tests/test_core.py::test_github_lineage_rejects_other_tree_and_attempt",
+      "establishes": "Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases."
+    },
+    {
+      "id": "runtime.process",
+      "kind": "test",
+      "target": "tests/test_core.py::test_process_failure_missing_timeout_and_output",
+      "establishes": "Actual subprocess failure, missing executable, bounded timeout and logs survive the shared runner. Native fixture SDK/version checks exercise installed tool selection."
+    },
+    {
+      "id": "runtime.profiles",
+      "kind": "check",
+      "target": "tests/run_native.py",
+      "establishes": "Selected native fixtures build/test/package real source and reject deliberate errors. This covers the declared finite SDK/OS cells, not every SDK or hardware target."
+    },
+    {
+      "id": "runtime.recovery",
+      "kind": "test",
+      "target": "tests/native_delivery.py::test_partial_data_migration_preserves_backup_and_never_repeats",
+      "establishes": "A real isolated SQLite backup/migration followed by failed health remains pending without incompatible file rollback; recovery verifies the same resource and does not repeat the migration."
+    },
+    {
+      "id": "runtime.reports",
+      "kind": "test",
+      "target": "tests/test_core.py::test_native_report_collection",
+      "establishes": "Native positive collection and missing/empty/all-skipped result rejection. Whole workflow job expectations are additionally checked by its final gate."
+    },
+    {
+      "id": "runtime.retention",
+      "kind": "test",
+      "target": "tests/test_core.py::test_native_failure_report_is_retained_and_escape_rejected",
+      "establishes": "Selected native report bytes are retained after failure while escaping paths are rejected. Native upload jobs retain the bounded actual result artifact."
+    },
+    {
+      "id": "runtime.routing",
+      "kind": "test",
+      "target": "tests/test_core.py::test_routing_before_allocation",
+      "establishes": "Known platform/architecture routing and refusal of an unconfirmed private paid-capable route. Actual account entitlements remain review."
+    },
+    {
+      "id": "runtime.target-lock",
+      "kind": "test",
+      "target": "tests/native_delivery.py::test_real_target_serialization",
+      "establishes": "Independent real processes racing one target cannot both replace the same previous state. Stale attempts are rejected by the same target-owned state/lock."
+    }
+  ],
   "sources": [
     {
       "key": "archunit",
@@ -226,32 +329,11 @@
       "limits": "Import graphs do not establish complete semantic architecture or all dynamic dependencies."
     },
     {
-      "key": "nextest-archives",
-      "title": "Nextest: archiving",
-      "url": "https://nexte.st/docs/ci-features/archiving/",
-      "supports": "Separating test compilation and execution can avoid repeated compatible builds.",
-      "limits": "Archives still need compatible OS/ABI, fixtures and runtime dependencies."
-    },
-    {
-      "key": "nextest-slots",
-      "title": "Nextest: resource slots",
-      "url": "https://nexte.st/docs/configuration/threads-required/",
-      "supports": "Heavy tests can reserve more execution slots in the existing runner.",
-      "limits": "This controls one test process, not the aggregate capacity of every organization on a machine."
-    },
-    {
       "key": "osv",
       "title": "OSV-Scanner",
       "url": "https://google.github.io/osv-scanner/",
       "supports": "Native dependency and vulnerability analysis can support non-commercial-service-dependent scanning.",
       "limits": "Database freshness, supported lock formats and tool errors need explicit handling."
-    },
-    {
-      "key": "playwright-shards",
-      "title": "Playwright: sharding",
-      "url": "https://playwright.dev/docs/test-sharding",
-      "supports": "Parallel test distribution and report merging are native capabilities.",
-      "limits": "Sharding does not remove shared state or guarantee equal durations; project fixtures must be isolated."
     },
     {
       "key": "python-doctest",
@@ -378,7 +460,10 @@
         "gha-reuse",
         "blacksmith-runners"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.routing"
+      ],
       "criteria": "Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.",
       "since": "0.1.0",
       "condition": {
@@ -399,6 +484,7 @@
       "strength": "MUST",
       "basis": "owner",
       "sources": [
+        "blacksmith-pricing",
         "blacksmith-runners",
         "blacksmith-settings",
         "gha-billing"
@@ -413,7 +499,7 @@
       "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 80
+        "line": 81
       }
     },
     {
@@ -427,7 +513,10 @@
         "gha-reuse",
         "gha-composite"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.routing"
+      ],
       "criteria": "Check unknown-label and cross-organization paths without accidentally scheduling a billed or private job.",
       "since": "0.1.0",
       "condition": {
@@ -437,7 +526,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 102
+        "line": 104
       }
     },
     {
@@ -473,7 +562,10 @@
       "sources": [
         "gha-events"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.impact"
+      ],
       "criteria": "Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.",
       "since": "0.1.0",
       "condition": {
@@ -493,7 +585,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.reports"
+      ],
       "criteria": "Inject a missing report, zero-test result and skipped required job; the aggregate cannot pass.",
       "since": "0.1.0",
       "condition": {
@@ -503,7 +598,7 @@
       "statement": "An aggregate success MUST account for every expected result for this candidate. No tests discovered,\na missing report, an unsupported selected target, a tool startup failure and an unexpected skipped\njob are not passed checks. Non-applicability is distinguishable from inability to execute. Optional\nchecks are optional because the project contract says so, not because they failed. Success summaries\nname what actually ran rather than repeat requested versions or capabilities.",
       "source": {
         "path": "spec/ci.md",
-        "line": 43
+        "line": 44
       }
     },
     {
@@ -513,7 +608,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.inputs"
+      ],
       "criteria": "Distinguish changed base, changed library and unchanged deterministic inputs without fabricating a green status.",
       "since": "0.1.0",
       "condition": {
@@ -523,7 +621,7 @@
       "statement": "Reusable results MUST identify the source candidate and significant validation inputs sufficiently\nto prevent reuse for a different change. Head/base or tested merge context, workflow implementation,\nlocks, selected configuration and platform matter where they affect the result. Cache hits and a\nmatching branch name do not establish check success. Expired vulnerability data and time-dependent\nchecks retain their own freshness semantics. Identical input results may be reused without ritual\nrepetition; material changes require the corresponding affected check.",
       "source": {
         "path": "spec/ci.md",
-        "line": 60
+        "line": 62
       }
     },
     {
@@ -533,7 +631,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.profiles"
+      ],
       "criteria": "Run native positive and failure fixtures for claimed profiles and inspect actual tool/version outputs.",
       "since": "0.1.0",
       "condition": {
@@ -543,7 +644,7 @@
       "statement": "A language or SDK profile MUST execute its selected native build, analysis, test and packaging\noperations with compatible resolved toolchains. It verifies the interpreter/compiler that actually\nruns and honors project locks without silently rewriting them. Installed tools, caller commands and\nplatform-specific behavior are handled explicitly. The capability catalog differentiates native\nexecution, cross-compilation and unverified hardware; declaring a language in YAML is not support.",
       "source": {
         "path": "spec/ci.md",
-        "line": 79
+        "line": 82
       }
     },
     {
@@ -553,7 +654,13 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "sources": [
+        "osv"
+      ],
+      "verification": "partial",
+      "verified-by": [
+        "runtime.gates"
+      ],
       "criteria": "Check representative blocking and advisory cases, including scanner failure versus a confirmed finding.",
       "since": "0.1.0",
       "condition": {
@@ -563,7 +670,7 @@
       "statement": "Required build, test, type, secret and selected security/architecture failures MUST affect the run\nresult. Severity and project thresholds are explicit; the library does not invent one universal\ncoverage percentage or suppress findings to obtain green. Secondary diagnostics retain a truthful\nproject-owned disposition. Retries are limited to established transient causes and never erase a\nreproducible assertion failure or silently convert flaky behavior into an unconditional pass.",
       "source": {
         "path": "spec/ci.md",
-        "line": 97
+        "line": 101
       }
     },
     {
@@ -578,7 +685,10 @@
         "dependency-cruiser",
         "archunit"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.architecture"
+      ],
       "criteria": "A real forbidden dependency fails; a conforming fixture passes; a missing declared module is not green.",
       "since": "0.1.0",
       "condition": {
@@ -588,7 +698,7 @@
       "statement": "A selected architecture check MUST evaluate declared component responsibilities and dependency\nconstraints using suitable language-native or established analysis tools. It does not impose a\nhexagonal folder skeleton on every script. Empty matched scopes cannot prove a declared boundary;\ndynamic/framework entrypoints are considered when evaluating unused code. The result reports the\nspecific dependency/layer/cycle constraints evaluated, not general architecture perfection.",
       "source": {
         "path": "spec/ci.md",
-        "line": 115
+        "line": 122
       }
     },
     {
@@ -601,7 +711,10 @@
       "sources": [
         "python-doctest"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.documents"
+      ],
       "criteria": "Check generated drift and broken examples while preserving honest limits for prose review.",
       "since": "0.1.0",
       "condition": {
@@ -611,7 +724,7 @@
       "statement": "Documentation checks MUST use canonical generation, executable examples and meaningful path/link\nvalidation where these apply. Prose is kept aligned by the primary agent in the same engineering\nchange; an automated link or schema pass does not establish its truth. This library introduces no\nmandatory prose digest, periodic attest ritual or automatic reviewer platform. An older adopted\nstandard's stronger claim rule is changed through an explicit compatible adoption process, not\nsilently disabled by this workflow. Artifact and provenance digests retain their separate purpose.",
       "source": {
         "path": "spec/ci.md",
-        "line": 137
+        "line": 145
       }
     },
     {
@@ -635,7 +748,7 @@
       "statement": "CI MUST separate untrusted source execution from deployment secrets, write authority and private\nhost state. Public fork PR code never gains access to the NDDev machine or deployment credentials.\nPrivileged event handlers do not execute candidate code, artifact scripts or attacker-supplied\ncommands before validating the actual trust boundary. Private repository visibility alone is not a\nproof that every fork or workflow change is trusted. Only required permissions and secrets reach a\njob; paid security functionality is not assumed from the fact that its CLI runs on a local machine.",
       "source": {
         "path": "spec/ci.md",
-        "line": 157
+        "line": 166
       }
     },
     {
@@ -645,7 +758,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.process"
+      ],
       "criteria": "Test setup failure, wrong interpreter, command quoting and a partially prepared replacement.",
       "since": "0.1.0",
       "condition": {
@@ -665,6 +781,9 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
+      "sources": [
+        "dora-feedback"
+      ],
       "verification": "review",
       "criteria": "Compare required outputs and relevant queue/setup/execution costs before and after the optimization.",
       "since": "0.1.0",
@@ -675,7 +794,7 @@
       "statement": "Optimization MUST preserve selected behaviors and trust boundaries. The implementation reduces\nqueue/setup duplication and the actual critical path, rather than maximize job count. Related small\nchecks may share a prepared job; independently useful heavy work may be parallelized within actual\nCPU, memory and I/O limits. Shards have traceable inputs and aggregate completeness. New runner\nfeatures are used only where the deployed runner and tools support them. No benchmark speedup is\nclaimed from one warm sample or from removed coverage.",
       "source": {
         "path": "spec/performance.md",
-        "line": 21
+        "line": 22
       }
     },
     {
@@ -686,11 +805,16 @@
       "strength": "MUST",
       "basis": "owner",
       "sources": [
+        "cargo-config",
+        "docker-cache",
         "cargo-cache",
         "sccache-local",
         "sccache-rust"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.cache"
+      ],
       "criteria": "Check cache compatibility, simultaneous runners and pressure cleanup without losing active/recovery data.",
       "since": "0.1.0",
       "condition": {
@@ -700,7 +824,7 @@
       "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.",
       "source": {
         "path": "spec/performance.md",
-        "line": 39
+        "line": 42
       }
     },
     {
@@ -713,7 +837,10 @@
       "sources": [
         "gha-artifacts"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.retention"
+      ],
       "criteria": "Inspect actual exported contents, mode preservation, retention and failure diagnostics.",
       "since": "0.1.0",
       "condition": {
@@ -723,7 +850,7 @@
       "statement": "Run diagnostics and artifacts MUST have an identified use, appropriate retention and safe contents.\nGitHub logs/summaries serve small feedback; large artifacts are not duplicated merely to create a\nreport. Permissions, executable bits and hidden inputs needed by an actual package are preserved by\nits packaging method. Credentials and private customer data never enter a public artifact, SBOM,\ncache or log. A cancelled run's useful diagnostics remain identifiable without retaining its entire\nworkspace indefinitely.",
       "source": {
         "path": "spec/performance.md",
-        "line": 61
+        "line": 67
       }
     },
     {
@@ -736,7 +863,10 @@
       "sources": [
         "gha-events"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.lineage"
+      ],
       "criteria": "Exercise late base changes, superseded PR results and malicious/unrelated artifact references.",
       "since": "0.1.0",
       "condition": {
@@ -759,7 +889,10 @@
       "sources": [
         "slsa"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.artifact"
+      ],
       "criteria": "Trace artifact bytes from trusted build through download and target installation.",
       "since": "0.1.0",
       "condition": {
@@ -769,7 +902,7 @@
       "statement": "A supplied release artifact MUST identify its source, build inputs and digest. The same verified\nartifact is promoted between compatible environments where possible, with environment configuration\nkept separate. Necessary environment-specific rebuilds create a new artifact identity and receive\napplicable build validation, not a copied success label. Provenance/attestation claims reflect the\nactual build and provider guarantees; a checksum alone neither authenticates an artifact nor grants\nSLSA level certification.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 22
+        "line": 23
       }
     },
     {
@@ -782,7 +915,10 @@
       "sources": [
         "gha-secrets"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.delivery"
+      ],
       "criteria": "Run an adapter against an authorized representative target; a generated plan is not an applied result.",
       "since": "0.1.0",
       "condition": {
@@ -792,7 +928,7 @@
       "statement": "A delivered CD module MUST invoke the project's actual configured deployment path and observe its\noutcome. First-party adapters remain modular and cover their documented target types without forcing\none universal plan/approval platform. Repository secrets provide required credentials through\nsupported host features; private GitHub Free is not assumed to have organization secrets or\nEnvironments. Source-only projects and mobile artifacts without store credentials have their real\ncompletion boundary; a fictitious production service is not required.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 42
+        "line": 44
       }
     },
     {
@@ -805,7 +941,10 @@
       "sources": [
         "gha-concurrency"
       ],
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.target-lock"
+      ],
       "criteria": "Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.",
       "since": "0.1.0",
       "condition": {
@@ -815,7 +954,7 @@
       "statement": "Concurrent changes to the same delivery target MUST have one effective coordination owner. A unique\nattempt/deployment ID is not a target lock. Repository-local concurrency is not a cross-repository\nlock. An older attempt cannot overwrite a newer accepted target state, and superseding CI cancellation\nis not blindly applied to a running data migration. Read-only or unrelated jobs need not share the\nmutation lock. Native target/infrastructure primitives are preferred over a new scheduling service.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 63
+        "line": 66
       }
     },
     {
@@ -825,7 +964,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.recovery"
+      ],
       "criteria": "Cover failed health checks, interruption after migration and an incompatible previous artifact.",
       "since": "0.1.0",
       "condition": {
@@ -835,7 +977,7 @@
       "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user explicitly waived it for that scope. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 82
+        "line": 86
       }
     },
     {
@@ -845,7 +987,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
-      "verification": "review",
+      "verification": "partial",
+      "verified-by": [
+        "runtime.health"
+      ],
       "criteria": "Correlate target version, actual scenario, timing and logs, including a deliberately failed scenario.",
       "since": "0.1.0",
       "condition": {
@@ -855,7 +1000,7 @@
       "statement": "Successful delivery MUST identify the intended target revision and demonstrate the relevant health\nor user scenario with available current diagnostics. A process start or absence of log lines alone\nis insufficient when the intended scenario fails. Active DAST, stress and destructive fixtures use\nauthorized suitable test targets, not live customer data by default. Failure remains visible to the\nowning GitHub task; no pipeline auto-closes a delivery parent merely at merge.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 100
+        "line": 105
       }
     },
     {

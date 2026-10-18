@@ -61,7 +61,8 @@ implementation version, runtime schema and consumer product version remain separ
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.routing]
 criteria: Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.
 since: 0.1.0
 sources:
@@ -86,6 +87,7 @@ verification: review
 criteria: Verify account-level cost enforcement and concurrent-run handling before any paid-capable dispatch.
 since: 0.1.0
 sources:
+- blacksmith-pricing
 - blacksmith-runners
 - blacksmith-settings
 - gha-billing
@@ -104,7 +106,8 @@ require account churn, duplicate organizations or misrepresentation to obtain al
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.routing]
 criteria: Check unknown-label and cross-organization paths without accidentally scheduling a billed or
   private job.
 since: 0.1.0

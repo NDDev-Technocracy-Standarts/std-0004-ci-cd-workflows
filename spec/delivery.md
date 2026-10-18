@@ -5,7 +5,8 @@
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.lineage]
 criteria: Exercise late base changes, superseded PR results and malicious/unrelated artifact references.
 since: 0.1.0
 sources:
@@ -24,7 +25,8 @@ through the project's existing corresponding check path rather than assumed from
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.artifact]
 criteria: Trace artifact bytes from trusted build through download and target installation.
 since: 0.1.0
 sources:
@@ -44,7 +46,8 @@ SLSA level certification.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.delivery]
 criteria: Run an adapter against an authorized representative target; a generated plan is not an applied
   result.
 since: 0.1.0
@@ -65,7 +68,8 @@ completion boundary; a fictitious production service is not required.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.target-lock]
 criteria: Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.
 since: 0.1.0
 sources:
@@ -84,7 +88,8 @@ mutation lock. Native target/infrastructure primitives are preferred over a new 
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.recovery]
 criteria: Cover failed health checks, interruption after migration and an incompatible previous artifact.
 since: 0.1.0
 applies-when: Delivery changes data or encounters partial execution or failure.
@@ -102,7 +107,8 @@ before reconciling their actual result.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.health]
 criteria: Correlate target version, actual scenario, timing and logs, including a deliberately failed
   scenario.
 since: 0.1.0

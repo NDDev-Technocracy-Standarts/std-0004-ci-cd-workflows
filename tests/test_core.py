@@ -166,6 +166,15 @@ def test_impact_deletion_dependency_and_uncertainty(repository):
     components = {"core": {"paths": ["core/*"]}, "app": {"paths": ["app/*"], "depends_on": ["core"]}}
     assert impact.affected(root, base, "HEAD", components, ["shared/*"]) == ["app", "core"]
     assert impact.affected(root, "missing-base", "HEAD", components, ["shared/*"]) == ["app", "core"]
+    rename_base = git(root, "rev-parse", "HEAD")
+    git(root, "mv", "app/a", "core/moved")
+    git(root, "commit", "-qm", "move between independent components")
+    components = {
+        "core": {"paths": ["core/*"]},
+        "app": {"paths": ["app/*"]},
+        "consumer": {"paths": ["consumer/*"], "depends_on": ["app"]},
+    }
+    assert impact.affected(root, rename_base, "HEAD", components, []) == ["app", "consumer", "core"]
 
 
 def test_docs_real_local_links_and_generation(repository):

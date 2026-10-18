@@ -5,7 +5,8 @@
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.process]
 criteria: Test setup failure, wrong interpreter, command quoting and a partially prepared replacement.
 since: 0.1.0
 applies-when: A wrapper or dependent operation executes commands.
@@ -26,6 +27,8 @@ basis: owner
 verification: review
 criteria: Compare required outputs and relevant queue/setup/execution costs before and after the optimization.
 since: 0.1.0
+sources:
+- dora-feedback
 applies-when: The subject changes execution efficiency or parallelism.
 ```
 
@@ -41,11 +44,14 @@ claimed from one warm sample or from removed coverage.
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.cache]
 criteria: Check cache compatibility, simultaneous runners and pressure cleanup without losing active/recovery
   data.
 since: 0.1.0
 sources:
+- cargo-config
+- docker-cache
 - cargo-cache
 - sccache-local
 - sccache-rust
@@ -63,7 +69,8 @@ cleanup of the shared host or cargo clean before every run is not the default op
 ```item
 strength: MUST
 basis: owner
-verification: review
+verification: partial
+verified-by: [runtime.retention]
 criteria: Inspect actual exported contents, mode preservation, retention and failure diagnostics.
 since: 0.1.0
 sources:

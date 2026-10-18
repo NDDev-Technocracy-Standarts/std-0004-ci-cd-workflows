@@ -1,3 +1,72 @@
 apiVersion: std-0000.nddev.ai/v1alpha1
 kind: VerificationInventory
-entries: []
+# Scope is deliberately partial: tests do not decide owner authority, billing guarantees or prose truth.
+entries:
+- id: runtime.routing
+  kind: test
+  target: tests/test_core.py::test_routing_before_allocation
+  establishes: Known platform/architecture routing and refusal of an unconfirmed private paid-capable route. Actual account entitlements remain review.
+- id: runtime.impact
+  kind: test
+  target: tests/test_core.py::test_impact_deletion_dependency_and_uncertainty
+  establishes: Actual Git deletion/rename, dependents and missing-base cases retain required scopes; additional graph/unknown-path cases run in the same suite.
+- id: runtime.reports
+  kind: test
+  target: tests/test_core.py::test_native_report_collection
+  establishes: Native positive collection and missing/empty/all-skipped result rejection. Whole workflow job expectations are additionally checked by its final gate.
+- id: runtime.inputs
+  kind: test
+  target: tests/test_core.py::test_validation_cannot_change_its_locked_inputs
+  establishes: Validation cannot silently replace the selected contract/native lock inputs; artifact manifests additionally bind actual source/tree/run/callee identities.
+- id: runtime.profiles
+  kind: check
+  target: tests/run_native.py
+  establishes: Selected native fixtures build/test/package real source and reject deliberate errors. This covers the declared finite SDK/OS cells, not every SDK or hardware target.
+- id: runtime.gates
+  kind: test
+  target: tests/test_core.py::test_explicit_external_timeout_remains_unavailable_and_broken_urls_fail
+  establishes: Declared native external transport/access limits remain unavailable with Issue references; broken responses remain failures. Findings still need project-specific review.
+- id: runtime.architecture
+  kind: check
+  target: tests/native/architecture/.github/nddev-ci.toml
+  establishes: The real Import Linter fixture accepts the correct graph and rejects a forbidden reverse dependency/cycle and an unmatched scope through tests/run_native.py.
+- id: runtime.documents
+  kind: test
+  target: tests/test_core.py::test_docs_real_local_links_and_generation
+  establishes: Current local links and canonical generation drift are checked. Executable doctests and Flutter localization generation exercise native examples; prose truth remains review.
+- id: runtime.process
+  kind: test
+  target: tests/test_core.py::test_process_failure_missing_timeout_and_output
+  establishes: Actual subprocess failure, missing executable, bounded timeout and logs survive the shared runner. Native fixture SDK/version checks exercise installed tool selection.
+- id: runtime.cache
+  kind: test
+  target: tests/test_core.py::test_cache_ownership_actual_lock_and_budget
+  establishes: Owned native lock/reclamation scenarios preserve foreign and active data; native Rust fixtures measure target/sccache reuse with bounded stores. Host capacity remains an owner observation.
+- id: runtime.retention
+  kind: test
+  target: tests/test_core.py::test_native_failure_report_is_retained_and_escape_rejected
+  establishes: Selected native report bytes are retained after failure while escaping paths are rejected. Native upload jobs retain the bounded actual result artifact.
+- id: runtime.lineage
+  kind: test
+  target: tests/test_core.py::test_github_lineage_rejects_other_tree_and_attempt
+  establishes: Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases.
+- id: runtime.artifact
+  kind: test
+  target: tests/test_core.py::test_artifact_bytes_mode_escape_and_tampering
+  establishes: Selected artifact bytes, executable modes and content/source identities survive packaging/unpacking; traversal, tampering and unrelated source are rejected.
+- id: runtime.delivery
+  kind: check
+  target: tests/native_delivery.py
+  establishes: Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and a built Android APK exercise the selected adapters. This is not production/store acceptance.
+- id: runtime.target-lock
+  kind: test
+  target: tests/native_delivery.py::test_real_target_serialization
+  establishes: Independent real processes racing one target cannot both replace the same previous state. Stale attempts are rejected by the same target-owned state/lock.
+- id: runtime.recovery
+  kind: test
+  target: tests/native_delivery.py::test_partial_data_migration_preserves_backup_and_never_repeats
+  establishes: A real isolated SQLite backup/migration followed by failed health remains pending without incompatible file rollback; recovery verifies the same resource and does not repeat the migration.
+- id: runtime.health
+  kind: test
+  target: tests/native_delivery.py::test_real_compose_immutable_image_and_health
+  establishes: Actual native target scenarios expose the tested revision. Compose inspection also checks selected running immutable image identities; generic HTTP success is insufficient.

@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@971ee96973c6a570d87bf1aff2b59f3a810c1ffa # 0.1.0 draft
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@b38473b77385b07759228bf65504ac75b5dc4a5a # 0.1.0 draft
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r]
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -55,7 +55,7 @@ jobs:
           bundler: '4.0.23'
           bundler-cache: false
       - name: Select the declared native JDK
-        if: ${{ matrix.profile == 'jvm' }}
+        if: ${{ matrix.profile == 'jvm' || matrix.profile == 'android' }}
         run: |
           test -n "$JAVA_HOME_21_X64"
           echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
@@ -73,6 +73,11 @@ jobs:
           channel: stable
           cache: 'false'
           pub-cache: 'false'
+      - name: Select the fixture minimum supported Rust compiler
+        if: ${{ matrix.profile == 'rust' }}
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: '1.99.0'
       - name: Prepare pinned native Rust policy tools
         if: ${{ matrix.profile == 'rust' }}
         run: scripts/prepare-linux-tools.sh rust
@@ -82,6 +87,13 @@ jobs:
       - name: Prepare the native shell test framework
         if: ${{ matrix.profile == 'shell' }}
         run: scripts/prepare-linux-tools.sh shell
+      - name: Select the declared native Android SDK
+        if: ${{ matrix.profile == 'android' }}
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          cmdline-tools-version: '15859902'
+          packages: 'platforms;android-36 build-tools;36.0.0 platform-tools'
+          log-accepted-android-sdk-licenses: false
       - name: Select the actual native IaC toolchain
         if: ${{ matrix.profile == 'infrastructure' }}
         uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
@@ -102,9 +114,16 @@ jobs:
           NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}
           TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy-cache
           RENV_PATHS_ROOT: ${{ runner.temp }}/renv
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle
+          ANDROID_USER_HOME: ${{ runner.temp }}/android-user
           RENV_CONFIG_CONSENT: 'TRUE'
           NDDEV_CACHE_ROOT: ${{ matrix.profile == 'rust' && format('{0}/nddev-native-cache', runner.temp) || '' }}
         run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
+      - name: Deliver and verify the actual built Android package
+        if: ${{ matrix.profile == 'android' }}
+        env:
+          NDDEV_ANDROID_APK: ${{ runner.temp }}/native-fixture/positive/mobile/fixture.apk
+        run: uv run --locked pytest -q tests/native_delivery.py -k mobile
       - name: Retain actual native logs
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -161,12 +180,26 @@ jobs:
           python-version: '3.13'
       - name: Execute real Apple ARM Swift package and rejected source
         run: uv run --locked python tests/run_native.py swift --output "$RUNNER_TEMP/native-swift"
+  delivery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Exercise native registries, target concurrency and data-compatible recovery
+        run: uv run --locked pytest -q tests/native_delivery.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
   gate:
-    needs: [source, native, admission, windows, macos]
+    needs: [source, native, admission, windows, macos, delivery]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - env:
           NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos"} and all(v["result"]=="success" for v in jobs.values()), jobs'
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery"} and all(v["result"]=="success" for v in jobs.values()), jobs'
