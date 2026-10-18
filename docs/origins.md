@@ -18,3 +18,8 @@ existing consumer is changed.
 Canonical standard compilation uses the authorized STD-0000 tool in its private integration path.
 Public runtime installation, native tests and consumer invocation do not require that tool or any
 private corpus. Compiler-generated output here derives from this repository's own normative source.
+
+The JVM fixture is new. Its Maven only-script wrapper 3.3.4 was generated with the native Apache
+Maven wrapper plugin, retaining the original script headers and upstream LICENSE/NOTICE alongside
+its configuration. The distribution URL and SHA256 bind Maven 3.10.0; the official SHA512 was checked
+when preparing this fixture. Its Java/JUnit/Checkstyle checks execute actual source, not recorded calls.
