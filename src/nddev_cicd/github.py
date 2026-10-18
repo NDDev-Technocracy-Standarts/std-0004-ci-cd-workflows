@@ -52,6 +52,17 @@ def eligible(
     ):
         raise Invalid("Build run is not the expected successful same-repository PR validation")
     pulls = run.get("pull_requests", [])
+    if not pulls:
+        # GitHub can clear a completed PR run's mutable association list after merge.
+        # Recover only from the actual integrated commit, retaining the immutable run head.
+        associated = get(f"repos/{repository}/commits/{integrated_revision}/pulls")
+        pulls = [
+            pull
+            for pull in associated
+            if pull.get("merged_at")
+            and pull.get("merge_commit_sha") == integrated_revision
+            and pull.get("head", {}).get("sha") == run["head_sha"]
+        ]
     if len(pulls) != 1:
         raise Invalid("Exactly one source PR must bind the build candidate")
     pull = get(f"repos/{repository}/pulls/{pulls[0]['number']}")
