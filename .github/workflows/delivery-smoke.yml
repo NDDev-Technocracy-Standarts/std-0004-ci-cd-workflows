@@ -27,7 +27,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: uv run --locked python scripts/delivery-smoke.py prepare "$RUNNER_TEMP/integrated-smoke"
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/deliver@f325eba724711d8fb605069da7c7be7b4580b378 # 0.1.0 draft
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/deliver@0e372397ee4c8358cfb8572d3603175354f34f5a # 0.1.0 draft
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
