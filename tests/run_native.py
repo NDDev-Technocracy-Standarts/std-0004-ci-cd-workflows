@@ -23,6 +23,7 @@ SOURCES = {
     "advanced": "checksum.py",
     "shell": "checksum.sh",
     "qt": "src/fixture_identity.cpp",
+    "flutter": "lib/main.dart",
 }
 
 

@@ -19,3 +19,6 @@ generated/.std0000-prior/
 .coverage
 .ruff_cache/
 .nddev-library-source/
+
+.idea/
+*.iml
