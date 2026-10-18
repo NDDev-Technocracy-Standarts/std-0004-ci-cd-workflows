@@ -98,12 +98,15 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         if item["status"] == "success" and not re.search(pattern, Path(item["log"]).read_text()):
             item.update(status="failure", detail="Executed tool version differs from selected contract")
         result["results"].append({"name": name, **item})
+    cancelled = False
     for profile_id in selected:
         definition = profiles[profile_id]
         manifests = definition.get("manifests", [])
         if manifests and not any(list(root.glob(pattern)) for pattern in manifests):
             raise Invalid(f"{profile_id} has no matching native manifest: {manifests}")
-        setup_failed = False
+        setup_failed = any(
+            i["status"] != "success" for i in result["results"] if i["name"].startswith("tool.")
+        )
         for stage, default in definition["stages"].items():
             name = f"{profile_id}.{stage}"
             result["expected"].append(name)
@@ -114,8 +117,13 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             result["status"] = "failure"
             atomic_json(output / "result.json", result)
             try:
-                if setup_failed:
-                    entry.update(status="unavailable", detail="Required profile setup did not succeed")
+                if cancelled or setup_failed:
+                    entry.update(
+                        status="unavailable",
+                        detail="Execution cancelled"
+                        if cancelled
+                        else "Required profile setup did not succeed",
+                    )
                     continue
                 if stage == "syntax" and profile_id == "documentation":
                     entry.update(documentation.check(root, contract.get("documentation")), status="success")
@@ -158,6 +166,8 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         env=env,
                     )
                 )
+                if entry.get("detail") == "cancelled":
+                    cancelled = True
                 if stage == "setup" and entry["status"] != "success":
                     setup_failed = True
                 if entry["status"] == "success" and stage == "test":
@@ -170,9 +180,21 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
             raise Invalid("Each selected extra needs a concrete purpose, command and finite timeout")
         result["expected"].append("extra." + name)
-        item = run(
-            extra["command"], root, output / f"extra-{name}.log", timeout=extra.get("timeout", 600), env=env
-        )
+        if cancelled:
+            item: dict = {"status": "unavailable", "detail": "Execution cancelled"}
+        else:
+            item = run(
+                extra["command"],
+                root,
+                output / f"extra-{name}.log",
+                timeout=extra.get("timeout", 600),
+                env=env,
+            )
+        if item["status"] == "success" and extra.get("report"):
+            try:
+                item["tests_executed"] = reports.tests(root, extra["report"], Path(item["log"]))
+            except (Invalid, ValueError, OSError) as error:
+                item.update(status="failure", detail=str(error))
         result["results"].append({"name": "extra." + name, **item})
     result.update(reports.aggregate(result["expected"], result["results"]))
     result["inputs_digest"] = identity(result["identity"])

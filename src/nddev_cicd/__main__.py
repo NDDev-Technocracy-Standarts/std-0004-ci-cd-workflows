@@ -55,12 +55,15 @@ def main(argv=None) -> int:
             result = ci.execute(root, contract, args.output.resolve())
             # Selected packaging is connected to actual successful source results, not a plan-only helper.
             if result["status"] == "success" and contract.get("artifacts", {}).get("files"):
-                result["artifact"] = artifacts.pack(
-                    root,
-                    contract["artifacts"]["files"],
-                    args.output.resolve() / "artifact.tar.gz",
-                    result["identity"],
-                )
+                try:
+                    result["artifact"] = artifacts.pack(
+                        root,
+                        contract["artifacts"]["files"],
+                        args.output.resolve() / "artifact.tar.gz",
+                        result["identity"],
+                    )
+                except (Invalid, OSError, ValueError) as error:
+                    result.update(status="failure", artifact_error=str(error))
                 atomic_json(args.output.resolve() / "result.json", result)
             print(json.dumps({"status": result["status"], "result": str(args.output / "result.json")}))
             return 0 if result["status"] == "success" else 1

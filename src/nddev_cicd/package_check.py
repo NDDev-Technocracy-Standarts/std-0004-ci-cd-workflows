@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import tempfile
 import tomllib
 import zipfile
@@ -14,6 +13,11 @@ from .model import Invalid
 
 
 def check(root: Path) -> None:
+    caller_environment = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in {"UV_PROJECT_ENVIRONMENT", "UV_PROJECT", "VIRTUAL_ENV", "PYTHONPATH"}
+    }
     config = tomllib.loads((root / "pyproject.toml").read_text())
     wheels = list((root / "dist").glob("*.whl"))
     sdists = list((root / "dist").glob("*.tar.gz"))
@@ -30,24 +34,41 @@ def check(root: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="nddev-wheel-consumer-") as directory:
         workspace = Path(directory)
         environment = workspace / "venv"
-        subprocess.run(["uv", "venv", "--python", sys.executable, str(environment)], check=True)
+        caller_python = subprocess.check_output(
+            ["uv", "run", "--locked", "--no-sync", "python", "-c", "import sys; print(sys.executable)"],
+            cwd=root,
+            env=caller_environment,
+            text=True,
+        ).strip()
+        subprocess.run(
+            ["uv", "venv", "--python", caller_python, str(environment)], env=caller_environment, check=True
+        )
         python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
         requirements = workspace / "requirements.txt"
         with requirements.open("w") as stream:
             subprocess.run(
                 ["uv", "export", "--locked", "--no-dev", "--no-emit-project"],
                 cwd=root,
+                env=caller_environment,
                 stdout=stream,
                 check=True,
             )
-        subprocess.run(["uv", "pip", "sync", "--python", str(python), str(requirements)], check=True)
         subprocess.run(
-            ["uv", "pip", "install", "--no-deps", "--python", str(python), str(wheels[0])], check=True
+            ["uv", "pip", "sync", "--python", str(python), str(requirements)],
+            env=caller_environment,
+            check=True,
+        )
+        subprocess.run(
+            ["uv", "pip", "install", "--no-deps", "--python", str(python), str(wheels[0])],
+            env=caller_environment,
+            check=True,
         )
         expression = "import importlib; " + "; ".join(
             f"importlib.import_module({name!r})" for name in modules
         )
-        subprocess.run([str(python), "-I", "-c", expression], cwd=workspace, check=True)
+        subprocess.run(
+            [str(python), "-I", "-c", expression], cwd=workspace, env=caller_environment, check=True
+        )
     if not config.get("project", {}).get("name"):
         raise Invalid("Package identity is absent")
 
