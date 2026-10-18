@@ -1,6 +1,6 @@
 # Implementation origins
 
-Generic native fixtures under `tests/native/{python,rust,go,cpp,qt,flutter,node,swift,r,sql}`
+Generic native fixtures under `tests/native/{python,rust,go,cpp,qt,flutter,node,swift,r,sql,android}`
 were imported from the public `NDDev-Technocracy-Archive/ci-workflows` exact source
 `481fc9e5e8411106a1f6effcd9372784b0f3f245`, originally at corresponding `tests/fixtures/` paths.
 Their original [notice](../tests/native/NOTICE), copyright and AGPL-3.0-or-later grant are retained.
@@ -23,3 +23,9 @@ The JVM fixture is new. Its Maven only-script wrapper 3.3.4 was generated with t
 Maven wrapper plugin, retaining the original script headers and upstream LICENSE/NOTICE alongside
 its configuration. The distribution URL and SHA256 bind Maven 3.10.0; the official SHA512 was checked
 when preparing this fixture. Its Java/JUnit/Checkstyle checks execute actual source, not recorded calls.
+
+The R fixture uses the native renv 1.3.1 generated activation script. Its upstream Posit copyright
+and MIT grant are retained in `tests/native/r/renv/`; the fixture package's original license remains.
+The Android fixture retains the verified Gradle wrapper JAR with its embedded license, an external
+copy of that license and its original script headers. The wrapper and distribution SHA256 values
+were checked against the official Gradle 9.5.0 release. Its selected native target is Android API 36.

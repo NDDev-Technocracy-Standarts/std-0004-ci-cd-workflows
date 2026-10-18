@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 from . import config, documentation, reports
-from .model import Invalid, atomic_json, contained, digest, identity, source_identity
+from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
 
@@ -84,10 +84,17 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         )
         if (root / path).is_file()
     }
+    for selected_profile in selected:
+        for locked_input in profiles[selected_profile].get("locked_inputs", []):
+            path = contained(root, locked_input, exists=True)
+            if not path.is_file() or path.is_symlink() or not git(root, "ls-files", "--", locked_input):
+                raise Invalid(f"{selected_profile} needs a tracked native lockfile: {locked_input}")
     commands = contract.get("commands", {})
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
         raise Invalid("Credentials are not project contract values")
+    if "ruby" in selected:
+        env["BUNDLE_FROZEN"] = "true"
     env["NDDEV_RESULT_DIR"] = str(output.resolve())
     env["NDDEV_TESTED_REVISION"] = result["identity"]["tested_revision"]
     env["NDDEV_TESTED_TREE"] = result["identity"]["tested_tree"]
@@ -248,6 +255,21 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             except (Invalid, OSError) as error:
                 item.update(status="failure", detail=str(error))
         result["results"].append({"name": "extra." + name, **item})
+    result["expected"].append("inputs.lock-integrity")
+    changed_inputs = [
+        path
+        for path, expected_digest in result["identity"]["locks"].items()
+        if not (root / path).is_file() or digest(root / path) != expected_digest
+    ]
+    if digest(contained(root, contract["_path"], exists=True)) != result["identity"]["contract_sha256"]:
+        changed_inputs.append(contract["_path"])
+    result["results"].append(
+        {
+            "name": "inputs.lock-integrity",
+            "status": "failure" if changed_inputs else "success",
+            "changed_inputs": changed_inputs,
+        }
+    )
     result.update(reports.aggregate(result["expected"], result["results"]))
     result["inputs_digest"] = identity(result["identity"])
     atomic_json(output / "result.json", result)

@@ -610,7 +610,10 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/phpunit.xml"
-    }
+    },
+    "locked_inputs": [
+      "composer.lock"
+    ]
   },
   "ruby": {
     "manifests": [
@@ -644,7 +647,10 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/rspec.xml"
-    }
+    },
+    "locked_inputs": [
+      "Gemfile.lock"
+    ]
   },
   "r": {
     "manifests": [
@@ -669,7 +675,7 @@ Commands can be overridden through the caller contract; selected baseline stages
       "test": [
         "Rscript",
         "-e",
-        "testthat::test_local(reporter=testthat::JunitReporter$new(file=\".nddev-reports/testthat.xml\"))"
+        "testthat::test_local(reporter=testthat::JunitReporter$new(file=file.path(getwd(),\".nddev-reports/testthat.xml\")))"
       ],
       "build": [
         "R",
@@ -687,7 +693,10 @@ Commands can be overridden through the caller contract; selected baseline stages
       "package": [
         "build"
       ]
-    }
+    },
+    "locked_inputs": [
+      "renv.lock"
+    ]
   },
   "sql-data": {
     "manifests": [

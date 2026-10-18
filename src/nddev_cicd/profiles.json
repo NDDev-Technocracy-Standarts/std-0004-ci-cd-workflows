@@ -575,7 +575,10 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/phpunit.xml"
-    }
+    },
+    "locked_inputs": [
+      "composer.lock"
+    ]
   },
   "ruby": {
     "manifests": [
@@ -609,7 +612,10 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/rspec.xml"
-    }
+    },
+    "locked_inputs": [
+      "Gemfile.lock"
+    ]
   },
   "r": {
     "manifests": [
@@ -634,7 +640,7 @@
       "test": [
         "Rscript",
         "-e",
-        "testthat::test_local(reporter=testthat::JunitReporter$new(file=\".nddev-reports/testthat.xml\"))"
+        "testthat::test_local(reporter=testthat::JunitReporter$new(file=file.path(getwd(),\".nddev-reports/testthat.xml\")))"
       ],
       "build": [
         "R",
@@ -652,7 +658,10 @@
       "package": [
         "build"
       ]
-    }
+    },
+    "locked_inputs": [
+      "renv.lock"
+    ]
   },
   "sql-data": {
     "manifests": [

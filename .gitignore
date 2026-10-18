@@ -22,3 +22,9 @@ generated/.std0000-prior/
 
 .idea/
 *.iml
+
+.terraform/
+
+vendor/
+.phpunit.result.cache
+*.gem

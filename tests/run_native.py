@@ -6,7 +6,9 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
+from contextlib import ExitStack
 from pathlib import Path
 
 from nddev_cicd.ci import execute
@@ -28,6 +30,12 @@ SOURCES = {
     "jvm": "src/main/java/example/Checksum.java",
     "ruby": "lib/native_checksum.rb",
     "architecture": "src/native_graph/domain.py",
+    "infrastructure": "main.tf",
+    "container": "Dockerfile",
+    "php": "src/Checksum.php",
+    "security": "app.py",
+    "r": "R/checksum.R",
+    "android": "app/src/main/kotlin/com/nddev/ci/fixture/MainActivity.kt",
 }
 
 
@@ -35,15 +43,36 @@ def exercise(name: str, output: Path) -> dict:
     fixture = Path(__file__).with_name("native") / name
     if name not in SOURCES or not fixture.is_dir():
         raise ValueError(f"No integrated native fixture for {name}")
-    with tempfile.TemporaryDirectory(prefix=f"nddev-native-{name}-") as directory:
+    with tempfile.TemporaryDirectory(prefix=f"nddev-native-{name}-") as directory, ExitStack() as cleanup:
         root = Path(directory) / "caller"
+        standard_ignores = shutil.ignore_patterns(
+            ".venv",
+            "target",
+            "build",
+            "dist",
+            "__pycache__",
+            ".pytest_cache",
+            ".nddev-reports",
+            "vendor",
+            ".terraform",
+            ".gradle",
+        )
+
+        def ignored(path, names):
+            omitted = standard_ignores(path, names)
+            if name == "r" and Path(path).name == "renv":
+                omitted.update({"library", "staging"} & set(names))
+            return omitted
+
         shutil.copytree(
             fixture,
             root,
-            ignore=shutil.ignore_patterns(
-                ".venv", "target", "build", "dist", "__pycache__", ".pytest_cache", ".nddev-reports"
-            ),
+            ignore=ignored,
         )
+        if name == "container":
+            cleanup.callback(
+                subprocess.run, [sys.executable, str(root / "native.py"), "cleanup"], cwd=root, check=False
+            )
         for args in (
             ["init", "-b", "main"],
             ["config", "user.name", "Fixture"],
@@ -68,7 +97,13 @@ def exercise(name: str, output: Path) -> dict:
             source.write_text(original)
         # A genuine source syntax error must reach the real compiler/test path and remain a failed aggregate.
         source = root / SOURCES[name]
-        if name == "architecture":
+        if name == "security":
+            source.write_text(
+                source.read_text().replace(
+                    "yaml.safe_load(payload)", "yaml.load(payload, Loader=yaml.Loader)"
+                )
+            )
+        elif name == "architecture":
             # A valid Python import closes a real adapter/domain cycle and violates the declared boundary.
             source.write_text(source.read_text() + "\nfrom . import adapter\n")
         elif name == "advanced":

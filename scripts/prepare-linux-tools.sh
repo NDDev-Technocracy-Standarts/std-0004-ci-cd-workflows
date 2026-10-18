@@ -48,6 +48,18 @@ if [[ "${1:-}" == shell ]]; then
   "$tools/bats-sdk/bin/bats" --version
   if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/bats-sdk/bin" >> "$GITHUB_PATH"; fi
 fi
+if [[ "${1:-}" == container || "${1:-}" == infrastructure ]]; then
+  install_archive 'https://github.com/aquasecurity/trivy/releases/download/v0.76.0/trivy_0.76.0_Linux-64bit.tar.gz' \
+    'e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7' trivy
+  "$tools/trivy" --version
+fi
+if [[ "${1:-}" == container ]]; then
+  curl --fail --silent --show-error --location --proto '=https' \
+    'https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64' --output "$tools/hadolint"
+  printf '%s  %s\n' 'c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507' "$tools/hadolint" | sha256sum --check --status
+  chmod 755 "$tools/hadolint"
+  "$tools/hadolint" --version
+fi
 "$tools/actionlint" --version
 "$tools/lychee" --version
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools" >> "$GITHUB_PATH"; fi

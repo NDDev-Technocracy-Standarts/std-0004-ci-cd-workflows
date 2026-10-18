@@ -488,3 +488,23 @@ def test_documentation_scopes_keep_archives_frozen_and_access_failures_explicit(
     payload["error_map"]["README.md"][0]["status"]["code"] = 404
     report.write_text(json.dumps(payload))
     assert documentation.external_outage(root, settings, {"status": "failure"}) is None
+
+
+def test_validation_cannot_change_its_locked_inputs(repository, tmp_path):
+    root = repository(
+        {
+            "README.md": "# Inputs\n",
+            "uv.lock": "version=1\n",
+            ".github/nddev-ci.toml": """schema=1
+profiles=["documentation"]
+[commands.documentation]
+external-links=["git","diff","--exit-code"]
+generate=["git","diff","--exit-code"]
+examples=["python3","-c","from pathlib import Path; Path('uv.lock').write_text('version=2')"]
+""",
+        }
+    )
+    result = ci.execute(root, config.load(root), tmp_path / "report")
+    assert result["status"] == "failure"
+    integrity = next(row for row in result["results"] if row["name"] == "inputs.lock-integrity")
+    assert integrity["changed_inputs"] == ["uv.lock"]
