@@ -12,7 +12,14 @@ dependencies = ["PyYAML>=6.0.3,<7"]
 nddev-cicd = "nddev_cicd.__main__:main"
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "ruff>=0.14,<1", "basedpyright>=1.29,<2", "import-linter>=2,<3"]
+dev = [
+    "pytest>=8,<10",
+    "pytest-cov>=6,<8",
+    "ruff>=0.14,<1",
+    "basedpyright>=1.29,<2",
+    "import-linter>=2,<3",
+    "zizmor==1.30.1",
+]
 
 [build-system]
 requires = ["uv_build>=0.13.1,<0.14"]

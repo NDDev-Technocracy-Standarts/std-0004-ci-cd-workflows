@@ -1,0 +1,19 @@
+name: source-ci
+on:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: source-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Prepare pinned job-local native tools
+        run: scripts/prepare-linux-tools.sh
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@971ee96973c6a570d87bf1aff2b59f3a810c1ffa # 0.1.0 draft

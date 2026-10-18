@@ -1,0 +1,23 @@
+schema = 1
+profiles = ["python", "architecture", "documentation", "workflows"]
+
+[architecture]
+scopes = ["src/nddev_cicd"]
+
+[commands.architecture]
+dependencies = ["uv", "run", "lint-imports"]
+
+[commands.documentation]
+external-links = ["lychee", "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
+generate = ["uv", "run", "python", "-m", "nddev_cicd", "reference", "--check"]
+examples = ["uv", "run", "python", "-m", "doctest", "docs/examples.md"]
+
+[commands.workflows]
+security = ["uv", "run", "zizmor", "--offline", "--no-progress", ".github"]
+
+[artifacts]
+files = ["dist/*.whl", "dist/*.tar.gz"]
+
+[timeouts]
+python = 900
+workflows = 120
