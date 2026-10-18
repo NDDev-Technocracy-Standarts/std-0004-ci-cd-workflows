@@ -425,3 +425,19 @@ def test_explicit_external_timeout_remains_unavailable_and_broken_urls_fail(repo
     native_report.write_text(json.dumps(payload))
     assert documentation.external_outage(root, settings, {"status": "failure"}) is None
     assert reports.aggregate(["links"], [{"name": "links", "status": "failure"}])["status"] == "failure"
+
+
+def test_native_failure_report_is_retained_and_escape_rejected(repository, tmp_path):
+    root = repository({"README.md": "# Fixture\n"})
+    native = root / ".nddev-reports" / "failed.xml"
+    native.parent.mkdir()
+    native.write_text(
+        '<testsuite><testcase name="failure"><failure>counterexample</failure></testcase></testsuite>'
+    )
+    directory = tmp_path / "retained"
+    assert len(reports.retain(root, {"path": ".nddev-reports/*.xml"}, directory)) == 1
+    assert next(directory.glob("*-failed.xml")).read_bytes() == native.read_bytes()
+    native.unlink()
+    native.symlink_to(tmp_path / "outside.xml")
+    with pytest.raises(Invalid):
+        reports.retain(root, {"path": ".nddev-reports/*.xml"}, directory)

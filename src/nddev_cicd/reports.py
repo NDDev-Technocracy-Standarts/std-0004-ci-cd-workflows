@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -24,6 +26,31 @@ def fresh(root: Path, specification: dict) -> None:
             if git(root, "ls-files", "--", str(old.relative_to(root))):
                 raise Invalid("Do not remove tracked files as old test reports")
             old.unlink()
+
+
+def retain(root: Path, specification: dict, directory: Path) -> list[str]:
+    """Retain only explicitly selected native XML/JSON reports, including failed runs."""
+    pattern = specification.get("path", "")
+    if not pattern:
+        return []
+    if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
+        raise Invalid("Native reports must stay in the caller checkout")
+    saved = []
+    for report in sorted(root.glob(pattern)):
+        if report.is_symlink() or not report.resolve().is_relative_to(root.resolve()):
+            raise Invalid("Native report escapes the caller checkout")
+        if not report.is_file() or report.suffix.lower() not in {".xml", ".json", ".trx"}:
+            raise Invalid("Retain only native XML/JSON/TRX reports")
+        if report.stat().st_size > 16 * 1024 * 1024:
+            raise Invalid("Native report exceeds the bounded retention size")
+        relative = report.relative_to(root)
+        destination = directory / (
+            hashlib.sha256(str(relative).encode()).hexdigest()[:12] + "-" + report.name.lstrip(".")
+        )
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(report, destination)
+        saved.append(destination.name)
+    return saved
 
 
 def tests(root: Path, specification: dict, log: Path) -> int:

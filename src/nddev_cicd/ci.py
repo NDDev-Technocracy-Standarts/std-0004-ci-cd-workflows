@@ -204,6 +204,19 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     documentation.generation_clean(root)
             except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
                 entry.update(status="failure", detail=str(error))
+            finally:
+                native_report = report
+                if profile_id == "documentation" and stage == "external-links":
+                    native_report = {
+                        "path": contract.get("documentation", {}).get("external_link_report", "")
+                    }
+                if native_report.get("path"):
+                    try:
+                        entry["retained_reports"] = reports.retain(
+                            root, native_report, output / "native-reports" / name
+                        )
+                    except (Invalid, OSError) as error:
+                        entry.update(status="failure", detail=str(error))
     for name, extra in contract.get("extras", {}).items():
         if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
             raise Invalid("Each selected extra needs a concrete purpose, command and finite timeout")
