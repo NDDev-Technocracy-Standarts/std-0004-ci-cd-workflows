@@ -21,6 +21,7 @@ SOURCES = {
     "dotnet": "src/Checksum/Class1.cs",
     "sql": "migrations/002.sql",
     "advanced": "checksum.py",
+    "shell": "checksum.sh",
 }
 
 

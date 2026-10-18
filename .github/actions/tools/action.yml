@@ -13,6 +13,6 @@ runs:
         NDDEV_TOOL_CAPABILITY: ${{ inputs.capability }}
       run: |
         set -euo pipefail
-        case "$NDDEV_TOOL_CAPABILITY" in ''|rust|security) ;; *) exit 2 ;; esac
+        case "$NDDEV_TOOL_CAPABILITY" in ''|rust|security|shell) ;; *) exit 2 ;; esac
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         "$library/scripts/prepare-linux-tools.sh" "$NDDEV_TOOL_CAPABILITY"

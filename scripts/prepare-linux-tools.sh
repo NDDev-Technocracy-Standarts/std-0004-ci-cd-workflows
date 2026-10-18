@@ -37,6 +37,17 @@ if [[ "${1:-}" == security ]]; then
     '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' gitleaks
   "$tools/gitleaks" version
 fi
+if [[ "${1:-}" == shell ]]; then
+  archive="$tools/bats.tar.gz"
+  curl --fail --silent --show-error --location --proto '=https' \
+    'https://codeload.github.com/bats-core/bats-core/tar.gz/eb7f42f8d608ac693d7a4b67474f6714ea68cfc5' --output "$archive"
+  printf '%s  %s\n' '845574549f4c9777bf02fcdf307f1bf347d40c66920fb6b47dcc8fdfa065ac39' "$archive" | sha256sum --check --status
+  mkdir -p "$tools/bats-sdk"
+  tar -xzf "$archive" --strip-components=1 --directory "$tools/bats-sdk"
+  rm "$archive"
+  "$tools/bats-sdk/bin/bats" --version
+  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/bats-sdk/bin" >> "$GITHUB_PATH"; fi
+fi
 "$tools/actionlint" --version
 "$tools/lychee" --version
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools" >> "$GITHUB_PATH"; fi
