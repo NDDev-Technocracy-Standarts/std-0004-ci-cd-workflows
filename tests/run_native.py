@@ -20,6 +20,7 @@ SOURCES = {
     "node": "checksum.js",
     "dotnet": "src/Checksum/Class1.cs",
     "sql": "migrations/002.sql",
+    "advanced": "checksum.py",
 }
 
 
@@ -60,7 +61,10 @@ def exercise(name: str, output: Path) -> dict:
             source.write_text(original)
         # A genuine source syntax error must reach the real compiler/test path and remain a failed aggregate.
         source = root / SOURCES[name]
-        source.write_text(source.read_text() + "\nNDDEV deliberately invalid native source !\n")
+        if name == "advanced":
+            source.write_text(source.read_text().replace("sum(payload) % 256", "(sum(payload) + 1) % 256"))
+        else:
+            source.write_text(source.read_text() + "\nNDDEV deliberately invalid native source !\n")
         negative = execute(root, load(root), output / "negative")
         if negative["status"] != "failure" or not negative.get("failed"):
             raise RuntimeError(f"Native {name} accepted deliberately invalid source")

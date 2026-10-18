@@ -833,6 +833,11 @@ Commands can be overridden through the caller contract; selected baseline stages
     "stages": {
       "bounded-operation": null,
       "result": null
+    },
+    "test_stage": "bounded-operation",
+    "report": {
+      "kind": "junit",
+      "path": ".nddev-reports/property.xml"
     }
   }
 }

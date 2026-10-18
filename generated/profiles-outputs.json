@@ -1,11 +1,11 @@
 {
   "generator": "native-profile-reference",
   "inputs": {
-    "src/nddev_cicd/profiles.json": "45c762aeed1a3389850c4ff89f01ce8d7d044ae275c7bcbc335f6bc9a7e0922c"
+    "src/nddev_cicd/profiles.json": "fbf1c2c9b379baf60397e4b9f8bd0b35197aeb5b0d9f217bf899846e466f52b2"
   },
   "outputs": {
     "docs/profiles.md": {
-      "sha256": "c8c816818e138fcd270071fb31860d15dec3b89572116a96ae5f49baae886f65",
+      "sha256": "6e85f81d307297755844400b3e84f6427bc3d79891f1034698e76da08fe91654",
       "state": "current"
     }
   }

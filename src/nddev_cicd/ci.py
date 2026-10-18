@@ -155,7 +155,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         command += ["--contract", contract["_path"]]
                 if command is None:
                     raise Invalid(f"Selected {name} requires a native project command")
-                if stage == "test":
+                if stage == definition.get("test_stage", "test"):
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
                     reports.fresh(root, report)
@@ -189,7 +189,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     cancelled = True
                 if stage == "setup" and entry["status"] != "success":
                     setup_failed = True
-                if entry["status"] == "success" and stage == "test":
+                if entry["status"] == "success" and stage == definition.get("test_stage", "test"):
                     entry["tests_executed"] = reports.tests(root, report, Path(entry["log"]))
                 if (
                     entry["status"] == "success"
