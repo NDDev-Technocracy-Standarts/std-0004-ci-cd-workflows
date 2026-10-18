@@ -13,6 +13,7 @@ from pathlib import Path
 
 from nddev_cicd.ci import execute
 from nddev_cicd.config import load
+from nddev_cicd.package_check import check as consumer_check
 
 SOURCES = {
     "python": "src/ciwf_fixture/__init__.py",
@@ -84,6 +85,13 @@ def exercise(name: str, output: Path) -> dict:
         positive = execute(root, load(root), output / "positive")
         if positive["status"] != "success":
             raise RuntimeError(f"Native {name} fixture failed: {positive.get('failed')}; logs: {output}")
+        if name == "python":
+            try:
+                consumer_check(root, {"commands": [["python", "--version"]]})
+            except subprocess.CalledProcessError:
+                pass
+            else:
+                raise RuntimeError("A system executable cannot stand in for the built distribution's CLI")
         if name == "go":
             source = root / SOURCES[name]
             original = source.read_text()

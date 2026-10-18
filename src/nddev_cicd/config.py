@@ -39,7 +39,7 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         or len(set(profiles)) != len(profiles)
     ):
         raise Invalid("Select a nonempty unique profile list")
-    if set(config.get("package", {})) - {"directory", "imports"}:
+    if set(config.get("package", {})) - {"directory", "imports", "commands"}:
         raise Invalid("Unsupported package consumer setting")
     if set(config.get("rust", {})) - {
         "sccache",

@@ -40,6 +40,14 @@ def check(root: Path, settings: dict | None = None) -> None:
         raise Invalid("Consumer imports must name actual Python distribution modules")
     if not modules:
         raise Invalid("Declare a Python src package before consumer import")
+    commands = settings.get("commands", [])
+    if not isinstance(commands, list) or any(
+        not isinstance(command, list)
+        or not command
+        or not all(isinstance(argument, str) and argument and "\0" not in argument for argument in command)
+        for command in commands
+    ):
+        raise Invalid("Consumer commands must be native argument arrays for the built distribution")
     with tempfile.TemporaryDirectory(prefix="nddev-wheel-consumer-") as directory:
         workspace = Path(directory)
         environment = workspace / "venv"
@@ -73,7 +81,7 @@ def check(root: Path, settings: dict | None = None) -> None:
             check=True,
         )
         program = """
-import importlib, importlib.metadata, json, sys
+import importlib, importlib.metadata, json, os, subprocess, sys
 from pathlib import Path
 request = json.loads(sys.argv[1])
 distribution = importlib.metadata.distribution(request["project"])
@@ -89,8 +97,14 @@ for name in request["modules"]:
         paths = [Path(p).resolve() for p in getattr(module, "__path__", [])]
         assert paths and any(p.is_relative_to(prefix) and any(f.is_relative_to(p) for f in owned)
                              for p in paths), "Namespace has no installed contribution from this distribution"
+scripts = {entry.name for entry in distribution.entry_points if entry.group == "console_scripts"}
+for command in request["commands"]:
+    assert command[0] in scripts, "Consumer command is not owned by the built distribution"
+    executable = prefix / ("Scripts" if os.name == "nt" else "bin") / (command[0] + (".exe" if os.name == "nt" else ""))
+    subprocess.run([str(executable), *command[1:]], stdin=subprocess.DEVNULL, check=True, timeout=120)
 print(json.dumps({"python": sys.version.split()[0], "distribution": distribution.metadata["Name"],
-                  "version": distribution.version, "imports": request["modules"]}))
+                  "version": distribution.version, "imports": request["modules"],
+                  "consumer_commands": [command[0] for command in request["commands"]]}))
 """
         subprocess.run(
             [
@@ -98,7 +112,13 @@ print(json.dumps({"python": sys.version.split()[0], "distribution": distribution
                 "-I",
                 "-c",
                 program,
-                json.dumps({"project": config.get("project", {}).get("name"), "modules": modules}),
+                json.dumps(
+                    {
+                        "project": config.get("project", {}).get("name"),
+                        "modules": modules,
+                        "commands": commands,
+                    }
+                ),
             ],
             cwd=workspace,
             env=caller_environment,

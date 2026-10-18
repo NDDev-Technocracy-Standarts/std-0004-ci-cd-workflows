@@ -117,3 +117,8 @@ Native signing checks and any store submission need their separately authorized 
 The bundled Rust fixture declares and executes Rust 1.99.0 as its minimum compiler and tests both its
 default and declared alternate feature implementation. A consumer declaring a different MSRV selects
 that actual installed compiler through its native job/extra commands; no unexecuted MSRV is inferred.
+
+`package.commands` selects native argument arrays for installed console scripts, for example
+`[["project-cli", "check"]]`. They execute inside the same isolated consumer environment outside the
+checkout, using the actual caller interpreter. Every command must belong to the built distribution;
+system executables or a source checkout cannot satisfy this installed-CLI check.
