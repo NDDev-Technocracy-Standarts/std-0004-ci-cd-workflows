@@ -327,3 +327,28 @@ examples=["python3","-c","assert 2*3==6"]
     assert result["status"] == "failure" and "tool.python" in result["failed"]
     tool = next(item for item in result["results"] if item["name"] == "tool.python")
     assert tool["detail"] == "Executed tool version differs from selected contract"
+
+
+def test_selected_extra_cannot_reuse_an_old_positive_report(repository, tmp_path):
+    root = repository(
+        {
+            "README.md": "# Source\n",
+            ".github/nddev-ci.toml": """schema=1
+profiles=["documentation"]
+[commands.documentation]
+external-links=["git","diff","--exit-code"]
+generate=["git","diff","--exit-code"]
+examples=["python3","-c","assert 3+3==6"]
+[extras.native-tests]
+purpose="Reject stale positive test reports"
+command=["python3","-c","pass"]
+report={kind="junit",path=".nddev-reports/extra.xml"}
+""",
+        }
+    )
+    report = root / ".nddev-reports/extra.xml"
+    report.parent.mkdir()
+    report.write_text('<testsuite><testcase name="old"/></testsuite>')
+    result = ci.execute(root, config.load(root), tmp_path / "result")
+    assert result["status"] == "failure" and "extra.native-tests" in result["failed"]
+    assert not report.exists()

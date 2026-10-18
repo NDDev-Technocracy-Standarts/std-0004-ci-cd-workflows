@@ -17,6 +17,7 @@ SOURCES = {
     "rust": "src/lib.rs",
     "go": "checksum.go",
     "cpp": "src/main.cpp",
+    "node": "checksum.js",
 }
 
 

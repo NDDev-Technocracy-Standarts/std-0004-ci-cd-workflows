@@ -144,19 +144,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                 if stage == "test":
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
-                    pattern = report.get("path", "")
-                    if pattern:
-                        if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
-                            raise Invalid("Test reports must stay in the caller checkout")
-                        for old in root.glob(pattern):
-                            if not old.resolve().is_relative_to(root.resolve()) or old.is_symlink():
-                                raise Invalid("Test report path escapes the caller checkout")
-                            if old.is_file():
-                                from .model import git
-
-                                if git(root, "ls-files", "--", str(old.relative_to(root))):
-                                    raise Invalid("Do not remove tracked files as old test reports")
-                                old.unlink()
+                    reports.fresh(root, report)
                 entry.update(
                     run(
                         command,
@@ -180,6 +168,8 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
             raise Invalid("Each selected extra needs a concrete purpose, command and finite timeout")
         result["expected"].append("extra." + name)
+        if extra.get("report"):
+            reports.fresh(root, extra["report"])
         if cancelled:
             item: dict = {"status": "unavailable", "detail": "Execution cancelled"}
         else:

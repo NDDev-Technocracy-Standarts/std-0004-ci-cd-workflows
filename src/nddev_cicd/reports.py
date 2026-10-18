@@ -7,7 +7,23 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .model import Invalid
+from .model import Invalid, git
+
+
+def fresh(root: Path, specification: dict) -> None:
+    """Remove only old untracked native report files inside the caller checkout."""
+    pattern = specification.get("path", "")
+    if not pattern:
+        return
+    if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
+        raise Invalid("Test reports must stay in the caller checkout")
+    for old in root.glob(pattern):
+        if not old.resolve().is_relative_to(root.resolve()) or old.is_symlink():
+            raise Invalid("Test report path escapes the caller checkout")
+        if old.is_file():
+            if git(root, "ls-files", "--", str(old.relative_to(root))):
+                raise Invalid("Do not remove tracked files as old test reports")
+            old.unlink()
 
 
 def tests(root: Path, specification: dict, log: Path) -> int:

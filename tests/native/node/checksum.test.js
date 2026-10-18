@@ -1,14 +1,14 @@
-import { expect, test } from "bun:test";
+import assert from "node:assert/strict";
+import test from "node:test";
 import { checksum } from "./checksum.js";
 
 test("checksum is stable", () => {
-  expect(checksum("ci")).toBe(204);
-  expect(checksum("")).toBe(0);
+  assert.equal(checksum("ci"), 204);
+  assert.equal(checksum(""), 0);
+  assert.equal(checksum("ü"), 127);
 });
-
 test("checksum stays in one byte", () => {
   for (const sample of ["", "a", "the quick brown fox"]) {
-    expect(checksum(sample)).toBeGreaterThanOrEqual(0);
-    expect(checksum(sample)).toBeLessThanOrEqual(255);
+    assert.ok(checksum(sample) >= 0 && checksum(sample) <= 255);
   }
 });

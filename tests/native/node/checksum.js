@@ -1,4 +1,9 @@
-// Smallest module that still gives bun something real to run.
+/** Sum UTF-8 bytes modulo 256.
+ * @param {string} text
+ * @returns {number}
+ */
 export function checksum(text) {
-  return [...new TextEncoder().encode(text)].reduce((a, b) => a + b, 0) % 256;
+  return new TextEncoder()
+    .encode(text)
+    .reduce((sum, value) => (sum + value) % 256, 0);
 }
