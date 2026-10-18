@@ -16,8 +16,9 @@ Source validation runs on PR updates; delivery is a separate integrated `dev`/`m
 Public Linux uses standard hosted capacity. Private Linux uses caller-owned existing self-hosted jobs.
 Windows/macOS paid-capable routes remain disabled without a confirmed compatible no-overage guarantee.
 
-`uv run pytest` exercises the shared runtime invariants. `tests/run_native.py` builds/tests real
-fixtures for the 23 catalog families, with native SDK preparation in the PR workflow; the selected
+`uv run pytest` exercises the shared runtime invariants. Native fixtures and the library source workflow
+cover the 23 catalog families; `tests/run_native.py` drives language/tool fixtures while documentation
+and workflow profiles validate the library itself. SDK preparation is in the PR workflow; the selected
 OS cells are Linux x64, public Windows x64 Python and public Apple ARM Swift. Deliberate source,
 report and dependency-graph failures are rejected. This is finite verification, not every SDK or OS.
 

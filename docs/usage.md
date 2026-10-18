@@ -1,7 +1,9 @@
 # Consumer contract
 
 Pin each external action/workflow to a reviewed full commit SHA. Keep source jobs on `pull_request`.
-A public caller may use `.github/workflows/source.yml`. Require its `status` output to equal `success`;
+A public caller may use `.github/workflows/source.yml`. Its facade pins a reviewed implementation
+commit; use that exact implementation commit for `deliver` and inspect its `library-ref` output.
+Require its `status` output to equal `success`;
 its public-only contract deliberately exports no successful result for an inapplicable event/visibility.
 The library's own CI demonstrates a direct composite caller. Do not use the public reusable workflow
 for private execution: keep private jobs and their self-hosted labels in the caller, including planners

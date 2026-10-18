@@ -9,6 +9,9 @@ on:
         type: string
         default: '3.13'
     outputs:
+      library-ref:
+        description: Exact implementation commit to use for the delivery composite
+        value: ${{ jobs.source.outputs.library-ref }}
       status:
         description: Success only when actual selected source checks completed
         value: ${{ jobs.source.outputs.status }}
@@ -19,6 +22,7 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-24.04
     outputs:
+      library-ref: '8339696'
       status: ${{ steps.native.outputs.status }}
     timeout-minutes: 30
     steps:
