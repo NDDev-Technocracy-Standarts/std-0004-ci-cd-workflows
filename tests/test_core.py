@@ -552,3 +552,30 @@ def test_admission_uses_actual_caller_visibility_and_fork_trust(tmp_path, monkey
         routing.select(**selected)
     with pytest.raises(Invalid):
         routing.select("public", "windows", admission={"blacksmith": {"enabled": "false"}})
+
+
+def test_trusted_actor_policy_does_not_depend_on_an_optional_webhook_association(tmp_path, monkeypatch):
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "fixture/private", "visibility": "private"},
+                "pull_request": {"head": {"repo": {"full_name": "fixture/private"}}},
+            }
+        )
+    )
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "fixture/private")
+    monkeypatch.setenv("GITHUB_ACTOR", "fixture-owner")
+    policy = {
+        "visibility": "private",
+        "platform": "linux",
+        "trusted": True,
+        "private_labels": ["self-hosted", "Linux", "X64", "existing"],
+        "trusted_actors": ["fixture-owner"],
+    }
+    assert routing.select(**routing.caller_policy(policy))["provider"] == "self-hosted"
+    monkeypatch.setenv("GITHUB_ACTOR", "untrusted-bot")
+    with pytest.raises(Unavailable):
+        routing.select(**routing.caller_policy(policy))

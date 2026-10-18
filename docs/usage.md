@@ -130,3 +130,7 @@ fixture exercises both successful quoting and an earlier failing process in a na
 Inside GitHub Actions, the admission CLI checks the actual caller event/repository visibility and
 refuses a mismatched policy before emitting runner labels. Fork context cannot assert trusted private
 capacity. Public reusable workflow ownership never supplies a private caller's billing entitlement.
+
+A private caller's planning/source job must restrict execution to its verified trusted actors before
+allocation. A caller-owned `trusted_actors` list can bind admission to `GITHUB_ACTOR`; an omitted
+provider association cannot silently establish trust. Fork source is always refused for private hosts.

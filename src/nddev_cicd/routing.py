@@ -14,8 +14,16 @@ STANDARD = {"linux": "ubuntu-24.04", "windows": "windows-2025", "macos": "macos-
 
 def caller_policy(policy: dict) -> dict:
     """A reusable publisher never changes the actual caller's billing/trust context."""
+    result = dict(policy)
+    actors = result.pop("trusted_actors", None)
+    if actors is not None and (
+        not isinstance(actors, list)
+        or not actors
+        or not all(isinstance(actor, str) and actor for actor in actors)
+    ):
+        raise Invalid("Trusted actors must be an explicit nonempty caller-owned list")
     if os.environ.get("GITHUB_ACTIONS") != "true":
-        return policy
+        return result
     try:
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         repository = event["repository"]
@@ -30,12 +38,15 @@ def caller_policy(policy: dict) -> dict:
         raise Unavailable("The actual caller repository context is unavailable") from error
     if policy.get("visibility") != actual:
         raise Invalid("Admission policy visibility differs from the actual caller repository")
-    result = dict(policy)
     if "pull_request" in event:
         head = event["pull_request"].get("head", {}).get("repo") or {}
-        if head.get("full_name") != repository["full_name"] or event["pull_request"].get(
-            "author_association"
-        ) not in {"OWNER", "MEMBER", "COLLABORATOR"}:
+        association = event["pull_request"].get("author_association")
+        actor_is_trusted = (
+            (os.environ.get("GITHUB_ACTOR") in actors)
+            if actors is not None
+            else association in {"OWNER", "MEMBER", "COLLABORATOR"}
+        )
+        if head.get("full_name") != repository["full_name"] or not actor_is_trusted:
             result["trusted"] = False
     return result
 
