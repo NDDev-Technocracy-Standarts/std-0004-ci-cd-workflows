@@ -299,6 +299,11 @@ def test_github_lineage_rejects_other_tree_and_attempt(monkeypatch):
         "tested_tree": tree,
     }
     assert github.eligible(repository, 1, revision, run["path"], source)["attempt"] == "2"
+    run["pull_requests"] = []
+    responses[f"repos/{repository}/commits/{revision}/pulls"] = [
+        {**pull, "number": 1, "merged_at": "2026-10-19T00:00:00Z"}
+    ]
+    assert github.eligible(repository, 1, revision, run["path"], source)["head"] == head
     with pytest.raises(Invalid):
         github.eligible(repository, 1, revision, run["path"], {**source, "attempt": "1"})
     responses[f"repos/{repository}/git/commits/{revision}"]["tree"] = {"sha": "f" * 40}
