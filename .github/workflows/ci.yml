@@ -17,3 +17,45 @@ jobs:
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@971ee96973c6a570d87bf1aff2b59f3a810c1ffa # 0.1.0 draft
+  native:
+    name: native (${{ matrix.profile }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        profile: [python, rust, go, cpp]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Prepare pinned native Rust policy tools
+        if: ${{ matrix.profile == 'rust' }}
+        run: scripts/prepare-linux-tools.sh rust
+      - name: Execute native fixture and reject invalid source
+        env:
+          NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}
+        run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
+      - name: Retain actual native logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.profile }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-fixture
+          if-no-files-found: error
+          retention-days: 3
+  gate:
+    needs: [source, native]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - env:
+          NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native"} and all(v["result"]=="success" for v in jobs.values()), jobs'

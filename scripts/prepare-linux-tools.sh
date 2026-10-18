@@ -24,6 +24,14 @@ install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/a
   '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8' actionlint
 install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-musl.tar.gz' \
   '73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5' lychee
+if [[ "${1:-}" == rust ]]; then
+  install_archive 'https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz' \
+    '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' cargo-deny
+  install_archive 'https://github.com/mozilla/sccache/releases/download/v0.18.0/sccache-v0.18.0-x86_64-unknown-linux-musl.tar.gz' \
+    '45f1447fbe231e3037bde351ef70677dd212216c8d62ae7ca409fecc4d6acc89' sccache
+  "$tools/cargo-deny" --version
+  "$tools/sccache" --version
+fi
 "$tools/actionlint" --version
 "$tools/lychee" --version
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools" >> "$GITHUB_PATH"; fi

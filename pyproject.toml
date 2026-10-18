@@ -30,6 +30,7 @@ module-name = "nddev_cicd"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+norecursedirs = ["native"]
 addopts = "-ra"
 
 [tool.ruff]
