@@ -35,6 +35,12 @@ jobs:
           version: '0.13.1'
           enable-cache: 'false'
           python-version: '3.13'
+      - name: Select the declared native Node toolchain
+        if: ${{ matrix.profile == 'node' }}
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.22.0'
+          package-manager-cache: false
       - name: Prepare pinned native Rust policy tools
         if: ${{ matrix.profile == 'rust' }}
         run: scripts/prepare-linux-tools.sh rust
