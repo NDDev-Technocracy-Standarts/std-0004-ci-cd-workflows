@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tempfile
@@ -9,26 +10,34 @@ import tomllib
 import zipfile
 from pathlib import Path
 
-from .model import Invalid
+from .model import Invalid, contained
 
 
-def check(root: Path) -> None:
+def check(root: Path, settings: dict | None = None) -> None:
+    settings = settings or {}
+    directory = contained(root, settings.get("directory", "dist"), exists=True)
     caller_environment = {
         k: v
         for k, v in os.environ.items()
         if k not in {"UV_PROJECT_ENVIRONMENT", "UV_PROJECT", "VIRTUAL_ENV", "PYTHONPATH"}
     }
     config = tomllib.loads((root / "pyproject.toml").read_text())
-    wheels = list((root / "dist").glob("*.whl"))
-    sdists = list((root / "dist").glob("*.tar.gz"))
+    wheels = list(directory.glob("*.whl"))
+    sdists = list(directory.glob("*.tar.gz"))
     if len(wheels) != 1 or len(sdists) != 1:
         raise Invalid("Build exactly one wheel and sdist into a clean owned package output")
     with zipfile.ZipFile(wheels[0]) as wheel:
         if not any(name.endswith("/METADATA") for name in wheel.namelist()):
             raise Invalid("Wheel metadata is absent")
-    modules = sorted(
-        path.name for path in (root / "src").iterdir() if path.is_dir() and (path / "__init__.py").exists()
-    )
+    modules = settings.get("imports")
+    if modules is None:
+        modules = sorted(
+            path.name
+            for path in (root / "src").iterdir()
+            if path.is_dir() and (path / "__init__.py").exists()
+        )
+    if not isinstance(modules, list) or not all(isinstance(name, str) and name for name in modules):
+        raise Invalid("Consumer imports must name actual Python distribution modules")
     if not modules:
         raise Invalid("Declare a Python src package before consumer import")
     with tempfile.TemporaryDirectory(prefix="nddev-wheel-consumer-") as directory:
@@ -63,11 +72,37 @@ def check(root: Path) -> None:
             env=caller_environment,
             check=True,
         )
-        expression = "import importlib; " + "; ".join(
-            f"importlib.import_module({name!r})" for name in modules
-        )
+        program = """
+import importlib, importlib.metadata, json, sys
+from pathlib import Path
+request = json.loads(sys.argv[1])
+distribution = importlib.metadata.distribution(request["project"])
+owned = {Path(distribution.locate_file(p)).resolve() for p in distribution.files or []}
+prefix = Path(sys.prefix).resolve()
+for name in request["modules"]:
+    module = importlib.import_module(name)
+    filename = getattr(module, "__file__", None)
+    if filename:
+        actual = Path(filename).resolve()
+        assert actual in owned and actual.is_relative_to(prefix), "Import is not owned by the built distribution"
+    else:
+        paths = [Path(p).resolve() for p in getattr(module, "__path__", [])]
+        assert paths and any(p.is_relative_to(prefix) and any(f.is_relative_to(p) for f in owned)
+                             for p in paths), "Namespace has no installed contribution from this distribution"
+print(json.dumps({"python": sys.version.split()[0], "distribution": distribution.metadata["Name"],
+                  "version": distribution.version, "imports": request["modules"]}))
+"""
         subprocess.run(
-            [str(python), "-I", "-c", expression], cwd=workspace, env=caller_environment, check=True
+            [
+                str(python),
+                "-I",
+                "-c",
+                program,
+                json.dumps({"project": config.get("project", {}).get("name"), "modules": modules}),
+            ],
+            cwd=workspace,
+            env=caller_environment,
+            check=True,
         )
     if not config.get("project", {}).get("name"):
         raise Invalid("Package identity is absent")

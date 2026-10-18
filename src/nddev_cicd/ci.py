@@ -6,8 +6,10 @@ import copy
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from . import config, documentation, reports
@@ -86,6 +88,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
         raise Invalid("Credentials are not project contract values")
+    env["NDDEV_RESULT_DIR"] = str(output.resolve())
     for tool, specification in contract.get("tools", {}).items():
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", tool) or not isinstance(specification, dict):
             raise Invalid("Tool identities require bounded names and explicit native version checks")
@@ -104,6 +107,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         manifests = definition.get("manifests", [])
         if manifests and not any(list(root.glob(pattern)) for pattern in manifests):
             raise Invalid(f"{profile_id} has no matching native manifest: {manifests}")
+        stage_status = {}
         setup_failed = any(
             i["status"] != "success" for i in result["results"] if i["name"].startswith("tool.")
         )
@@ -113,6 +117,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             entry: dict = {"name": name, "status": "failure"}
             report = {}
             result["results"].append(entry)
+            stage_status[stage] = entry
             # Write expected/results incrementally so interruptions never yield a complete green report.
             result["status"] = "failure"
             atomic_json(output / "result.json", result)
@@ -124,6 +129,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         if cancelled
                         else "Required profile setup did not succeed",
                     )
+                    continue
+                dependencies = definition.get("dependencies", {}).get(stage, [])
+                if any(stage_status.get(parent, {}).get("status") != "success" for parent in dependencies):
+                    entry.update(status="unavailable", detail="Required native prerequisite did not succeed")
                     continue
                 if stage == "syntax" and profile_id == "documentation":
                     entry.update(documentation.check(root, contract.get("documentation")), status="success")
@@ -138,7 +147,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     continue
                 command = commands.get(profile_id, {}).get(stage, default)
                 if isinstance(command, list) and command and command[0] == "@library":
-                    command = [sys.executable, "-m", "nddev_cicd", command[1], "--root", str(root)]
+                    helper = command[1]
+                    command = [sys.executable, "-m", "nddev_cicd", helper, "--root", str(root)]
+                    if helper == "package-check":
+                        command += ["--contract", contract["_path"]]
                 if command is None:
                     raise Invalid(f"Selected {name} requires a native project command")
                 if stage == "test":
@@ -154,15 +166,31 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         env=env,
                     )
                 )
+                if (
+                    entry["status"] == "success"
+                    and stage in definition.get("empty_output", [])
+                    and command == default
+                    and Path(entry["log"]).read_text().strip()
+                ):
+                    raise Invalid(f"{name} reported source formatting drift")
                 if entry.get("detail") == "cancelled":
                     cancelled = True
                 if stage == "setup" and entry["status"] != "success":
                     setup_failed = True
                 if entry["status"] == "success" and stage == "test":
                     entry["tests_executed"] = reports.tests(root, report, Path(entry["log"]))
+                if (
+                    entry["status"] == "success"
+                    and profile_id == "rust"
+                    and stage == "build"
+                    and command == default
+                ):
+                    from .rust import retain_package
+
+                    entry["final_packages"] = retain_package(root, env)
                 if entry["status"] == "success" and stage == "generate":
                     documentation.generation_clean(root)
-            except (Invalid, ValueError, OSError) as error:
+            except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
                 entry.update(status="failure", detail=str(error))
     for name, extra in contract.get("extras", {}).items():
         if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
@@ -183,7 +211,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         if item["status"] == "success" and extra.get("report"):
             try:
                 item["tests_executed"] = reports.tests(root, extra["report"], Path(item["log"]))
-            except (Invalid, ValueError, OSError) as error:
+            except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
                 item.update(status="failure", detail=str(error))
         result["results"].append({"name": "extra." + name, **item})
     result.update(reports.aggregate(result["expected"], result["results"]))
@@ -203,17 +231,29 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
     cache_root = os.environ.get("NDDEV_CACHE_ROOT")
     if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)
-    from .cache import namespace
+    from .cache import namespace, reclaim
 
+    policy = contract.get("rust", {})
+    budget, reserve, ttl = (
+        policy.get(k) for k in ("cache_budget_bytes", "cache_min_free_bytes", "cache_ttl_seconds")
+    )
+    if (
+        any(type(value) is not int for value in (budget, reserve, ttl))
+        or budget < 1024 * 1024
+        or reserve < 0
+        or ttl < 1
+    ):
+        raise Invalid("Owned Rust caches require explicit byte budget, free-disk reserve and positive TTL")
+    environment = {**os.environ, **{str(k): str(v) for k, v in contract.get("environment", {}).items()}}
     inputs = {
         "repository": os.environ.get("GITHUB_REPOSITORY", str(root.resolve())),
         "platform": platform.platform(),
         "architecture": platform.machine(),
         "trust": os.environ.get("NDDEV_TRUST_SCOPE", "local"),
-        "configuration": {"rust": contract.get("rust", {}), "contract": digest(root / contract["_path"])},
-        "toolchain": subprocess.check_output(["rustc", "-vV"], cwd=root, text=True).strip(),
+        "configuration": {"rust": policy, "contract": digest(root / contract["_path"])},
+        "toolchain": subprocess.check_output(["rustc", "-vV"], cwd=root, env=environment, text=True).strip(),
         "compiler_environment": {
-            key: contract.get("environment", {}).get(key, os.environ.get(key, ""))
+            key: environment.get(key, "")
             for key in (
                 "RUSTFLAGS",
                 "CARGO_ENCODED_RUSTFLAGS",
@@ -227,24 +267,72 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
         },
         "lock": digest(root / "Cargo.lock") if (root / "Cargo.lock").exists() else "missing",
     }
-    with namespace(Path(cache_root), inputs) as owned:
-        env = contract.setdefault("environment", {})
-        env["CARGO_TARGET_DIR"] = str(owned / "target")
-        env["CARGO_HOME"] = str(owned / "downloads")
-        if contract.get("rust", {}).get("sccache"):
+    storage = Path(cache_root)
+    try:
+        with namespace(storage, inputs) as owned:
+            reclaim(storage, budget, reserve, ttl)
+            if shutil.disk_usage(storage).free < reserve:
+                raise Invalid("Available disk is below the owner's reserve after inactive cache reclamation")
+            env = contract.setdefault("environment", {})
+            env["CARGO_TARGET_DIR"], env["CARGO_HOME"] = str(owned / "target"), str(owned / "downloads")
+            if not policy.get("sccache"):
+                return _execute(root, contract, output)
+            if os.name == "nt":
+                raise Invalid(
+                    "Local sccache ownership currently requires a Unix socket; native Cargo cache remains available"
+                )
+            active = owned / ".sccache-active.json"
+            if active.exists():
+                raise Invalid("An earlier sccache server needs owner reconciliation before reusing its store")
+            # A short owned socket path avoids Unix socket limits on long runner/checkouts.
+            socket_directory = Path(tempfile.mkdtemp(prefix="nddev-sc-"))
             env.update(
                 {
                     "RUSTC_WRAPPER": "sccache",
                     "CARGO_INCREMENTAL": "0",
                     "SCCACHE_DIR": str(owned / "compiler"),
-                    "SCCACHE_CACHE_SIZE": "2G",
-                    "SCCACHE_SERVER_UDS": str(owned / "sccache.sock"),
+                    "SCCACHE_CACHE_SIZE": str(min(budget // 2, 2 * 1024**3)),
+                    "SCCACHE_SERVER_UDS": str(socket_directory / "server.sock"),
                 }
             )
-        result = _execute(root, contract, output)
-        if contract.get("rust", {}).get("sccache"):
-            stats = run(["sccache", "--show-stats"], root, output / "sccache-stats.log", env=env)
-            if stats["status"] != "success":
-                result.update(status="failure", cache_statistics=stats)
-                atomic_json(output / "result.json", result)
-        return result
+            atomic_json(active, {"socket": env["SCCACHE_SERVER_UDS"], "owner": "nddev-cicd"})
+            started = run(
+                ["sccache", "--start-server"], root, output / "sccache-start.log", timeout=60, env=env
+            )
+            result = None
+            try:
+                if started["status"] != "success":
+                    raise Invalid(
+                        "Owned sccache server could not start; its store stays protected for reconciliation"
+                    )
+                result = _execute(root, contract, output)
+            finally:
+                statistics = run(
+                    ["sccache", "--show-stats", "--stats-format=json"],
+                    root,
+                    output / "sccache-stats.log",
+                    timeout=60,
+                    env=env,
+                )
+                stopped = run(
+                    ["sccache", "--stop-server"], root, output / "sccache-stop.log", timeout=60, env=env
+                )
+                if stopped["status"] == "success":
+                    active.unlink()
+                    shutil.rmtree(socket_directory)
+                if result is not None:
+                    entries = [
+                        {"name": "cache.start", **started},
+                        {"name": "cache.statistics", **statistics},
+                        {"name": "cache.stop", **stopped},
+                    ]
+                    result["expected"].extend(item["name"] for item in entries)
+                    result["results"].extend(entries)
+                    result.update(reports.aggregate(result["expected"], result["results"]))
+                    atomic_json(output / "result.json", result)
+            if result is None:
+                raise Invalid("Native cache execution produced no completed result")
+            return result
+    finally:
+        if (storage / ".nddev-cache-owner.json").is_file():
+            reclaim(storage, budget, reserve, ttl)

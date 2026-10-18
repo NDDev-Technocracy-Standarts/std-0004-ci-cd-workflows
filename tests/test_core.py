@@ -352,3 +352,44 @@ report={kind="junit",path=".nddev-reports/extra.xml"}
     result = ci.execute(root, config.load(root), tmp_path / "result")
     assert result["status"] == "failure" and "extra.native-tests" in result["failed"]
     assert not report.exists()
+
+
+def test_cache_reclamation_preserves_a_server_pending_reconciliation(tmp_path):
+    root = tmp_path / "cache"
+    with cache.namespace(root, {"repository": "fixture/cache"}) as owned:
+        (owned / ".sccache-active.json").write_text('{"socket":"owned-pending-socket"}')
+        (owned / "data").write_bytes(b"x" * 128)
+    assert cache.reclaim(root, 1, 0, 1) == []
+    assert (owned / "data").read_bytes() == b"x" * 128
+    (owned / ".sccache-active.json").unlink()
+    assert cache.reclaim(root, 1, 0, 1) == [owned.name]
+
+
+def test_deployment_rejects_foreign_release_owner_and_unscoped_waiver(repository, tmp_path):
+    root = repository({"index.html": "verified fixture"})
+    source = source_identity(root)
+    archive = tmp_path / "site.tar.gz"
+    manifest = artifacts.pack(root, ["index.html"], archive, source)
+    target = tmp_path / "target"
+    releases = target / ".nddev-releases"
+    releases.mkdir(parents=True)
+    (releases / ".nddev-owner").write_text("another-producer\n")
+    (releases / "valuable").write_text("keep")
+    settings = {
+        "module": "static-web",
+        "target_directory": str(target),
+        "generation": 1,
+        "expected_previous": None,
+    }
+    with pytest.raises(Invalid, match="unowned release"):
+        delivery.apply(archive, manifest, source, settings, authorized=True)
+    assert (releases / "valuable").read_text() == "keep"
+    with pytest.raises(Invalid, match="waiver needs"):
+        delivery.apply(
+            archive,
+            manifest,
+            source,
+            {**settings, "data_migration": ["false"], "backup_waiver": True},
+            authorized=True,
+        )
+    assert not (target / "current").exists()

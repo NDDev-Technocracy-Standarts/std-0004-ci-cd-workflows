@@ -28,7 +28,6 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "package",
         "rust",
         "impact",
-        "delivery",
     }
     if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
@@ -40,6 +39,15 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         or len(set(profiles)) != len(profiles)
     ):
         raise Invalid("Select a nonempty unique profile list")
+    if set(config.get("package", {})) - {"directory", "imports"}:
+        raise Invalid("Unsupported package consumer setting")
+    if set(config.get("rust", {})) - {
+        "sccache",
+        "cache_budget_bytes",
+        "cache_min_free_bytes",
+        "cache_ttl_seconds",
+    }:
+        raise Invalid("Unsupported Rust cache setting; native feature/MSRV commands belong in stages/extras")
     definitions = catalog()
     for profile, commands in config.get("commands", {}).items():
         if (

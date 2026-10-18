@@ -64,3 +64,25 @@ actual state, `recover_partial: true` can verify the same installed artifact and
 completing the record. Registry/mobile recovery additionally requires a native `reconcile_command`.
 Automatic file rollback is allowed only when explicitly compatible and no data migration occurred;
 service/data recovery is still verified. No production target is invented by the source-only pilots.
+
+# Packages and owned caches
+
+The Python consumer accepts a contained package.directory (default dist) and optional explicit
+package.imports for namespace/root-layout packages. It consumes the built wheel outside the checkout
+using the actual caller interpreter and locked runtime dependencies, separately from the library.
+A failed build makes a dependent consumer/package test unavailable; stale outputs cannot establish
+that the failed candidate built.
+
+Set NDDEV_CACHE_ROOT only for an owned Rust cache and declare cache_budget_bytes,
+cache_min_free_bytes, cache_ttl_seconds in the rust table. Reclamation touches only inactive matching
+namespaces, with a measured free-disk reserve. This is a retention budget and admission check, not a
+filesystem quota. Compiler stores, Cargo downloads/intermediates and retained final packages have
+distinct locations/controls. The default root Cargo package is staged into dist before cache cleanup;
+workspace/custom packaging uses its native project command.
+
+Native Cargo target reuse works independently from optional sccache=true. Sccache disables Rust
+incremental compilation, holds the store lock for its complete server lifetime and stops that owned
+server before reclamation. Its compiler-store limit is half the declared budget, at most 2GiB.
+A failed stop protects the namespace for owner reconciliation. Windows uses the native Cargo cache;
+this local sccache mode currently requires Unix sockets. No shared-host prune or routine cargo clean
+is used. Native feature/MSRV/cross-target checks are selected native stage/extra commands.

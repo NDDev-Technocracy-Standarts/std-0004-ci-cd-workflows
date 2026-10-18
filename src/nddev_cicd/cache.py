@@ -16,6 +16,8 @@ from .model import Invalid, atomic_json, identity
 @contextlib.contextmanager
 def lock(path: Path, *, blocking: bool = True):
     path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink():
+        raise Invalid("An owned lock cannot follow a symlink")
     with path.open("a+b") as stream:
         if os.name == "nt":
             import msvcrt
@@ -48,7 +50,7 @@ def lock(path: Path, *, blocking: bool = True):
 def namespace(root: Path, inputs: dict):
     if root.is_symlink():
         raise Invalid("A cache owner root cannot be a symlink")
-    root.mkdir(parents=True, exist_ok=True)
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
     owner = root / ".nddev-cache-owner.json"
     with lock(root / ".owner.lock"):
         if owner.exists() and json.loads(owner.read_text()) != {"schema": 1, "owner": "nddev-cicd"}:
@@ -92,7 +94,11 @@ def reclaim(root: Path, budget: int, min_free: int, ttl_seconds: int) -> list[st
     )
     total = sum(size(p) for p in candidates)
     for path in candidates:
-        if path.is_symlink() or not (path / "identity.json").is_file():
+        if (
+            path.is_symlink()
+            or not (path / "identity.json").is_file()
+            or (path / ".sccache-active.json").exists()
+        ):
             continue
         expired = time.time() - path.stat().st_mtime > ttl_seconds
         pressure = total > budget or shutil.disk_usage(root).free < min_free

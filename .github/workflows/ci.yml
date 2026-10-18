@@ -47,6 +47,7 @@ jobs:
       - name: Execute native fixture and reject invalid source
         env:
           NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}
+          NDDEV_CACHE_ROOT: ${{ matrix.profile == 'rust' && format('{0}/nddev-native-cache', runner.temp) || '' }}
         run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
       - name: Retain actual native logs
         if: ${{ !cancelled() }}

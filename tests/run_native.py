@@ -45,12 +45,28 @@ def exercise(name: str, output: Path) -> dict:
         positive = execute(root, load(root), output / "positive")
         if positive["status"] != "success":
             raise RuntimeError(f"Native {name} fixture failed: {positive.get('failed')}; logs: {output}")
+        if name == "go":
+            source = root / SOURCES[name]
+            original = source.read_text()
+            source.write_text(original.replace("func Checksum(", "func Checksum( "))
+            formatting = execute(root, load(root), output / "format-negative")
+            if (
+                "go.format" not in formatting.get("failed", [])
+                or next(i for i in formatting["results"] if i["name"] == "go.test")["status"] != "success"
+            ):
+                raise RuntimeError("Native formatting drift must fail independently of passing Go tests")
+            source.write_text(original)
         # A genuine source syntax error must reach the real compiler/test path and remain a failed aggregate.
         source = root / SOURCES[name]
         source.write_text(source.read_text() + "\nNDDEV deliberately invalid native source !\n")
         negative = execute(root, load(root), output / "negative")
         if negative["status"] != "failure" or not negative.get("failed"):
             raise RuntimeError(f"Native {name} accepted deliberately invalid source")
+        if (
+            name == "cpp"
+            and next(i for i in negative["results"] if i["name"] == "c-cpp.test")["status"] != "unavailable"
+        ):
+            raise RuntimeError("A failed native build cannot validate an old test binary")
         return {
             "profile": name,
             "positive": "success",

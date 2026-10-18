@@ -55,6 +55,11 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/pytest.xml"
+    },
+    "dependencies": {
+      "consumer": [
+        "build"
+      ]
     }
   },
   "rust": {
@@ -117,7 +122,11 @@
         "go",
         "version"
       ],
-      "format": "test -z \"$(gofmt -l .)\"",
+      "format": [
+        "gofmt",
+        "-l",
+        "."
+      ],
       "lint": [
         "go",
         "vet",
@@ -150,7 +159,10 @@
     },
     "report": {
       "kind": "go-json"
-    }
+    },
+    "empty_output": [
+      "format"
+    ]
   },
   "typescript-javascript": {
     "manifests": [
@@ -199,6 +211,11 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/*.xml"
+    },
+    "dependencies": {
+      "package": [
+        "build"
+      ]
     }
   },
   "c-cpp": {
@@ -243,6 +260,20 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/ctest.xml"
+    },
+    "dependencies": {
+      "lint": [
+        "configure"
+      ],
+      "build": [
+        "configure"
+      ],
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "qt": {
@@ -287,6 +318,17 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/qt.xml"
+    },
+    "dependencies": {
+      "build": [
+        "configure"
+      ],
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "dart-flutter": {
@@ -430,6 +472,14 @@
     "report": {
       "kind": "trx",
       "path": ".nddev-reports/*.trx"
+    },
+    "dependencies": {
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "swift": {
@@ -591,6 +641,11 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/testthat.xml"
+    },
+    "dependencies": {
+      "package": [
+        "build"
+      ]
     }
   },
   "sql-data": {
@@ -678,6 +733,17 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/*.xml"
+    },
+    "dependencies": {
+      "test": [
+        "build"
+      ],
+      "scan": [
+        "build"
+      ],
+      "sbom": [
+        "build"
+      ]
     }
   },
   "infrastructure": {

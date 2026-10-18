@@ -56,12 +56,17 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
     module = config.get("module")
     if module not in MODULES:
         raise Invalid("Unsupported native delivery module")
-    declared_target = Path(config["target_directory"])
+    target_name = config.get("target_directory")
+    if not isinstance(target_name, str) or not target_name.strip() or not Path(target_name).is_absolute():
+        raise Invalid("Use an explicit absolute existing target directory")
+    if "expected_previous" not in config:
+        raise Invalid("Declare the expected previous target identity, including null on first delivery")
+    declared_target = Path(target_name)
     target = declared_target.resolve()
     if not target.is_dir() or declared_target.is_symlink():
         raise Invalid("Use an explicitly existing owned non-symlink target")
     generation = config.get("generation")
-    if not isinstance(generation, int) or generation < 1:
+    if type(generation) is not int or generation < 1:
         raise Invalid("Target generation is an explicit monotonic target-owner value, not a run ID")
     verify(archive, manifest, expected)
     revision = manifest["source"]["tested_revision"]
@@ -111,8 +116,27 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
             and not config.get("backup_waiver")
         ):
             raise Invalid("Data mutation requires existing recovery or an explicit scoped backup waiver")
+        if config.get("data_migration") and not config.get("backup_command"):
+            waiver = config.get("backup_waiver")
+            if (
+                not isinstance(waiver, dict)
+                or waiver.get("target") != str(target)
+                or not isinstance(waiver.get("reason"), str)
+                or len(waiver["reason"]) < 10
+                or not isinstance(waiver.get("reference"), str)
+                or not waiver["reference"]
+            ):
+                raise Invalid(
+                    "A backup waiver needs this exact target, an actual reason and its owner decision reference"
+                )
         releases = target / ".nddev-releases"
-        if releases.is_symlink() or (releases.exists() and not (releases / ".nddev-owner").is_file()):
+        if releases.is_symlink() or (
+            releases.exists()
+            and (
+                not (releases / ".nddev-owner").is_file()
+                or (releases / ".nddev-owner").read_text() != "nddev-cicd/v1\n"
+            )
+        ):
             raise Invalid("Do not adopt an unowned release directory")
         releases.mkdir(exist_ok=True)
         (releases / ".nddev-owner").write_text("nddev-cicd/v1\n")

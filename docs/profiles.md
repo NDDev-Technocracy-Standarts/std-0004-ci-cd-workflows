@@ -90,6 +90,11 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/pytest.xml"
+    },
+    "dependencies": {
+      "consumer": [
+        "build"
+      ]
     }
   },
   "rust": {
@@ -152,7 +157,11 @@ Commands can be overridden through the caller contract; selected baseline stages
         "go",
         "version"
       ],
-      "format": "test -z \"$(gofmt -l .)\"",
+      "format": [
+        "gofmt",
+        "-l",
+        "."
+      ],
       "lint": [
         "go",
         "vet",
@@ -185,7 +194,10 @@ Commands can be overridden through the caller contract; selected baseline stages
     },
     "report": {
       "kind": "go-json"
-    }
+    },
+    "empty_output": [
+      "format"
+    ]
   },
   "typescript-javascript": {
     "manifests": [
@@ -234,6 +246,11 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/*.xml"
+    },
+    "dependencies": {
+      "package": [
+        "build"
+      ]
     }
   },
   "c-cpp": {
@@ -278,6 +295,20 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/ctest.xml"
+    },
+    "dependencies": {
+      "lint": [
+        "configure"
+      ],
+      "build": [
+        "configure"
+      ],
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "qt": {
@@ -322,6 +353,17 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/qt.xml"
+    },
+    "dependencies": {
+      "build": [
+        "configure"
+      ],
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "dart-flutter": {
@@ -465,6 +507,14 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "trx",
       "path": ".nddev-reports/*.trx"
+    },
+    "dependencies": {
+      "test": [
+        "build"
+      ],
+      "package": [
+        "build"
+      ]
     }
   },
   "swift": {
@@ -626,6 +676,11 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/testthat.xml"
+    },
+    "dependencies": {
+      "package": [
+        "build"
+      ]
     }
   },
   "sql-data": {
@@ -713,6 +768,17 @@ Commands can be overridden through the caller contract; selected baseline stages
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/*.xml"
+    },
+    "dependencies": {
+      "test": [
+        "build"
+      ],
+      "scan": [
+        "build"
+      ],
+      "sbom": [
+        "build"
+      ]
     }
   },
   "infrastructure": {

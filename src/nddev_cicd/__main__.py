@@ -41,7 +41,10 @@ def parser() -> argparse.ArgumentParser:
     reference.add_argument("--root", type=Path, default=Path.cwd())
     reference.add_argument("--check", action="store_true")
     for helper in ("package-check", "workflow-check"):
-        sub.add_parser(helper).add_argument("--root", type=Path, default=Path.cwd())
+        helper_parser = sub.add_parser(helper)
+        helper_parser.add_argument("--root", type=Path, default=Path.cwd())
+        if helper == "package-check":
+            helper_parser.add_argument("--contract")
     sub.add_parser("profiles", help="Print native profile contracts (no execution claim)")
     return p
 
@@ -75,7 +78,10 @@ def main(argv=None) -> int:
         if args.operation == "package-check":
             from .package_check import check
 
-            check(args.root.resolve())
+            settings = (
+                config.load(args.root.resolve(), args.contract).get("package", {}) if args.contract else {}
+            )
+            check(args.root.resolve(), settings)
             return 0
         if args.operation == "workflow-check":
             from .workflow_check import check
