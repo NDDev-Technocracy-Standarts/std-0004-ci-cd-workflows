@@ -31,3 +31,6 @@ timeout=30
 purpose="Protect the public source boundary with a native full-history secret scan."
 command=["gitleaks","git","--redact","--no-banner"]
 timeout=120
+
+[package]
+commands=[["nddev-cicd","profiles"]]
