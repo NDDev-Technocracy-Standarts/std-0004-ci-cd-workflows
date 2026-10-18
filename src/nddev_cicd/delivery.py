@@ -28,17 +28,28 @@ def health(config: dict, revision: str) -> dict:
     if not url or not url.startswith(("http://", "https://")):
         raise Invalid("A meaningful target health URL is required for a running target")
     expected = config.get("health_contains", revision).replace("{revision}", revision)
+    version_url = config.get("version_url", url)
+    if not isinstance(version_url, str) or not version_url.startswith(("http://", "https://")):
+        raise Invalid("Use a native HTTP version endpoint for the tested artifact")
     for attempt in range(10):
         try:
             with urllib.request.urlopen(url, timeout=5) as response:
                 body = response.read(1024 * 1024).decode("utf-8")
-                if response.status == 200 and expected in body:
-                    return {"url": url, "status": 200, "matched_revision": revision}
+                scenario_ok = response.status == 200 and expected in body
+            if version_url == url:
+                version_ok = revision in body
+            else:
+                with urllib.request.urlopen(version_url, timeout=5) as response:
+                    version_ok = response.status == 200 and revision in response.read(1024 * 1024).decode(
+                        "utf-8"
+                    )
+            if scenario_ok and version_ok:
+                return {"url": url, "version_url": version_url, "status": 200, "matched_revision": revision}
         except (OSError, ValueError):
             pass
         if attempt != 9:
             time.sleep(0.2)
-    raise Invalid("Target health/scenario did not match the intended revision")
+    raise Invalid("Target scenario/version did not match the intended tested revision")
 
 
 def activate(root: Path, release: Path) -> None:

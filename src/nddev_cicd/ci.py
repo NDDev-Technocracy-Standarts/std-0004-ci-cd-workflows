@@ -89,6 +89,8 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
         raise Invalid("Credentials are not project contract values")
     env["NDDEV_RESULT_DIR"] = str(output.resolve())
+    env["NDDEV_TESTED_REVISION"] = result["identity"]["tested_revision"]
+    env["NDDEV_TESTED_TREE"] = result["identity"]["tested_tree"]
     for tool, specification in contract.get("tools", {}).items():
         if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", tool) or not isinstance(specification, dict):
             raise Invalid("Tool identities require bounded names and explicit native version checks")
@@ -157,6 +159,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
                     reports.fresh(root, report)
+                if profile_id == "documentation" and stage == "external-links":
+                    native_report = contract.get("documentation", {}).get("external_link_report")
+                    if native_report:
+                        reports.fresh(root, {"path": native_report})
                 entry.update(
                     run(
                         command,
@@ -173,6 +179,12 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     and Path(entry["log"]).read_text().strip()
                 ):
                     raise Invalid(f"{name} reported source formatting drift")
+                if profile_id == "documentation" and stage == "external-links":
+                    disposition = documentation.external_outage(
+                        root, contract.get("documentation", {}), entry
+                    )
+                    if disposition:
+                        entry.update(disposition)
                 if entry.get("detail") == "cancelled":
                     cancelled = True
                 if stage == "setup" and entry["status"] != "success":

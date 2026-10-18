@@ -52,7 +52,10 @@ mutations, and stale generations cannot replace newer state. Final release direc
 from compiler/download caches. Keep current and needed rollback artifacts.
 
 Static/systemd targets activate exact versioned files through `current`; the existing web server or
-service must already use that location. Configure a meaningful `health_url` and expected revision/content.
+service must already use that location. Configure a meaningful health_url and expected scenario content. The response must also contain the
+tested revision; use version_url for a separate native version endpoint when needed. Builds receive
+NDDEV_TESTED_REVISION and NDDEV_TESTED_TREE for this identity. A generic successful health response
+cannot establish the deployed revision.
 Systemd selects one existing service. Compose selects an existing stable project and actual services,
 uses immutable image digests and `up --wait --no-build`. Package publication selects an existing HTTPS
 registry and native Python/npm/NuGet publisher; secrets and registry verification remain caller-owned.
@@ -86,3 +89,13 @@ server before reclamation. Its compiler-store limit is half the declared budget,
 A failed stop protects the namespace for owner reconciliation. Windows uses the native Cargo cache;
 this local sccache mode currently requires Unix sockets. No shared-host prune or routine cargo clean
 is used. Native feature/MSRV/cross-target checks are selected native stage/extra commands.
+
+A caller-owned monorepo job can select an existing contained working-directory; the callee package
+continues to resolve from its own action path. Private admission labels include self-hosted, Linux
+and the selected actual architecture. A requested architecture cannot be inferred from a prose host name.
+
+For native external-link checks, documentation.external_link_report can point to the actual Lychee
+JSON output. An explicit documentation.network_timeouts URL-to-Issue map classifies only those native
+timeouts as advisory unavailable results. The aggregate retains them in limitations and never claims
+the URL was verified. Broken URLs, malformed/missing reports and unlisted timeouts remain blocking.
+No scanner/test failure is converted into a successful check.

@@ -94,5 +94,14 @@ def aggregate(expected: list[str], results: list[dict]) -> dict:
     names = [item.get("name") for item in results]
     if len(set(names)) != len(names) or set(names) != set(expected):
         return {"status": "failure", "reason": "Missing, duplicate or unexpected mandatory result"}
-    failed = [item["name"] for item in results if item.get("status") != "success"]
-    return {"status": "failure" if failed else "success", "failed": failed}
+    limited = [
+        item["name"]
+        for item in results
+        if item.get("status") == "unavailable"
+        and item.get("advisory_outage", {}).get("native_reporter") == "lychee"
+        and item.get("advisory_outage", {}).get("issue_refs")
+    ]
+    failed = [
+        item["name"] for item in results if item.get("status") != "success" and item["name"] not in limited
+    ]
+    return {"status": "failure" if failed else "success", "failed": failed, "limitations": limited}

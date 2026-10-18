@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node]
+        profile: [python, rust, go, cpp, node, dotnet]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -41,6 +41,11 @@ jobs:
         with:
           node-version: '24.22.0'
           package-manager-cache: false
+      - name: Select the native .NET SDK
+        if: ${{ matrix.profile == 'dotnet' }}
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.112'
       - name: Prepare pinned native Rust policy tools
         if: ${{ matrix.profile == 'rust' }}
         run: scripts/prepare-linux-tools.sh rust

@@ -203,7 +203,9 @@ def test_static_delivery_actual_health_stale_data_guard_and_recovery(repository,
     root = repository({"index.html": "actual-application-revision"})
     source = source_identity(root)
     archive = tmp_path / "site.tar.gz"
-    manifest = artifacts.pack(root, ["index.html"], archive, source)
+    (root / "public").mkdir()
+    (root / "public/index.html").write_text("actual-application-revision " + source["tested_revision"])
+    manifest = artifacts.pack(root, ["public/index.html"], archive, source)
     target = tmp_path / "target"
     target.mkdir()
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(target)))
@@ -211,10 +213,11 @@ def test_static_delivery_actual_health_stale_data_guard_and_recovery(repository,
     thread.start()
     settings = {
         "module": "static-web",
+        "entrypoint": "public/index.html",
         "target_directory": str(target),
         "generation": 1,
         "expected_previous": None,
-        "health_url": f"http://127.0.0.1:{server.server_port}/current/index.html",
+        "health_url": f"http://127.0.0.1:{server.server_port}/current/public/index.html",
         "health_contains": "actual-application-revision",
     }
     try:
@@ -238,7 +241,9 @@ def test_static_delivery_actual_health_stale_data_guard_and_recovery(repository,
             archive, manifest, source, {**settings, "recover_partial": True}, authorized=True
         )
         assert recovered["status"] == "success" and not recovered["pending"]
-        assert (target / "current/index.html").read_text() == "actual-application-revision"
+        assert (target / "current/public/index.html").read_text() == "actual-application-revision " + source[
+            "tested_revision"
+        ]
     finally:
         server.shutdown()
         server.server_close()
@@ -393,3 +398,30 @@ def test_deployment_rejects_foreign_release_owner_and_unscoped_waiver(repository
             authorized=True,
         )
     assert not (target / "current").exists()
+
+
+def test_explicit_external_timeout_remains_unavailable_and_broken_urls_fail(repository):
+    root = repository({"README.md": "# Source\n", ".gitignore": ".nddev-reports/\n"})
+    native_report = root / ".nddev-reports/links.json"
+    native_report.parent.mkdir()
+    settings = {
+        "external_link_report": ".nddev-reports/links.json",
+        "network_timeouts": {
+            "https://unavailable.example.invalid/": "https://github.com/fixture/source/issues/1"
+        },
+    }
+    payload = {
+        "errors": 0,
+        "unknown": 0,
+        "timeouts": 1,
+        "timeout_map": {"README.md": [{"url": "https://unavailable.example.invalid/"}]},
+    }
+    native_report.write_text(json.dumps(payload))
+    limited = documentation.external_outage(root, settings, {"status": "failure"})
+    assert limited is not None and limited["status"] == "unavailable"
+    result = reports.aggregate(["links"], [{"name": "links", **limited}])
+    assert result["status"] == "success" and result["limitations"] == ["links"]
+    payload.update(errors=1, error_map={"README.md": [{"url": "https://broken.example.invalid/"}]})
+    native_report.write_text(json.dumps(payload))
+    assert documentation.external_outage(root, settings, {"status": "failure"}) is None
+    assert reports.aggregate(["links"], [{"name": "links", "status": "failure"}])["status"] == "failure"

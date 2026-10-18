@@ -451,7 +451,9 @@
       "build": [
         "dotnet",
         "build",
-        "--no-restore"
+        "--no-restore",
+        "--configuration",
+        "Release"
       ],
       "test": [
         "dotnet",
@@ -461,12 +463,16 @@
         "trx",
         "--results-directory",
         ".nddev-reports",
-        "--collect:XPlat Code Coverage"
+        "--collect:XPlat Code Coverage",
+        "--configuration",
+        "Release"
       ],
       "package": [
         "dotnet",
         "pack",
-        "--no-build"
+        "--no-build",
+        "--configuration",
+        "Release"
       ]
     },
     "report": {

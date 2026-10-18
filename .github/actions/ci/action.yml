@@ -1,6 +1,9 @@
 name: Native source CI
 description: Execute the caller's selected native profile contract with an isolated pinned library runtime.
 inputs:
+  working-directory:
+    description: Existing caller project directory inside the workspace
+    default: .
   contract:
     description: Contained caller TOML path
     default: .github/nddev-ci.toml
@@ -32,6 +35,7 @@ runs:
         NDDEV_LIBRARY_REPOSITORY: ${{ github.action_repository }}
         NDDEV_LIBRARY_REF: ${{ github.action_ref }}
         NDDEV_CONTRACT: ${{ inputs.contract }}
+        NDDEV_WORKING_DIRECTORY: ${{ inputs.working-directory }}
         NDDEV_RESULT_KEY: ${{ inputs.result-key }}
         UV_PYTHON: ${{ inputs.python }}
       run: |
@@ -42,10 +46,12 @@ runs:
         export NDDEV_LIBRARY_REF="${NDDEV_LIBRARY_REF:-$(git -C "$library" rev-parse HEAD)}"
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-library-runtime"
         export UV_CACHE_DIR="$RUNNER_TEMP/nddev-downloads"
+        project_root="$(uv run --project "$library" --locked --no-dev --python 3.13 python -c \
+          'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_WORKING_DIRECTORY"],exists=True))')"
         directory="$RUNNER_TEMP/nddev-source"
         echo "directory=$directory" >> "$GITHUB_OUTPUT"
         uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd ci \
-          --root "$GITHUB_WORKSPACE" --contract "$NDDEV_CONTRACT" --output "$directory"
+          --root "$project_root" --contract "$NDDEV_CONTRACT" --output "$directory"
         echo "status=success" >> "$GITHUB_OUTPUT"
     - name: Retain native results and selected deployable files
       if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}

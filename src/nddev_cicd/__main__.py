@@ -68,7 +68,15 @@ def main(argv=None) -> int:
                 except (Invalid, OSError, ValueError) as error:
                     result.update(status="failure", artifact_error=str(error))
                 atomic_json(args.output.resolve() / "result.json", result)
-            print(json.dumps({"status": result["status"], "result": str(args.output / "result.json")}))
+            print(
+                json.dumps(
+                    {
+                        "status": result["status"],
+                        "result": str(args.output / "result.json"),
+                        "limitations": result.get("limitations", []),
+                    }
+                )
+            )
             return 0 if result["status"] == "success" else 1
         if args.operation == "reference":
             from .reference import generate

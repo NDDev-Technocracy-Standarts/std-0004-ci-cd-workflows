@@ -18,6 +18,7 @@ SOURCES = {
     "go": "checksum.go",
     "cpp": "src/main.cpp",
     "node": "checksum.js",
+    "dotnet": "src/Checksum/Class1.cs",
 }
 
 

@@ -486,7 +486,9 @@ Commands can be overridden through the caller contract; selected baseline stages
       "build": [
         "dotnet",
         "build",
-        "--no-restore"
+        "--no-restore",
+        "--configuration",
+        "Release"
       ],
       "test": [
         "dotnet",
@@ -496,12 +498,16 @@ Commands can be overridden through the caller contract; selected baseline stages
         "trx",
         "--results-directory",
         ".nddev-reports",
-        "--collect:XPlat Code Coverage"
+        "--collect:XPlat Code Coverage",
+        "--configuration",
+        "Release"
       ],
       "package": [
         "dotnet",
         "pack",
-        "--no-build"
+        "--no-build",
+        "--configuration",
+        "Release"
       ]
     },
     "report": {

@@ -38,6 +38,11 @@ def select(
             )
         ):
             raise Invalid("Private Linux requires bounded caller-owned self-hosted labels")
+        actual = {label.casefold() for label in labels}
+        if "linux" not in actual or architecture not in actual:
+            raise Invalid(
+                "Private labels must include the verified Linux and selected architecture capabilities"
+            )
         return {"provider": "self-hosted", "runner": labels, "basis": "existing-private-capacity"}
     choices = admission or {}
     for provider in ("blacksmith", "github"):
