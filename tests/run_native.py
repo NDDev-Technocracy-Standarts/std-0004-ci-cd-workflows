@@ -24,6 +24,7 @@ SOURCES = {
     "shell": "checksum.sh",
     "qt": "src/fixture_identity.cpp",
     "flutter": "lib/main.dart",
+    "swift": "Sources/CiwfFixture/Checksum.swift",
 }
 
 

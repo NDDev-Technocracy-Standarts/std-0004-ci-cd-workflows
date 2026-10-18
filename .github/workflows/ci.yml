@@ -76,12 +76,60 @@ jobs:
           path: ${{ runner.temp }}/native-fixture
           if-no-files-found: error
           retention-days: 3
+  admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      windows: ${{ steps.windows.outputs.runner }}
+      macos: ${{ steps.macos.outputs.runner }}
+    steps:
+      - id: windows
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@94d0b9189cb9e9252646b0d99a0ef5e09774cbb3 # 0.1.0 draft
+        with:
+          policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
+      - id: macos
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@94d0b9189cb9e9252646b0d99a0ef5e09774cbb3 # 0.1.0 draft
+        with:
+          policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
+  windows:
+    needs: admission
+    runs-on: ${{ fromJSON(needs.admission.outputs.windows) }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Execute real Windows Python package and rejected source
+        run: uv run --locked python tests/run_native.py python --output "$RUNNER_TEMP/native-windows"
+  macos:
+    needs: admission
+    runs-on: ${{ fromJSON(needs.admission.outputs.macos) }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - name: Execute real Apple ARM Swift package and rejected source
+        run: uv run --locked python tests/run_native.py swift --output "$RUNNER_TEMP/native-swift"
   gate:
-    needs: [source, native]
+    needs: [source, native, admission, windows, macos]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - env:
           NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native"} and all(v["result"]=="success" for v in jobs.values()), jobs'
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos"} and all(v["result"]=="success" for v in jobs.values()), jobs'
