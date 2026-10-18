@@ -16,7 +16,7 @@ jobs:
           persist-credentials: false
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@b38473b77385b07759228bf65504ac75b5dc4a5a # 0.1.0 draft
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@33e5670b840e16b39540231fc6a3bed8ab8af996 # 0.1.0 draft
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -140,11 +140,11 @@ jobs:
       macos: ${{ steps.macos.outputs.runner }}
     steps:
       - id: windows
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@94d0b9189cb9e9252646b0d99a0ef5e09774cbb3 # 0.1.0 draft
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@33e5670b840e16b39540231fc6a3bed8ab8af996 # 0.1.0 draft
         with:
           policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
       - id: macos
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@94d0b9189cb9e9252646b0d99a0ef5e09774cbb3 # 0.1.0 draft
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@33e5670b840e16b39540231fc6a3bed8ab8af996 # 0.1.0 draft
         with:
           policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
   windows:
