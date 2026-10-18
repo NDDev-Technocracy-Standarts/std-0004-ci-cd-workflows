@@ -126,3 +126,7 @@ system executables or a source checkout cannot satisfy this installed-CLI check.
 Trusted command strings use Bash with `-euo pipefail` on Unix and PowerShell 7.3 or newer with native
 error propagation on Windows. Prefer argument arrays for project-native data arguments. The Python
 fixture exercises both successful quoting and an earlier failing process in a native shell pipeline.
+
+Inside GitHub Actions, the admission CLI checks the actual caller event/repository visibility and
+refuses a mismatched policy before emitting runner labels. Fork context cannot assert trusted private
+capacity. Public reusable workflow ownership never supplies a private caller's billing entitlement.

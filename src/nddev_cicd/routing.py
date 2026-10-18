@@ -2,10 +2,42 @@
 
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
+
 from .model import Invalid, Unavailable
 
 PLATFORMS = {"linux", "windows", "macos"}
 STANDARD = {"linux": "ubuntu-24.04", "windows": "windows-2025", "macos": "macos-15"}
+
+
+def caller_policy(policy: dict) -> dict:
+    """A reusable publisher never changes the actual caller's billing/trust context."""
+    if os.environ.get("GITHUB_ACTIONS") != "true":
+        return policy
+    try:
+        event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+        repository = event["repository"]
+        actual = repository.get("visibility")
+        if actual == "internal":
+            actual = "private"
+        if actual is None and type(repository.get("private")) is bool:
+            actual = "private" if repository["private"] else "public"
+        if actual not in {"public", "private"} or repository["full_name"] != os.environ["GITHUB_REPOSITORY"]:
+            raise Unavailable("The actual caller repository visibility cannot be established")
+    except (KeyError, OSError, ValueError) as error:
+        raise Unavailable("The actual caller repository context is unavailable") from error
+    if policy.get("visibility") != actual:
+        raise Invalid("Admission policy visibility differs from the actual caller repository")
+    result = dict(policy)
+    if "pull_request" in event:
+        head = event["pull_request"].get("head", {}).get("repo") or {}
+        if head.get("full_name") != repository["full_name"] or event["pull_request"].get(
+            "author_association"
+        ) not in {"OWNER", "MEMBER", "COLLABORATOR"}:
+            result["trusted"] = False
+    return result
 
 
 def select(
@@ -17,6 +49,8 @@ def select(
     architecture: str = "x64",
     admission: dict | None = None,
 ) -> dict:
+    if type(trusted) is not bool:
+        raise Invalid("Trusted capacity selection requires a boolean owner policy")
     if visibility not in {"public", "private"} or platform not in PLATFORMS:
         raise Invalid("Unknown repository visibility or platform")
     if architecture not in {"x64", "arm64"}:
@@ -47,7 +81,9 @@ def select(
     choices = admission or {}
     for provider in ("blacksmith", "github"):
         policy = choices.get(provider, {})
-        if not policy.get("enabled"):
+        if type(policy.get("enabled", False)) is not bool:
+            raise Invalid("Capacity admission enabled must be a boolean")
+        if not policy.get("enabled", False):
             continue
         # Caller-owned trusted account policy, never a PR balance/label or an email alert.
         if policy.get("guarantee") not in {"hard-no-overage", "standard-public"} or not policy.get(

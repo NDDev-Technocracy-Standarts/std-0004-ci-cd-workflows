@@ -99,7 +99,7 @@ def main(argv=None) -> int:
         if args.operation == "profiles":
             result = config.catalog()
         elif args.operation == "route":
-            result = routing.select(**json.loads(args.policy.read_text()))
+            result = routing.select(**routing.caller_policy(json.loads(args.policy.read_text())))
         elif args.operation == "pack":
             evidence = json.loads(args.result.read_text())
             if evidence.get("status") != "success":

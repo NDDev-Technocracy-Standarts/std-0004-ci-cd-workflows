@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from nddev_cicd import artifacts, cache, ci, config, delivery, documentation, github, impact, reports, routing
-from nddev_cicd.model import Invalid, digest, git, identity, source_identity
+from nddev_cicd.model import Invalid, Unavailable, digest, git, identity, source_identity
 from nddev_cicd.process import run
 
 
@@ -517,3 +517,38 @@ examples=["python3","-c","from pathlib import Path; Path('uv.lock').write_text('
     assert result["status"] == "failure"
     integrity = next(row for row in result["results"] if row["name"] == "inputs.lock-integrity")
     assert integrity["changed_inputs"] == ["uv.lock"]
+
+
+def test_admission_uses_actual_caller_visibility_and_fork_trust(tmp_path, monkeypatch, capsys):
+    from nddev_cicd.__main__ import main
+
+    event = tmp_path / "event.json"
+    policy = tmp_path / "policy.json"
+    event.write_text(json.dumps({"repository": {"full_name": "fixture/private", "visibility": "private"}}))
+    policy.write_text(json.dumps({"visibility": "public", "platform": "windows"}))
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "fixture/private")
+    assert main(["route", "--policy", str(policy)]) == 2
+    output = capsys.readouterr()
+    assert not output.out and "actual caller" in output.err
+    event.write_text(
+        json.dumps(
+            {
+                "repository": {"full_name": "fixture/private", "visibility": "private"},
+                "pull_request": {"head": {"repo": {"full_name": "outside/fork"}}},
+            }
+        )
+    )
+    selected = routing.caller_policy(
+        {
+            "visibility": "private",
+            "platform": "linux",
+            "trusted": True,
+            "private_labels": ["self-hosted", "Linux", "X64", "existing"],
+        }
+    )
+    with pytest.raises(Unavailable):
+        routing.select(**selected)
+    with pytest.raises(Invalid):
+        routing.select("public", "windows", admission={"blacksmith": {"enabled": "false"}})
