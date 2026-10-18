@@ -1,0 +1,18 @@
+{
+  "apiVersion": "std-0000.nddev.ai/v1alpha2",
+  "kind": "OutputLedger",
+  "generator": {
+    "name": "nddev-std0000",
+    "version": "1.2.1"
+  },
+  "outputs": {
+    "generated/corpus.json": {
+      "sha256": "d02280185cdecaad983393a37780119c2ec9eadd6d967c4e911fd5046fbc0169",
+      "state": "current"
+    },
+    "generated/index.md": {
+      "sha256": "75ecb1fe86bd3d25dfd9ec8165dadc5af78d729def625054ed1120f21323861c",
+      "state": "current"
+    }
+  }
+}

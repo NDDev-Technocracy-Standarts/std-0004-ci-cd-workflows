@@ -116,7 +116,7 @@ def bundle(
 ) -> tuple[Path, dict, dict]:
     binding = eligible(repository, run_id, revision, workflow)
     response = get(f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100")
-    name = f"nddev-source-{run_id}-{binding['attempt']}"
+    name = f"nddev-source-{run_id}-{binding['attempt']}-primary"
     matches = [a for a in response["artifacts"] if a["name"] == name and not a["expired"]]
     if len(matches) != 1:
         raise Invalid("No unique nonexpired artifact for the exact successful run attempt")

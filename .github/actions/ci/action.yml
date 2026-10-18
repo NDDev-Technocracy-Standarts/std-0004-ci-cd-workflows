@@ -4,6 +4,9 @@ inputs:
   contract:
     description: Contained caller TOML path
     default: .github/nddev-ci.toml
+  result-key:
+    description: Unique job identity; primary owns the deployable bundle
+    default: primary
   python:
     description: Actual caller Python major.minor (library runtime is independent)
     default: '3.13'
@@ -29,9 +32,11 @@ runs:
         NDDEV_LIBRARY_REPOSITORY: ${{ github.action_repository }}
         NDDEV_LIBRARY_REF: ${{ github.action_ref }}
         NDDEV_CONTRACT: ${{ inputs.contract }}
+        NDDEV_RESULT_KEY: ${{ inputs.result-key }}
         UV_PYTHON: ${{ inputs.python }}
       run: |
         set -euo pipefail
+        [[ "$NDDEV_RESULT_KEY" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         export NDDEV_LIBRARY_REPOSITORY="${NDDEV_LIBRARY_REPOSITORY:-$GITHUB_REPOSITORY}"
         export NDDEV_LIBRARY_REF="${NDDEV_LIBRARY_REF:-$(git -C "$library" rev-parse HEAD)}"
@@ -46,7 +51,7 @@ runs:
       if: ${{ !cancelled() && steps.native.outcome != 'skipped' }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: nddev-source-${{ github.run_id }}-${{ github.run_attempt }}
+        name: nddev-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.result-key }}
         path: ${{ steps.native.outputs.directory }}
         if-no-files-found: error
         retention-days: 3

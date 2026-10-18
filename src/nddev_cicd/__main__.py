@@ -37,6 +37,9 @@ def parser() -> argparse.ArgumentParser:
     apply.add_argument("--download", type=Path, required=True)
     apply.add_argument("--run-id", type=int, required=True)
     apply.add_argument("--workflow", required=True)
+    reference = sub.add_parser("reference")
+    reference.add_argument("--root", type=Path, default=Path.cwd())
+    reference.add_argument("--check", action="store_true")
     for helper in ("package-check", "workflow-check"):
         sub.add_parser(helper).add_argument("--root", type=Path, default=Path.cwd())
     sub.add_parser("profiles", help="Print native profile contracts (no execution claim)")
@@ -61,6 +64,11 @@ def main(argv=None) -> int:
                 atomic_json(args.output.resolve() / "result.json", result)
             print(json.dumps({"status": result["status"], "result": str(args.output / "result.json")}))
             return 0 if result["status"] == "success" else 1
+        if args.operation == "reference":
+            from .reference import generate
+
+            generate(args.root.resolve(), check=args.check)
+            return 0
         if args.operation == "package-check":
             from .package_check import check
 

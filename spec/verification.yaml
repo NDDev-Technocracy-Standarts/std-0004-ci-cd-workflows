@@ -1,0 +1,3 @@
+apiVersion: std-0000.nddev.ai/v1alpha1
+kind: VerificationInventory
+entries: []
