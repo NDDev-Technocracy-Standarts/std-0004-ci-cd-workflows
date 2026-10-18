@@ -454,3 +454,37 @@ def test_native_failure_report_is_retained_and_escape_rejected(repository, tmp_p
     native.symlink_to(tmp_path / "outside.xml")
     with pytest.raises(Invalid):
         reports.retain(root, {"path": ".nddev-reports/*.xml"}, directory)
+
+
+def test_documentation_scopes_keep_archives_frozen_and_access_failures_explicit(repository):
+    root = repository({"README.md": "# Active\n", "archive/old/README.md": "[past](absent.md)\n"})
+    assert documentation.check(root, {"exclude": ["archive/"]})["files"] == 1
+    with pytest.raises(Invalid):
+        documentation.check(root)
+    report = root / "links.json"
+    settings = {
+        "external_link_report": "links.json",
+        "access_outages": {
+            "https://example.invalid/guide": {
+                "status": 403,
+                "reason": "Scanner access denied",
+                "issue": "https://example.invalid/issue/1",
+            }
+        },
+    }
+    payload = {
+        "unknown": 0,
+        "unsupported": 0,
+        "timeouts": 0,
+        "errors": 1,
+        "error_map": {
+            "README.md": [
+                {"url": "https://example.invalid/guide", "status": {"code": 403, "text": "Forbidden"}}
+            ]
+        },
+    }
+    report.write_text(json.dumps(payload))
+    assert documentation.external_outage(root, settings, {"status": "failure"})["status"] == "unavailable"
+    payload["error_map"]["README.md"][0]["status"]["code"] = 404
+    report.write_text(json.dumps(payload))
+    assert documentation.external_outage(root, settings, {"status": "failure"}) is None

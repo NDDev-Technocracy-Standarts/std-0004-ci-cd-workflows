@@ -99,3 +99,8 @@ JSON output. An explicit documentation.network_timeouts URL-to-Issue map classif
 timeouts as advisory unavailable results. The aggregate retains them in limitations and never claims
 the URL was verified. Broken URLs, malformed/missing reports and unlisted timeouts remain blocking.
 No scanner/test failure is converted into a successful check.
+
+Documentation may exclude an exact historical directory with a trailing-slash `exclude` entry.
+Current source links stay checked. `network_outages` maps native connection failures/timeouts to an
+actual Issue; `access_outages.URL` requires the exact 403/429 status, reason and Issue. These remain
+unavailable in results and limitations. HTTP 404 and other broken responses cannot use this path.

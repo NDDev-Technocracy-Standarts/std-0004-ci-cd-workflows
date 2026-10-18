@@ -27,6 +27,7 @@ SOURCES = {
     "swift": "Sources/CiwfFixture/Checksum.swift",
     "jvm": "src/main/java/example/Checksum.java",
     "ruby": "lib/native_checksum.rb",
+    "architecture": "src/native_graph/domain.py",
 }
 
 
@@ -67,7 +68,10 @@ def exercise(name: str, output: Path) -> dict:
             source.write_text(original)
         # A genuine source syntax error must reach the real compiler/test path and remain a failed aggregate.
         source = root / SOURCES[name]
-        if name == "advanced":
+        if name == "architecture":
+            # A valid Python import closes a real adapter/domain cycle and violates the declared boundary.
+            source.write_text(source.read_text() + "\nfrom . import adapter\n")
+        elif name == "advanced":
             source.write_text(source.read_text().replace("sum(payload) % 256", "(sum(payload) + 1) % 256"))
         else:
             source.write_text(source.read_text() + "\nNDDEV deliberately invalid native source !\n")
@@ -79,6 +83,13 @@ def exercise(name: str, output: Path) -> dict:
             and next(i for i in negative["results"] if i["name"] == "c-cpp.test")["status"] != "unavailable"
         ):
             raise RuntimeError("A failed native build cannot validate an old test binary")
+        if name == "architecture":
+            source.write_text(source.read_text().replace("\nfrom . import adapter\n", ""))
+            settings = load(root)
+            settings["architecture"]["scopes"] = ["src/unmatched_module"]
+            unmatched = execute(root, settings, output / "unmatched-scope")
+            if unmatched["status"] != "failure" or "architecture.scope" not in unmatched["failed"]:
+                raise RuntimeError("An unmatched architectural scope cannot be vacuous success")
         return {
             "profile": name,
             "positive": "success",

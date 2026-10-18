@@ -35,7 +35,11 @@ def check(root: Path, settings: dict | None = None) -> dict:
     paths = git(root, "ls-files", "-z").split("\0")
     checked, links = 0, 0
     for relative in paths:
-        if not relative or any(Path(relative).match(pattern) for pattern in exclusions):
+        if not relative or any(
+            Path(relative).match(pattern)
+            or (pattern.endswith("/") and Path(relative).is_relative_to(pattern.rstrip("/")))
+            for pattern in exclusions
+        ):
             continue
         path = root / relative
         if not path.is_file() or path.suffix.lower() not in {".md", ".yaml", ".yml", ".json"}:
@@ -72,26 +76,46 @@ def generation_clean(root: Path) -> None:
 
 
 def external_outage(root: Path, settings: dict, operation: dict) -> dict | None:
-    """Classify only explicitly scoped native Lychee timeouts; broken URLs remain failures."""
+    """Keep explicitly scoped native transport/access failures unavailable; broken URLs stay failures."""
     report = settings.get("external_link_report")
-    scoped = settings.get("network_timeouts", {})
-    if operation.get("status") == "success" or not report or not scoped:
+    if operation.get("status") == "success" or not report:
         return None
     payload = json.loads(contained(root, report, exists=True).read_text())
-    if payload.get("errors") != 0 or payload.get("unknown") != 0 or not payload.get("timeouts"):
+    if payload.get("unknown") != 0 or payload.get("unsupported", 0) != 0:
         return None
-    records = [item for items in payload.get("timeout_map", {}).values() for item in items]
-    if not records or len(records) != payload["timeouts"]:
+    timeouts = [item for items in payload.get("timeout_map", {}).values() for item in items]
+    errors = [item for items in payload.get("error_map", {}).values() for item in items]
+    if len(timeouts) != payload.get("timeouts", 0) or len(errors) != payload.get("errors", 0):
         return None
-    urls = sorted({item.get("url") for item in records})
-    if any(url not in scoped or not isinstance(scoped[url], str) or not scoped[url] for url in urls):
+    if not timeouts and not errors:
         return None
+    scoped_timeouts = {**settings.get("network_outages", {}), **settings.get("network_timeouts", {})}
+    refs = []
+    for item in timeouts:
+        reference = scoped_timeouts.get(item.get("url"))
+        if not isinstance(reference, str) or not reference:
+            return None
+        refs.append(reference)
+    for item in errors:
+        url, status = item.get("url"), item.get("status", {})
+        code = status.get("code")
+        if code is None and status.get("text", "").startswith("Network error:"):
+            reference = settings.get("network_outages", {}).get(url)
+        else:
+            disposition = settings.get("access_outages", {}).get(url, {})
+            # Never authorize a missing URL (404) or a general HTTP-error whitelist.
+            if code not in {403, 429} or disposition.get("status") != code or not disposition.get("reason"):
+                return None
+            reference = disposition.get("issue")
+        if not isinstance(reference, str) or not reference:
+            return None
+        refs.append(reference)
     return {
         "status": "unavailable",
-        "detail": "Scoped external transport timeout; URL availability is not established",
+        "detail": "Scoped native transport/access failure; URL availability is not established",
         "advisory_outage": {
             "native_reporter": "lychee",
-            "urls": urls,
-            "issue_refs": sorted({scoped[url] for url in urls}),
+            "urls": sorted({item["url"] for item in [*timeouts, *errors]}),
+            "issue_refs": sorted(set(refs)),
         },
     }
