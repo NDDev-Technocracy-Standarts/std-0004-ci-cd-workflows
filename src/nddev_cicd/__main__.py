@@ -47,6 +47,16 @@ def parser() -> argparse.ArgumentParser:
         type=Path,
         help="Optional caller-owned JSON of selected target credentials/settings",
     )
+    release = sub.add_parser(
+        "prepare-release", help="Prepare a native release candidate from an eligible integrated artifact"
+    )
+    release.add_argument("--run-id", type=int, required=True)
+    release.add_argument("--workflow", default=".github/workflows/ci.yml")
+    release.add_argument("--download", type=Path, required=True)
+    release.add_argument("--directory", type=Path, required=True)
+    release.add_argument(
+        "--files", required=True, help="JSON list of selected native package/artifact patterns"
+    )
     reference = sub.add_parser("reference")
     reference.add_argument("--root", type=Path, default=Path.cwd())
     reference.add_argument("--check", action="store_true")
@@ -126,6 +136,25 @@ def main(argv=None) -> int:
             result = artifacts.pack(args.root.resolve(), args.files, args.archive, evidence["identity"])
         elif args.operation == "eligible":
             result = github.eligible(args.repository, args.run_id, args.revision, args.workflow)
+        elif args.operation == "prepare-release":
+            from . import release
+
+            event, branch = os.environ.get("GITHUB_EVENT_NAME"), os.environ.get("GITHUB_REF")
+            if not (
+                (event == "push" and branch in {"refs/heads/dev", "refs/heads/main"})
+                or (event == "workflow_dispatch" and branch == "refs/heads/main")
+            ):
+                raise Invalid(
+                    "Release preparation requires an integrated dev/main push or explicit main dispatch"
+                )
+            archive, manifest, expected = github.bundle(
+                os.environ.get("GITHUB_REPOSITORY", ""),
+                args.run_id,
+                os.environ.get("GITHUB_SHA", ""),
+                args.workflow,
+                args.download,
+            )
+            result = release.prepare(archive, manifest, expected, args.directory, json.loads(args.files))
         else:
             if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") not in {
                 "refs/heads/dev",
