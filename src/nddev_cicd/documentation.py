@@ -195,7 +195,7 @@ def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
                 continue
             if token.type == "inline":
                 html = _AuthoredText()
-                html.feed(parser.renderer.renderInline(token.children or [], parser.options, {}))
+                html.feed(parser.renderer.render([token], parser.options, {}))
                 identity_text = " ".join(html.text)
             elif token.type == "html_block":
                 html = _AuthoredText()
