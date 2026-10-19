@@ -70,3 +70,11 @@ entries:
   kind: test
   target: tests/native_delivery.py::test_real_compose_immutable_image_and_health
   establishes: Actual native target scenarios expose the tested revision. Compose inspection also checks selected running immutable image identities; generic HTTP success is insufficient.
+- id: runtime.remote
+  kind: check
+  target: tests/native_remote.py
+  establishes: Actual SSH/SCP reaches a separate server/filesystem; pinned host-key failure, exact artifact receipts, two-client target exclusion and partial migration recovery are exercised. Production targets and arbitrary server toolchains remain unverified.
+- id: runtime.preflight
+  kind: test
+  target: tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration
+  establishes: Known invalid service, project, registry and payload inputs invoke neither backup nor migration and leave the target unchanged.

@@ -7,11 +7,11 @@
   },
   "outputs": {
     "generated/corpus.json": {
-      "sha256": "97fff556ad988ffa18b40bcffcfd236850966c65c4aa02823d2f1e3af96fb6c2",
+      "sha256": "4368180b2e880bf49dd59704a5069a3670fc80c446d9926398fca358362f6b7b",
       "state": "current"
     },
     "generated/index.md": {
-      "sha256": "dbf866d04d143adceae320ad363e3ada95e0f957332e3e1e3066b7e88b33bbf6",
+      "sha256": "9ce71865d187023c80e8b03f3963bd7c47594004a2e3003ace0417357004d3e8",
       "state": "current"
     }
   }

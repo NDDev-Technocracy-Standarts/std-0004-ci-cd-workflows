@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import re
 import shutil
 import subprocess
@@ -48,6 +49,19 @@ def url(value, *, https=False) -> None:
         or parsed.fragment
     ):
         raise Invalid("Use an explicit supported target URL with credentials supplied separately")
+    try:
+        if parsed.port is not None and not 1 <= parsed.port <= 65535:
+            raise ValueError("port out of range")
+        ipaddress.ip_address(parsed.hostname)
+    except ValueError:
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9.-]*", parsed.hostname):
+            raise Invalid("Native target URL has an invalid hostname") from None
+        # Accessing .port also rejects malformed/out-of-range ports for DNS hosts.
+        try:
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("port out of range")
+        except ValueError as error:
+            raise Invalid("Native target URL has an invalid port") from error
 
 
 def validate(archive: Path, manifest: dict, expected: dict, config: dict) -> None:
@@ -131,6 +145,24 @@ def validate(archive: Path, manifest: dict, expected: dict, config: dict) -> Non
                 for value in services.values()
             ):
                 raise Invalid("Compose delivery requires immutable prebuilt image digests")
+            native = subprocess.run(
+                [
+                    "docker",
+                    "compose",
+                    "--project-name",
+                    config["project"],
+                    "--file",
+                    str(contained(root, config.get("compose_file", "compose.yaml"), exists=True)),
+                    "config",
+                    "--quiet",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if native.returncode:
+                raise Invalid("Native Compose configuration is invalid: " + native.stderr[-500:])
         elif module == "packages":
             if not contained(root, config.get("package_file", ""), exists=True).is_file():
                 raise Invalid("Select an actual packaged publication file")

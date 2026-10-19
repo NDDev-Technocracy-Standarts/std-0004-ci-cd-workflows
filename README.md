@@ -23,8 +23,9 @@ OS cells are Linux x64, public Windows x64 Python and public Apple ARM Swift. De
 report and dependency-graph failures are rejected. This is finite verification, not every SDK or OS.
 
 `tests/native_delivery.py` exercises isolated HTTP, OCI/Compose, systemd, HTTPS package registry and
-built Android APK targets. The systemd fixture requires an explicitly selected existing user manager;
+built Android APK targets. `tests/native_remote.py` covers actual SSH/SCP, pinned host identity and remote target concurrency/recovery.
+The systemd fixture requires an explicitly selected existing user manager;
 mobile delivery consumes the actual Android build. No production device, registry or store is changed.
 Integrated dev/main pushes separately validate native GitHub run/artifact lineage and install the
-already-tested fixture artifact into a temporary loopback target. Source is not rebuilt after merging.
+already-tested fixture artifact into a separate isolated SSH target. Source is not rebuilt after merging.
 The source is [AGPL-3.0-only](LICENSE). See [origins](docs/origins.md) for the historical comparison.

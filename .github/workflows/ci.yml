@@ -198,7 +198,7 @@ jobs:
           enable-cache: 'false'
           python-version: '3.13'
       - name: Exercise native registries, target concurrency and data-compatible recovery
-        run: uv run --locked pytest -q tests/native_delivery.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+        run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
   gate:
     needs: [source, native, admission, windows, macos, delivery]
     if: ${{ !cancelled() }}

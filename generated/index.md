@@ -32,8 +32,8 @@ Verification meanings are defined by STD-0000; a structural or partial binding i
 | [R-0019](../spec/performance.md) | MUST | Reports remain useful without storage duplication | condition (item): The subject exports or retains run diagnostics or artifacts. | partial | `runtime.retention` |
 | [R-0020](../spec/delivery.md) | MUST | CD consumes an eligible integrated result | condition (item): The subject determines eligibility for deployment. | partial | `runtime.lineage` |
 | [R-0021](../spec/delivery.md) | MUST | Artifact promotion preserves identity | condition (item): A build artifact is produced, published or promoted. | partial | `runtime.artifact` |
-| [R-0022](../spec/delivery.md) | MUST | Native deployment is complete rather than declarative only | condition (item): The project selects a deployment adapter. | partial | `runtime.delivery` |
-| [R-0023](../spec/delivery.md) | MUST | The target serializes deployment | condition (item): The subject can mutate a shared delivery target. | partial | `runtime.target-lock` |
+| [R-0022](../spec/delivery.md) | MUST | Native deployment is complete rather than declarative only | condition (item): The project selects a deployment adapter. | partial | `runtime.delivery`, `runtime.preflight`, `runtime.remote` |
+| [R-0023](../spec/delivery.md) | MUST | The target serializes deployment | condition (item): The subject can mutate a shared delivery target. | partial | `runtime.target-lock`, `runtime.remote` |
 | [R-0024](../spec/delivery.md) | MUST | Recovery respects data and partial state | condition (item): Delivery changes data or encounters partial execution or failure. | partial | `runtime.recovery` |
 | [R-0025](../spec/delivery.md) | MUST | Acceptance identifies the running result | condition (item): The invocation claims a delivered result. | partial | `runtime.health` |
 | [R-0026](../spec/maintenance.md) | MUST | The library is usable outside its publisher account | condition (item): The library exposes public technical entrypoints. | review | — |

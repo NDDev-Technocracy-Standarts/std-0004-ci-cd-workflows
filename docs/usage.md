@@ -136,3 +136,41 @@ capacity. Public reusable workflow ownership never supplies a private caller's b
 A private caller's planning/source job must restrict execution to its verified trusted actors before
 allocation. A caller-owned `trusted_actors` list can bind admission to `GITHUB_ACTOR`; an omitted
 provider association cannot silently establish trust. Fork source is always refused for private hosts.
+
+## Existing remote targets over SSH
+
+Set the delivery composite's optional `transport-config` input to a caller-owned JSON file:
+
+```json
+{"kind":"ssh","hostname":"deploy.example.invalid","user":"deploy","port":22,
+ "identity_file":"/run/example/ssh.key","known_hosts":"/run/example/known_hosts","python":"python3"}
+```
+
+The caller materializes the private key and pinned known-host keys from GitHub repository secrets
+into its job directory (key mode 0600); it supplies the target configuration separately. No key,
+password or GitHub token is copied into the application artifact or installed on the target.
+The transport ignores ambient SSH configuration/agents and enforces the supplied host key.
+
+`target_directory`, native tools and health/version URLs belong to the remote environment. The
+existing SSH user needs access to that target and its selected service/registry. The target provides
+Python 3.11+ and compatible PyYAML (the library dependency); the adapter installs no system packages,
+service or deployment daemon. Its selected module's native tools must already be available.
+
+The CLI downloads and verifies the exact eligible PR attempt before SSH transfer. It transfers the
+artifact, bindings and the same licensed implementation into an owned temporary remote directory,
+then the target rechecks bytes/modes and performs preflight, locking, mutations and health locally.
+The receipt must match the tested artifact, revision and target generation. Concurrent callers use
+the lock in the same remote target directory. A network failure is not permission to replay an
+uncertain migration; reconcile the target's durable record and use the existing recovery contract.
+Only transport staging is removed automatically; current/recovery releases remain target-owned.
+
+`tests/native_remote.py` exercises a separate SSH server/container and filesystem through actual
+SSH/SCP with pinned host identity, concurrent clients and failed-health recovery. The integrated
+`dev`/`main` smoke uses that same transport with the successful PR artifact. This is representative
+remote transport acceptance, not a production deployment or a separate physical-server benchmark.
+
+The optional `remote-environment` input names a caller-owned JSON file of explicitly selected native
+settings/credentials, such as a registry token sourced from repository secrets. It is transferred only
+inside private SSH staging and applied only to the authenticated adapter process; it is not included
+in release files or receipts. Runner GitHub/SSH authority and interpreter/search-path controls are
+refused. Existing systemd service secrets remain in their native target-owned environment mechanism.

@@ -57,6 +57,8 @@ def test_owned_descendant_is_gone_after_leader_exits(tmp_path, cancel):
 @pytest.mark.parametrize(
     "settings",
     [
+        {"module": "static-web", "entrypoint": "index.html", "health_url": "http://127.0.0.1:bad/health"},
+        {"module": "static-web", "entrypoint": "index.html", "health_url": "http://invalid host/health"},
         {
             "module": "systemd-binary",
             "service": "not-a-service-unit",
@@ -131,3 +133,40 @@ def test_mobile_filename_and_zip_entry_never_establish_native_validity(tmp_path,
     # Missing native SDK is an unavailable validation, never a successful ZIP-only fallback.
     with pytest.raises(Invalid):
         delivery.mobile_format(path)
+
+
+@pytest.mark.parametrize("key", ["GITHUB_TOKEN", "SSH_AUTH_SOCK", "PATH"])
+def test_remote_environment_refuses_forwarding_runner_authority(key):
+    from nddev_cicd.remote import environment_values
+
+    with pytest.raises(Invalid):
+        environment_values({key: "fixture-value"})
+
+
+def test_native_sarif_missing_failed_analysis_and_blocking_findings(tmp_path):
+    from nddev_cicd.__main__ import main
+    from nddev_cicd.reports import sarif
+
+    with pytest.raises(Invalid):
+        sarif(tmp_path)
+    report = tmp_path / "python.sarif"
+    run = {
+        "tool": {
+            "driver": {
+                "name": "CodeQL",
+                "rules": [{"id": "example-rule", "properties": {"security-severity": "8.5"}}],
+            }
+        },
+        "invocations": [{"executionSuccessful": True}],
+        "results": [],
+    }
+    document = {"version": "2.1.0", "runs": [run]}
+    report.write_text(json.dumps(document))
+    assert sarif(tmp_path)["status"] == "success"
+    run["results"] = [{"ruleIndex": 0, "ruleId": "example-rule", "message": {"text": "controlled finding"}}]
+    report.write_text(json.dumps(document))
+    assert main(["sarif-check", "--directory", str(tmp_path), "--minimum", "high"]) == 1
+    run["invocations"][0]["executionSuccessful"] = False
+    report.write_text(json.dumps(document))
+    with pytest.raises(Invalid):
+        sarif(tmp_path)

@@ -47,7 +47,7 @@ SLSA level certification.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.delivery]
+verified-by: [runtime.delivery, runtime.preflight, runtime.remote]
 criteria: Run an adapter against an authorized representative target; a generated plan is not an applied
   result.
 since: 0.1.0
@@ -71,7 +71,7 @@ completion boundary; a fictitious production service is not required.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.target-lock]
+verified-by: [runtime.target-lock, runtime.remote]
 criteria: Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.
 since: 0.1.0
 sources:

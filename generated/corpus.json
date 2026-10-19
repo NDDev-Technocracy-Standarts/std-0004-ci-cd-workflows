@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "be3c7d896d8368b75e68f7688217e763d27e103c10022d73c0af10bd9397fbdc"
+      "sha256": "cd026f73de97fe3ee0b6179aa0e432c6f784afd965add0557f6d238d244af642"
     },
     {
       "path": "spec/foundation.md",
@@ -88,7 +88,7 @@
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "2d3bfe1365f1d3a7e53cbb5a9b2de4a546de657d58f5c3a88af1bc28640ea400"
+      "sha256": "82e9b27be668c6cd9b28797a7fbff9a8b06adf92d71c6bcf0984da62ed8e2086"
     },
     {
       "path": "standard.yml",
@@ -96,7 +96,7 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "695cc12314e3bda81514e44957796f31c37fd504d5deae76731cabd2aaf00d72",
+  "inputs-sha256": "0b6ec7663132df0fd31fffe224d3333a47de2f3a8f1f8bb6397c760908e26a52",
   "verification": [
     {
       "id": "runtime.architecture",
@@ -159,6 +159,12 @@
       "establishes": "Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases."
     },
     {
+      "id": "runtime.preflight",
+      "kind": "test",
+      "target": "tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration",
+      "establishes": "Known invalid service, project, registry and payload inputs invoke neither backup nor migration and leave the target unchanged."
+    },
+    {
       "id": "runtime.process",
       "kind": "test",
       "target": "tests/test_readiness.py::test_owned_descendant_is_gone_after_leader_exits",
@@ -175,6 +181,12 @@
       "kind": "test",
       "target": "tests/native_delivery.py::test_partial_data_migration_preserves_backup_and_never_repeats",
       "establishes": "A real isolated SQLite backup/migration followed by failed health remains pending without incompatible file rollback; recovery verifies the same resource and does not repeat the migration."
+    },
+    {
+      "id": "runtime.remote",
+      "kind": "check",
+      "target": "tests/native_remote.py",
+      "establishes": "Actual SSH/SCP reaches a separate server/filesystem; pinned host-key failure, exact artifact receipts, two-client target exclusion and partial migration recovery are exercised. Production targets and arbitrary server toolchains remain unverified."
     },
     {
       "id": "runtime.reports",
@@ -934,7 +946,9 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.delivery"
+        "runtime.delivery",
+        "runtime.preflight",
+        "runtime.remote"
       ],
       "criteria": "Run an adapter against an authorized representative target; a generated plan is not an applied result.",
       "since": "0.1.0",
@@ -960,7 +974,8 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.target-lock"
+        "runtime.target-lock",
+        "runtime.remote"
       ],
       "criteria": "Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.",
       "since": "0.1.0",

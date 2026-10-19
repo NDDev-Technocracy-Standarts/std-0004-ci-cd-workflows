@@ -1,0 +1,103 @@
+name: public-source-security
+on:
+  workflow_call:
+    inputs:
+      languages:
+        type: string
+        default: python,actions
+      build-command:
+        description: Optional trusted native build for compiled CodeQL languages
+        type: string
+        default: ''
+      fail-on-severity:
+        type: string
+        default: moderate
+      allow-licenses:
+        type: string
+        default: ''
+    outputs:
+      status:
+        description: Success only after the applicable public PR analysis completed
+        value: ${{ jobs.analysis.outputs.status }}
+permissions: {}
+jobs:
+  analysis:
+    if: ${{ github.event_name == 'pull_request' && github.event.repository.private == false }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    outputs:
+      status: ${{ steps.complete.outputs.status }}
+    steps:
+      - name: Observe runner egress with the public community action
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: initialize
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          languages: ${{ inputs.languages }}
+          queries: security-extended
+          build-mode: ${{ inputs.build-command != '' && 'manual' || 'none' }}
+      - name: Run the selected native extraction build
+        id: build
+        if: ${{ inputs.build-command != '' }}
+        env:
+          CODEQL_BUILD_COMMAND: ${{ inputs.build-command }}
+        run: bash --noprofile --norc -euo pipefail -c "$CODEQL_BUILD_COMMAND"
+      - name: Analyze the actual source and upload native SARIF
+        if: ${{ !cancelled() && steps.initialize.outcome == 'success' && (inputs.build-command == '' || steps.build.outcome == 'success') }}
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        with:
+          output: ${{ runner.temp }}/nddev-codeql-sarif
+      - name: Resolve native reusable-workflow identity
+        id: implementation
+        if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
+        env:
+          NDDEV_JOB_IDENTITY: ${{ toJSON(job) }}
+        run: |
+          python3 - <<'PYCODE'
+          import json, os, re
+          from pathlib import Path
+          job = json.loads(os.environ["NDDEV_JOB_IDENTITY"])
+          repository, revision = job.get("workflow_repository", ""), job.get("workflow_sha", "")
+          if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+              raise SystemExit("Native callee identity is unavailable; refusing a guessed implementation")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              print("repository=" + repository, file=output)
+              print("revision=" + revision, file=output)
+          PYCODE
+      - name: Fetch the exact reviewed reusable implementation separately from caller source
+        if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.implementation.outputs.repository }}
+          ref: ${{ steps.implementation.outputs.revision }}
+          path: .nddev-shared-security
+          persist-credentials: false
+      - if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+      - name: Gate actual native findings at the selected threshold
+        if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
+        env:
+          NDDEV_SARIF_MINIMUM: ${{ inputs.fail-on-severity }}
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-security-runtime
+        run: uv run --project .nddev-shared-security --locked --no-dev --python 3.13 python -m nddev_cicd sarif-check --directory "$RUNNER_TEMP/nddev-codeql-sarif" --minimum "$NDDEV_SARIF_MINIMUM"
+      - name: Review the actual PR dependency and license changes
+        if: ${{ !cancelled() }}
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: ${{ inputs.fail-on-severity }}
+          allow-licenses: ${{ inputs.allow-licenses }}
+          comment-summary-in-pr: never
+      - id: complete
+        run: echo status=success >> "$GITHUB_OUTPUT"

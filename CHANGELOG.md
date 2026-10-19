@@ -9,7 +9,10 @@ minor edition under STD-0000 R-0012. Private execution and the zero-additional-s
 The implementation validates complete native deployment inputs and selected payloads before any
 backup/migration/activation, terminates remaining owned descendants after timeout/cancellation, and
 uses Android SDK apkanalyzer/bundletool for APK/AAB validation. Signing and store submission remain
-separate. Regression and native fixture outcomes are recorded by the actual PR jobs.
+separate. An optional SSH transport transfers the exact verified artifact and canonical runtime,
+then executes the native adapter and shared target lock on the remote host. Pinned host keys,
+concurrent callers and partial recovery are covered against an isolated SSH server.
+Regression and native fixture outcomes are recorded by the actual PR jobs.
 
 ## 0.1.0 (draft)
 

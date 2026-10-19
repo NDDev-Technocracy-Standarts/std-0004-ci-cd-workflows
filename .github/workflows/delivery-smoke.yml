@@ -33,6 +33,7 @@ jobs:
         with:
           run-id: ${{ steps.fixture.outputs.run_id }}
           target-config: ${{ steps.fixture.outputs.target }}
-      - name: Verify actual served revision and stop the owned fixture server
-        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+          transport-config: ${{ steps.fixture.outputs.transport }}
+      - name: Verify the remote served revision and stop the owned SSH server
+        if: ${{ always() && steps.fixture.outcome == 'success' }}
         run: uv run --locked python scripts/delivery-smoke.py finish "$RUNNER_TEMP/integrated-smoke"

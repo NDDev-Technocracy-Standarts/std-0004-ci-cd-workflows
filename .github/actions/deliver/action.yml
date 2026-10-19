@@ -10,6 +10,12 @@ inputs:
   target-config:
     description: Existing trusted target-owner JSON path; credentials come from caller secrets
     required: true
+  transport-config:
+    description: Optional trusted SSH JSON path; private key and host-key files are caller-owned
+    default: ''
+  remote-environment:
+    description: Optional caller-owned JSON path for selected native target credentials/settings
+    default: ''
 runs:
   using: composite
   steps:
@@ -25,11 +31,20 @@ runs:
         NDDEV_SOURCE_RUN: ${{ inputs.run-id }}
         NDDEV_SOURCE_WORKFLOW: ${{ inputs.source-workflow }}
         NDDEV_TARGET_CONFIG: ${{ inputs.target-config }}
+        NDDEV_TRANSPORT_CONFIG: ${{ inputs.transport-config }}
+        NDDEV_REMOTE_ENVIRONMENT: ${{ inputs.remote-environment }}
         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-delivery-runtime
         UV_CACHE_DIR: ${{ runner.temp }}/nddev-downloads
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        transport=()
+        if [ -n "$NDDEV_TRANSPORT_CONFIG" ]; then
+          transport=(--transport-config "$NDDEV_TRANSPORT_CONFIG")
+        fi
+        if [ -n "$NDDEV_REMOTE_ENVIRONMENT" ]; then
+          transport+=(--remote-environment "$NDDEV_REMOTE_ENVIRONMENT")
+        fi
         uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd apply \
           --config "$NDDEV_TARGET_CONFIG" --download "$RUNNER_TEMP/nddev-delivery-bundle" \
-          --run-id "$NDDEV_SOURCE_RUN" --workflow "$NDDEV_SOURCE_WORKFLOW"
+          --run-id "$NDDEV_SOURCE_RUN" --workflow "$NDDEV_SOURCE_WORKFLOW" "${transport[@]}"

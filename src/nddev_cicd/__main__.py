@@ -37,6 +37,16 @@ def parser() -> argparse.ArgumentParser:
     apply.add_argument("--download", type=Path, required=True)
     apply.add_argument("--run-id", type=int, required=True)
     apply.add_argument("--workflow", required=True)
+    apply.add_argument(
+        "--transport-config",
+        type=Path,
+        help="Optional trusted SSH transport JSON; target commands execute remotely",
+    )
+    apply.add_argument(
+        "--remote-environment",
+        type=Path,
+        help="Optional caller-owned JSON of selected target credentials/settings",
+    )
     reference = sub.add_parser("reference")
     reference.add_argument("--root", type=Path, default=Path.cwd())
     reference.add_argument("--check", action="store_true")
@@ -45,6 +55,9 @@ def parser() -> argparse.ArgumentParser:
         helper_parser.add_argument("--root", type=Path, default=Path.cwd())
         if helper == "package-check":
             helper_parser.add_argument("--contract")
+    sarif = sub.add_parser("sarif-check", help="Gate actual native public CodeQL findings")
+    sarif.add_argument("--directory", type=Path, required=True)
+    sarif.add_argument("--minimum", default="moderate")
     sub.add_parser("profiles", help="Print native profile contracts (no execution claim)")
     return p
 
@@ -77,6 +90,12 @@ def main(argv=None) -> int:
                     }
                 )
             )
+            return 0 if result["status"] == "success" else 1
+        if args.operation == "sarif-check":
+            from .reports import sarif
+
+            result = sarif(args.directory, args.minimum)
+            print(json.dumps(result, indent=2))
             return 0 if result["status"] == "success" else 1
         if args.operation == "reference":
             from .reference import generate
@@ -119,9 +138,25 @@ def main(argv=None) -> int:
             archive, manifest, expected = github.bundle(
                 repository, args.run_id, revision, args.workflow, args.download
             )
-            result = delivery.apply(
-                archive, manifest, expected, json.loads(args.config.read_text()), authorized=True
-            )
+            target = json.loads(args.config.read_text())
+            if args.transport_config:
+                from . import remote
+
+                result = remote.apply(
+                    archive,
+                    manifest,
+                    expected,
+                    target,
+                    json.loads(args.transport_config.read_text()),
+                    authorized=True,
+                    environment=json.loads(args.remote_environment.read_text())
+                    if args.remote_environment
+                    else None,
+                )
+            else:
+                if args.remote_environment:
+                    raise Invalid("Remote environment input requires the explicit SSH transport")
+                result = delivery.apply(archive, manifest, expected, target, authorized=True)
         print(json.dumps(result, indent=2))
         return 0
     except (Invalid, OSError, ValueError) as error:
