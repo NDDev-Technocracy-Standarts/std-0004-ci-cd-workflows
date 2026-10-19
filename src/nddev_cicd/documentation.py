@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 import re
+from fnmatch import fnmatchcase
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote
 
 import yaml
+from markdown_it import MarkdownIt
 
 from .model import Invalid, contained, git
 
@@ -34,6 +37,7 @@ def check(root: Path, settings: dict | None = None) -> dict:
     exclusions = settings.get("exclude", [])
     paths = git(root, "ls-files", "-z").split("\0")
     checked, links = 0, 0
+    style = style_check(root, paths, settings.get("style"))
     for relative in paths:
         if not relative or any(
             Path(relative).match(pattern)
@@ -51,20 +55,23 @@ def check(root: Path, settings: dict | None = None) -> dict:
         elif path.suffix in {".yml", ".yaml"}:
             list(yaml.load_all(text, Loader=StrictLoader))
         elif path.suffix == ".md":
-            # Fence contents are executable examples/code data, not prose links.
-            prose = re.sub(r"(?ms)^(```|~~~).*?^\1[^\n]*$", "", text)
-            for match in re.finditer(r"(?<!!)\[[^\]]*\]\((<[^>]+>|[^)\s]+)(?:\s+[^)]*)?\)", prose):
-                target = match.group(1).strip("<>")
-                if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:", target) or target.startswith("#"):
+            for target in markdown_targets(text):
+                if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:", target) or target.startswith("//"):
                     continue
-                destination = (path.parent / unquote(target.split("#", 1)[0])).resolve()
+                pathname, _, fragment = target.partition("#")
+                destination = (path.parent / unquote(pathname)).resolve() if pathname else path
                 if not destination.is_relative_to(root.resolve()) or not destination.exists():
-                    raise Invalid(f"Broken/escaping local link: {relative} → {target}")
+                    raise Invalid(f"Broken/escaping local link: {relative} -> {target}")
+                if fragment and destination.suffix == ".md":
+                    anchors = markdown_anchors(destination.read_text(encoding="utf-8"))
+                    if unquote(fragment) not in anchors:
+                        raise Invalid(f"Broken local anchor: {relative} -> {target}")
                 links += 1
     if not checked:
         raise Invalid("Documentation selection matched no text files")
     return {
         "files": checked,
+        "style": style,
         "local_links": links,
         "external_links": "Use the selected external-link native command and explicit outage policy",
     }
@@ -119,3 +126,180 @@ def external_outage(root: Path, settings: dict, operation: dict) -> dict | None:
             "issue_refs": sorted(set(refs)),
         },
     }
+
+
+_STYLE_ROLES = {"authored", "generated", "historical", "literal", "legal"}
+_RELEASE_VALUE = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?(?!\w|\.\d)")
+_FINGERPRINT = re.compile(r"(?<![\w])[a-fA-F0-9]{40,64}(?![\w])")
+_URL = re.compile(r"(?:https?|ssh|git)://[^\s<>\"'\])]+")
+_FRESHNESS = re.compile(
+    r"\b(?:(?:last[- ](?:reviewed|verified|updated)|reviewed[- ](?:at|on)|verified[- ](?:at|on))"
+    r"\s*[:=]?\s*[`\"']?\d{4}-\d{2}-\d{2}|all \d+ tests[^\n]*pass|"
+    r"(?:on|in) the latest build)\b",
+    re.IGNORECASE,
+)
+
+_EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf]")
+
+
+def _selected(path: str, pattern: str) -> bool:
+    return fnmatchcase(path, pattern) or (pattern.startswith("**/") and fnmatchcase(path, pattern[3:]))
+
+
+def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
+    """Finite opt-in mechanical coverage; exemptions retain source roles, not active-file waivers."""
+    if settings is None:
+        return {"status": "not-selected"}
+    if not isinstance(settings, dict) or not settings or set(settings) - _STYLE_ROLES:
+        raise Invalid("Unsupported documentation style scope")
+    documents = [p for p in paths if p and (p.endswith((".md", ".mdc", ".md.jinja")))]
+    ownership: dict[str, str] = {}
+    for role, patterns in settings.items():
+        if (
+            not isinstance(patterns, list)
+            or not patterns
+            or not all(isinstance(p, str) and p for p in patterns)
+        ):
+            raise Invalid(f"Documentation style {role} needs nonempty path patterns")
+        for pattern in patterns:
+            if Path(pattern).is_absolute() or ".." in Path(pattern).parts:
+                raise Invalid("Documentation style paths must stay inside the repository")
+            parts = set(Path(pattern).parts)
+            if role == "historical" and not parts.intersection({"archive", "history", "snapshots"}):
+                raise Invalid("Historical exclusions need an explicit historical source directory")
+            if role == "literal" and not parts.intersection({"fixtures", "third_party", "vendor"}):
+                raise Invalid("Literal exclusions need a fixture or third-party source directory")
+            if role == "legal" and not Path(pattern).name.upper().startswith(
+                ("LICENSE", "COPYING", "NOTICE")
+            ):
+                raise Invalid("Legal exclusions may select only legal-source filenames")
+            matched = [p for p in documents if _selected(p, pattern)]
+            if not matched:
+                raise Invalid(f"Documentation style selector matched no Markdown: {role} {pattern}")
+            for path in matched:
+                if path in ownership and ownership[path] != role:
+                    raise Invalid(f"Documentation has conflicting source roles: {path}")
+                ownership[path] = role
+    missing = sorted(set(documents) - ownership.keys())
+    if missing:
+        raise Invalid(f"Documentation style scope leaves Markdown unclassified: {missing[0]}")
+    checked = 0
+    findings = []
+    parser = MarkdownIt("commonmark")
+    for relative, role in sorted(ownership.items()):
+        if role not in {"authored", "generated"}:
+            continue
+        path = contained(root, relative, exists=True)
+        text = path.read_text(encoding="utf-8")
+        checked += 1
+        for token in parser.parse(text):
+            if token.type not in {"inline", "html_block", "fence", "code_block"}:
+                continue
+            if token.type == "inline":
+                html = _AuthoredText()
+                html.feed(parser.renderer.render([token], parser.options, {}))
+                identity_text = " ".join(html.text)
+            elif token.type == "html_block":
+                html = _AuthoredText()
+                html.feed(token.content)
+                identity_text = " ".join(html.text)
+            else:
+                identity_text = token.content
+            raw = _URL.sub("", identity_text)
+            line = token.map[0] + 1 if token.map else 1
+            for name, pattern in (
+                ("release-value", _RELEASE_VALUE),
+                ("fingerprint", _FINGERPRINT),
+                ("transient-claim", _FRESHNESS),
+            ):
+                if pattern.search(raw):
+                    findings.append(f"{relative}:{line}: {name}")
+            if token.type not in {"inline", "html_block"}:
+                continue
+            # Code operators and literal code retain their syntax; copied identity above covers all text.
+            prose = " ".join(t.content for t in token.children or [] if t.type in {"text", "html_inline"})
+            if token.type == "html_block":
+                prose = token.content
+            if "\u2014" in prose or _EMOJI.search(prose):
+                line = token.map[0] + 1 if token.map else 1
+                findings.append(f"{relative}:{line}: decorative-prose")
+    if not checked:
+        raise Invalid("Documentation style matched no active authored or generated Markdown")
+    if findings:
+        # Source text can be private. Report only paths, positions and mechanical categories.
+        raise Invalid("Documentation style findings:\n" + "\n".join(findings))
+    return {
+        "status": "success",
+        "files": checked,
+        "preserved": len(ownership) - checked,
+        "coverage": ["release-values", "fingerprints", "transient-claims", "em-dashes", "emoji"],
+        "limits": "Mechanical selected text checks do not establish factual or semantic correctness",
+    }
+
+
+class _HtmlReferences(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.targets: list[str] = []
+        self.anchors: set[str] = set()
+
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if value and key in {"href", "src"}:
+                self.targets.append(value)
+            if value and (key == "id" or (tag == "a" and key == "name")):
+                self.anchors.add(value)
+
+
+def markdown_targets(text: str) -> list[str]:
+    html = _HtmlReferences()
+    targets = []
+    for token in MarkdownIt("commonmark").parse(text):
+        if token.type == "html_block":
+            html.feed(token.content)
+        for child in token.children or []:
+            if child.type in {"link_open", "image"}:
+                value = child.attrGet("href" if child.type == "link_open" else "src")
+                if value:
+                    targets.append(value)
+            elif child.type == "html_inline":
+                html.feed(child.content)
+    return targets + html.targets
+
+
+def markdown_anchors(text: str) -> set[str]:
+    html = _HtmlReferences()
+    anchors: set[str] = set()
+    counts: dict[str, int] = {}
+    tokens = MarkdownIt("commonmark").parse(text)
+    for index, token in enumerate(tokens):
+        if token.type == "heading_open":
+            heading = tokens[index + 1]
+            title = "".join(t.content for t in heading.children or [] if t.type in {"text", "code_inline"})
+            slug = re.sub(r"[^\w\- ]", "", title.lower()).replace(" ", "-")
+            count = counts.get(slug, 0)
+            anchors.add(slug + (f"-{count}" if count else ""))
+            counts[slug] = count + 1
+        if token.type == "html_block":
+            html.feed(token.content)
+        for child in token.children or []:
+            if child.type == "html_inline":
+                html.feed(child.content)
+    return anchors | html.anchors
+
+
+class _AuthoredText(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text: list[str] = []
+
+    def handle_data(self, data):
+        self.text.append(data)
+
+    def handle_comment(self, data):
+        self.text.append(data)
+
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if value and key not in {"href", "src"}:
+                self.text.append(value)

@@ -7,7 +7,6 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Use a caller outside the publisher organization and inspect runtime dependency/access requirements.
-since: 0.1.0
 applies-when: The library exposes public technical entrypoints.
 ```
 
@@ -24,7 +23,7 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Compare each advertised capability against an actual result and its named limits.
-since: 0.1.0
+sources: [archived-native-fixtures, archived-fuzz-fixtures]
 applies-when: The implementation declares capabilities or verification coverage.
 ```
 
@@ -42,7 +41,6 @@ basis: owner
 verification: review
 criteria: Check pilot boundaries, references, retained previous consumers and cleanup of replaced active
   paths.
-since: 0.1.0
 applies-when: The task adopts or replaces workflows or related integrations.
 ```
 

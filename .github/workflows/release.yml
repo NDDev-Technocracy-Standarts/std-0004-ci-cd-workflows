@@ -33,7 +33,7 @@ jobs:
       artifact-name: ${{ steps.complete.outputs.name }}
     steps:
       - id: prepare
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@796863c8bc66a93034387cb05b518c6817c9761a # 0.2.0
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:

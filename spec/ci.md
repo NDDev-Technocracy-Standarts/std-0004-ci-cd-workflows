@@ -8,7 +8,6 @@ basis: owner
 verification: review
 criteria: Map triggers to the task/dev/main flow; push-only source validation and hidden schedules are
   absent.
-since: 0.1.0
 sources:
 - gha-events
 applies-when: The subject defines or invokes source-validation CI.
@@ -28,7 +27,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.impact]
 criteria: Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.
-since: 0.1.0
 sources:
 - gha-events
 applies-when: The subject determines applicable validation coverage.
@@ -49,7 +47,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.reports]
 criteria: Inject a missing report, zero-test result and skipped required job; the aggregate cannot pass.
-since: 0.1.0
 applies-when: The subject summarizes or gates validation results.
 ```
 
@@ -68,7 +65,6 @@ verification: partial
 verified-by: [runtime.inputs, runtime.gitlinks]
 criteria: Distinguish changed base, changed library and unchanged deterministic inputs without fabricating
   a green status.
-since: 0.1.0
 applies-when: The subject records, compares or reuses validation results.
 ```
 
@@ -88,7 +84,6 @@ verification: partial
 verified-by: [runtime.profiles, runtime.advanced]
 criteria: Run native positive and failure fixtures for claimed profiles and inspect actual tool/version
   outputs.
-since: 0.1.0
 applies-when: A language or SDK profile is selected.
 ```
 
@@ -107,7 +102,6 @@ verification: partial
 verified-by: [runtime.gates]
 criteria: Check representative blocking and advisory cases, including scanner failure versus a confirmed
   finding.
-since: 0.1.0
 sources:
 - osv
 applies-when: The subject applies quality or security gates.
@@ -128,7 +122,6 @@ verification: partial
 verified-by: [runtime.architecture]
 criteria: A real forbidden dependency fails; a conforming fixture passes; a missing declared module is
   not green.
-since: 0.1.0
 sources:
 - import-linter
 - dependency-cruiser
@@ -150,7 +143,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.documents]
 criteria: Check generated drift and broken examples while preserving honest limits for prose review.
-since: 0.1.0
 sources:
 - python-doctest
 applies-when: The subject checks or updates implementation documentation.
@@ -170,7 +162,6 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Trace PR code, permissions, artifacts and secrets to each executed command and publication surface.
-since: 0.1.0
 sources:
 - gha-security
 - gha-secrets
