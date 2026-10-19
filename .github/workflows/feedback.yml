@@ -1,6 +1,6 @@
 name: native-failure-feedback
-# zizmor: ignore[dangerous-triggers] -- Trusted pinned metadata-only publisher; no candidate checkout, artifact reads or code execution.
-on:
+# Trusted pinned metadata-only publisher; no candidate checkout, artifact reads or code execution.
+on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
     workflows: [source-ci, integrated-delivery-smoke]
     types: [completed]
