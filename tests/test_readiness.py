@@ -166,6 +166,12 @@ def test_native_sarif_missing_failed_analysis_and_blocking_findings(tmp_path):
     run["results"] = [{"ruleIndex": 0, "ruleId": "example-rule", "message": {"text": "controlled finding"}}]
     report.write_text(json.dumps(document))
     assert main(["sarif-check", "--directory", str(tmp_path), "--minimum", "high"]) == 1
+    # Native CodeQL combines query packs through SARIF tool extensions.
+    run["tool"]["extensions"] = [{"name": "native-query-pack", "rules": run["tool"]["driver"]["rules"]}]
+    run["tool"]["driver"]["rules"] = []
+    run["results"][0]["rule"] = {"id": "example-rule", "index": 0, "toolComponent": {"index": 0}}
+    report.write_text(json.dumps(document))
+    assert main(["sarif-check", "--directory", str(tmp_path), "--minimum", "high"]) == 1
     run["invocations"][0]["executionSuccessful"] = False
     report.write_text(json.dumps(document))
     with pytest.raises(Invalid):

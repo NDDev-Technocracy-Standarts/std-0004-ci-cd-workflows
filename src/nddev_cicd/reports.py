@@ -165,12 +165,25 @@ def sarif(directory: Path, minimum: str = "moderate") -> dict:
             for result in run.get("results", []):
                 if result.get("kind", "fail") != "fail":
                     continue
-                index = result.get("ruleIndex")
+                descriptor = result.get("rule", {})
+                component = descriptor.get("toolComponent", {})
+                selected = driver
+                if "index" in component:
+                    extensions = run["tool"].get("extensions", [])
+                    number = component["index"]
+                    if type(number) is not int or not 0 <= number < len(extensions):
+                        raise Invalid("Native SARIF references an unknown tool component")
+                    selected = extensions[number]
+                rules = selected.get("rules", [])
+                index = descriptor.get("index", result.get("ruleIndex"))
+                rule_id = descriptor.get("id", result.get("ruleId"))
                 rule = (
                     rules[index]
                     if type(index) is int and 0 <= index < len(rules)
-                    else next((r for r in rules if r.get("id") == result.get("ruleId")), None)
+                    else next((r for r in rules if r.get("id") == rule_id), None)
                 )
+                if rule is not None and rule_id is not None and rule.get("id") != rule_id:
+                    raise Invalid("Native SARIF rule index and identity disagree")
                 if rule is None:
                     raise Invalid("Native SARIF finding has no identifiable rule")
                 raw = rule.get("properties", {}).get("security-severity")
