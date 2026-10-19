@@ -56,29 +56,12 @@ jobs:
         uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
           output: ${{ runner.temp }}/nddev-codeql-sarif
-      - name: Resolve native reusable-workflow identity
-        id: implementation
-        if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
-        env:
-          NDDEV_JOB_IDENTITY: ${{ toJSON(job) }}
-        run: |
-          python3 - <<'PYCODE'
-          import json, os, re
-          from pathlib import Path
-          job = json.loads(os.environ["NDDEV_JOB_IDENTITY"])
-          repository, revision = job.get("workflow_repository", ""), job.get("workflow_sha", "")
-          if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) or not re.fullmatch(r"[0-9a-f]{40}", revision):
-              raise SystemExit("Native callee identity is unavailable; refusing a guessed implementation")
-          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
-              print("repository=" + repository, file=output)
-              print("revision=" + revision, file=output)
-          PYCODE
       - name: Fetch the exact reviewed reusable implementation separately from caller source
         if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ steps.implementation.outputs.repository }}
-          ref: ${{ steps.implementation.outputs.revision }}
+          repository: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows
+          ref: 2f62fc167ea89c5208d4ad0457d6a59f033053f1
           path: .nddev-shared-security
           persist-credentials: false
       - if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
