@@ -23,7 +23,7 @@ finite timeout. Use extras for project-selected race/property/fuzz/mutation/brow
 feature/MSRV or compatibility checks; preserve retained failing inputs in selected artifacts.
 
 The CI action's `python` input sets the caller's actual uv interpreter selection independently from the
-library's isolated Python 3.13 environment. Tool provisioning belongs in job-local setup or the existing
+library's isolated runtime declared in the [CI action](../.github/actions/ci/action.yml). Tool provisioning belongs in job-local setup or the existing
 runner owner. Project lockfiles remain authoritative. Environment values in the contract are nonsecret;
 credentials belong in caller repository/environment secrets and are passed only to the operation that
 needs them. Never pass deployment credentials to source checks.
@@ -116,7 +116,7 @@ by the pinned bundletool selected through BUNDLETOOL_JAR. Missing native tools b
 IPA/XCArchive application metadata is inspected; signing remains explicitly unverified by this generic artifact adapter.
 Native signing checks and any store submission need their separately authorized SDK/account path.
 
-The bundled Rust fixture declares and executes Rust 1.99.0 as its minimum compiler and tests both its
+The bundled Rust fixture declares and executes its minimum compiler through native configuration and tests both its
 default and declared alternate feature implementation. A consumer declaring a different MSRV selects
 that actual installed compiler through its native job/extra commands; no unexecuted MSRV is inferred.
 
@@ -125,7 +125,7 @@ that actual installed compiler through its native job/extra commands; no unexecu
 checkout, using the actual caller interpreter. Every command must belong to the built distribution;
 system executables or a source checkout cannot satisfy this installed-CLI check.
 
-Trusted command strings use Bash with `-euo pipefail` on Unix and PowerShell 7.3 or newer with native
+Trusted command strings use Bash with `-euo pipefail` on Unix and a supported PowerShell with native
 error propagation on Windows. Prefer argument arrays for project-native data arguments. The Python
 fixture exercises both successful quoting and an earlier failing process in a native shell pipeline.
 
@@ -153,7 +153,7 @@ The transport ignores ambient SSH configuration/agents and enforces the supplied
 
 `target_directory`, native tools and health/version URLs belong to the remote environment. The
 existing SSH user needs access to that target and its selected service/registry. The target provides
-Python 3.11+ and compatible PyYAML (the library dependency); the adapter installs no system packages,
+an interpreter satisfying the [package runtime requirements](../pyproject.toml) and compatible PyYAML; the adapter installs no system packages,
 service or deployment daemon. Its selected module's native tools must already be available.
 
 The CLI downloads and verifies the exact eligible PR attempt before SSH transfer. It transfers the
@@ -240,3 +240,18 @@ Before recursive source checks, native gitlink validation rejects stale, dirty, 
 symlinked submodule worktrees. Callers initialize each required checkout using their existing scoped
 credentials; the library does not delete stale worktrees or fetch arbitrary submodules automatically.
 The same inputs are checked again before an aggregate can pass.
+
+## Mechanical documentation scope
+
+The existing documentation profile can select finite `documentation.style` path lists for authored,
+generated, historical, literal and legal Markdown. Every tracked Markdown document then has one
+explicit source role. An empty selector, conflicting ownership or an unclassified document fails.
+Historical, fixture and legal exemptions require their actual source locations; an active README
+cannot be hidden through a whole-file exemption.
+
+Selected active text is checked for copied release values, fingerprints, transient claims, em dashes
+and emoji. Native Markdown tokens distinguish links and code; identity checks also cover authored
+comments, HTML attributes and fenced examples. Native link destinations retain their identities.
+The check reports paths and mechanical categories without printing document content. It does not
+establish factual correctness or semantic completeness. See this repository's
+[native contract](../.github/nddev-ci.toml) for a selected example.

@@ -1,0 +1,12 @@
+schema: nddev.archive/v1
+entries:
+- id: release-history
+  retired: '2026-10-19'
+  reason: GitHub Releases owns the release journal; preserve original local history.
+  replacement: none
+  classification: evidence
+  revision: 257a830e487e7576dcd98ebccabec22846c70cd6
+  files:
+  - path: archive/release-history/CHANGELOG.md
+    original: CHANGELOG.md
+    sha256: 95481e33708d1fff33625bebe64015cbc39e93b686565fd1f0a8b99ef27e8e2f

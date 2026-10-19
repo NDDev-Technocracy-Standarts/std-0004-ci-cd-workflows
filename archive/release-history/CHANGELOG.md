@@ -1,3 +1,6 @@
+> **Historical record.** Retired 2026-10-19 from `CHANGELOG.md` at 257a830e487e. Reason: GitHub Releases owns the release journal; preserve original local history.
+> Replacement: `none`. Not current guidance.
+
 # Changelog
 
 ## 0.2.0 (published 2026-10-19)

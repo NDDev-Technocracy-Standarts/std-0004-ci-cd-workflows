@@ -27,9 +27,12 @@ def generate(root: Path, *, check: bool = False) -> None:
         "## Native defaults",
         "",
     ]
-    import json
-
-    lines += ["```json", json.dumps(catalog(), indent=2), "```", ""]
+    lines += [
+        "Native command arrays, manifests and report contracts live in the",
+        "[runtime catalog](../src/nddev_cicd/profiles.json). The caller overrides only applicable",
+        "stages through its native project contract; required stages remain required.",
+        "",
+    ]
     text = "\n".join(lines)
     path = root / "docs/profiles.md"
     if check:

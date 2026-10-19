@@ -1,38 +1,51 @@
 # NDDev CI/CD Workflows
 
-STD-0004 combines a modular CI/CD contract with the `nddev-cicd` Python implementation.
-The published normative edition and implementation are **0.2.0**.
+A public OSS library for thin GitHub workflows, native source checks and delivery of the exact tested
+artifact. Maintainers select applicable profiles and retain their existing build tools, runners and
+targets. Public consumers need no private NDDev compiler, corpus or credentials.
 
-The [CI composite](.github/actions/ci/action.yml) executes selected native profiles from a small
-[caller contract](docs/usage.md). The [admission composite](.github/actions/admit/action.yml) resolves
-capacity before a dependent job is allocated. The [delivery composite](.github/actions/deliver/action.yml)
-consumes the exact successful PR run artifact after integration and coordinates one existing target.
-Public consumers need Python/uv and their selected native tools; no private NDDev compiler or corpus
-is used at runtime. Each callee resolves its own package separately from the caller checkout.
+![Admission precedes native source checks and exact artifact delivery to an existing target](docs/architecture.svg)
 
-Start with [usage](docs/usage.md), [native profiles](docs/profiles.md), [AGENTS.md](AGENTS.md)
-and the [normative descriptor](standard.yml). The normative source is [spec/](spec/).
-Source validation runs on PR updates; delivery is a separate integrated `dev`/`main` push operation.
-Public Linux uses standard hosted capacity. Private Linux uses caller-owned existing self-hosted jobs.
-Public Windows/macOS also use standard GitHub-hosted runners. Private Windows/macOS require confirmed compatible no-overage admission.
+## Try runner selection
 
-`uv run pytest` exercises the shared runtime invariants. Native fixtures and the library source workflow
-cover the 24 catalog families; `tests/run_native.py` drives language/tool fixtures while documentation
-and workflow profiles validate the library itself. SDK preparation is in the PR workflow; the selected
-OS cells are Linux x64, public Windows x64 Python and public Apple ARM Swift. Deliberate source,
-report and dependency-graph failures are rejected. This is finite verification, not every SDK or OS.
+From this checkout, prepare the locked environment and inspect the real public routes:
 
-`tests/native_delivery.py` exercises isolated HTTP, OCI/Compose, systemd, HTTPS package registry and
-built Android APK targets. `tests/native_remote.py` covers actual SSH/SCP, pinned host identity and remote target concurrency/recovery.
-The systemd fixture requires an explicitly selected existing user manager;
-mobile delivery consumes the actual Android build. No production device, registry or store is changed.
-Integrated dev/main pushes separately validate native GitHub run/artifact lineage and install the
-already-tested fixture artifact into a separate isolated SSH target. Source is not rebuilt after merging.
-The source is [AGPL-3.0-only](LICENSE). See [origins](docs/origins.md) for the historical comparison.
+```sh
+uv sync
+uv run python examples/routing.py
+```
 
-Optional [public security](.github/workflows/public-security.yml),
-[release preparation](.github/actions/prepare-release/action.yml),
-[OCI build](.github/actions/oci-build/action.yml) and [OCI publication](.github/actions/oci-publish/action.yml)
-entrypoints share the same implementation and explicit applicability boundaries.
-`tests/native_oci.py`, `tests/native_release.py` and `tests/native_advanced.py` exercise their native
-positive/failure paths. Web fixtures include an actual Chromium scenario and axe accessibility scan.
+The example reads the library's native runner labels without allocating jobs. Public Linux and Windows use x64; macOS uses ARM64. All use standard GitHub-hosted runners. Private Linux uses existing caller-owned self-hosted
+capacity; private Windows/macOS require compatible confirmed no-overage admission. The
+[consumer guide](docs/usage.md) explains the distinct public and private calling paths.
+
+## Source, artifact, target
+
+The [CI composite](.github/actions/ci/action.yml) executes profiles selected by the caller's native
+contract. The [admission composite](.github/actions/admit/action.yml) resolves capacity before job
+allocation. The [delivery composite](.github/actions/deliver/action.yml) consumes the successful PR
+artifact after integration, verifies lineage and tested-tree identity, and coordinates an existing
+target. Source is not rebuilt after merging. Each callee resolves its own package separately from
+the caller checkout.
+
+[The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
+The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to
+native command definitions. Optional public security, release preparation, OCI and bounded advanced
+operations use the same implementation and explicit applicability.
+
+## Check and maintain
+
+Run `uv run pytest` for runtime regressions, `uv run python -m doctest docs/examples.md` for the
+selected routing example, and `uv run python -m nddev_cicd reference --check` for owned reference drift.
+[AGENTS.md](AGENTS.md) routes normative changes to the canonical source and implementation changes to
+local checks. Ordinary documentation remains directly editable.
+
+Native fixture drivers exercise selected SDKs and failure paths. Source workflows include public
+Linux, Windows and Apple runners. Remote delivery fixtures use isolated targets and actual SSH/SCP;
+existing dev/main smoke checks artifact lineage and recovery. These checks do not establish every
+SDK combination, a production deployment, or acceptance on a physical remote server.
+
+The [normative descriptor](standard.yml), [consumer guide](docs/usage.md),
+[executable example](docs/examples.md), and [origins](docs/origins.md) provide detailed navigation.
+[GitHub Releases](https://github.com/NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/releases)
+is the canonical journal. The source uses [AGPL-3.0-only](LICENSE); imported grants remain intact.

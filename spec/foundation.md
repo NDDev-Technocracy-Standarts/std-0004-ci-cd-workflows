@@ -7,7 +7,6 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Follow a public caller and a private cross-organization caller to the same actual implementation.
-since: 0.1.0
 applies-when: The subject defines or distributes the reusable library.
 ```
 
@@ -27,7 +26,6 @@ basis: owner
 verification: review
 criteria: Compare LICENSE, metadata and the provenance/notices of reused files; no visibility-derived
   relicensing.
-since: 0.1.0
 applies-when: The subject publishes or redistributes library material.
 ```
 
@@ -44,7 +42,6 @@ basis: owner
 verification: review
 criteria: Check a supported caller, invalid input and compatible upgrade without a duplicated project
   recipe.
-since: 0.1.0
 sources:
 - gha-reuse
 applies-when: The subject supplies or adopts a module interface.
@@ -64,8 +61,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.routing]
 criteria: Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.
-since: 0.1.0
-revised: 0.2.0
 sources:
 - gha-reuse
 - blacksmith-runners
@@ -86,7 +81,6 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Verify account-level cost enforcement and concurrent-run handling before any paid-capable dispatch.
-since: 0.1.0
 sources:
 - blacksmith-pricing
 - blacksmith-runners
@@ -111,7 +105,6 @@ verification: partial
 verified-by: [runtime.routing]
 criteria: Check unknown-label and cross-organization paths without accidentally scheduling a billed or
   private job.
-since: 0.1.0
 sources:
 - gha-reuse
 - gha-composite

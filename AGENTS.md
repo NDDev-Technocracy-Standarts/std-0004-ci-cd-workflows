@@ -1,8 +1,10 @@
 # AGENTS.md
 
-This is the source for STD-0004 CI/CD Workflows, edition 0.2.0 published. The authoring basis
-is STD-0000 1.2.0; structure explicitly adopts STD-0001 1.2.0. The Python package backs the native
-composite entrypoints. Keep implementation and actual native-fixture verification claims distinct.
+STD-0004 contains the public CI/CD standard and its OSS runtime. The package backs native composite
+entrypoints. Keep implementation, selected fixture verification and real target acceptance distinct.
+Native descriptors and manifests own exact edition and adoption identity. Read the
+[package entry](src/nddev_cicd/README.md) and [local instructions](src/nddev_cicd/AGENTS.md)
+for implementation responsibilities.
 
 | Task | Canonical entry |
 |---|---|
