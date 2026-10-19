@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "status": "draft",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -60,15 +60,15 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "3163579b80fbee5acc24fa82751219a1776ca39c7f824dd7cc80bf21addbc01b"
+      "sha256": "42960647d2c7cb7a7093a20601f4768ba9cc20c827a3a261d4c261b701ad33ce"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "9c0872d9802e18721eacc3731801492c11a1054005b2b51981bae1ae765cfd7e"
+      "sha256": "e96c67e5e3326d7ac3a7666464ad7ed302a07b9d137901b8aeacfa88a7199eb6"
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "661bf45219810597305fe364f48ca74b0357ed259a408ea7138f738ad2b2eabf"
+      "sha256": "8ccd7fd8f1978f5409a22d4f6465946bc22f760468ffbb39e5a85a7204ffd5ee"
     },
     {
       "path": "spec/intent.md",
@@ -84,20 +84,26 @@
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "807f57eb56f526e6eef9f80d8bd105da81a17fbcc957adebc19cbf48ac8d26d2"
+      "sha256": "1439709c382dc048d1085c39823042e6b39e6a5587f6452b237109261f783a23"
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "bd04536113dd9d426e85ae7c77be43cb49817d607075f2abccb9f81323e86689"
+      "sha256": "69be2c0e7a02ad41b64f08408940b61a1625865dcc1afa2777b5f2a698b08738"
     },
     {
       "path": "standard.yml",
-      "sha256": "8404a4f430624f0818c970070a36e46023c8f796806e51c31634b11df141e23b"
+      "sha256": "04712b25aa10f8484281c2910794dba19f3392ca3ef1978e87d3642bf64adf43"
     }
   ],
   "listings": [],
-  "inputs-sha256": "68420f394d8c67631a68824712e56a6d5e2bd4fc43a38f2a2c2043d3e23cfc81",
+  "inputs-sha256": "7ce91f641f25fa7401ae4281a916a02d1449aa2df21193a36ff0c5df03b5b5cd",
   "verification": [
+    {
+      "id": "runtime.advanced",
+      "kind": "check",
+      "target": "tests/native_advanced.py",
+      "establishes": "Real Rust/C++ fuzz runs, retained crash inputs, caught/missed native mutation outcomes and paired benchmark measurements exercise positive and deliberate failure cases. No application-wide quality or speed claim follows."
+    },
     {
       "id": "runtime.architecture",
       "kind": "check",
@@ -120,7 +126,7 @@
       "id": "runtime.delivery",
       "kind": "check",
       "target": "tests/native_delivery.py",
-      "establishes": "Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and a built Android APK exercise the selected adapters. This is not production/store acceptance."
+      "establishes": "Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and native-validated Android APK/AAB packages exercise the selected adapters. Invalid-operation regressions additionally prove that backup/migration never starts on known invalid input. This is not production/store acceptance."
     },
     {
       "id": "runtime.documents",
@@ -133,6 +139,12 @@
       "kind": "test",
       "target": "tests/test_core.py::test_explicit_external_timeout_remains_unavailable_and_broken_urls_fail",
       "establishes": "Declared native external transport/access limits remain unavailable with Issue references; broken responses remain failures. Findings still need project-specific review."
+    },
+    {
+      "id": "runtime.gitlinks",
+      "kind": "test",
+      "target": "tests/test_git_inputs.py::test_ci_checks_submodule_inputs_before_and_after_commands",
+      "establishes": "Real submodule gitlinks/worktrees match, and stale/dirty/symlinked or command-modified inputs cannot pass source validation."
     },
     {
       "id": "runtime.health",
@@ -159,10 +171,22 @@
       "establishes": "Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases."
     },
     {
+      "id": "runtime.oci",
+      "kind": "check",
+      "target": "tests/native_oci.py",
+      "establishes": "Native Buildx creates a real OCI archive; strict TLS registry publication preserves its digest, a real running image serves the revision, and corruption/build errors fail. Selected Linux x64 does not establish every platform."
+    },
+    {
+      "id": "runtime.preflight",
+      "kind": "test",
+      "target": "tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration",
+      "establishes": "Known invalid service, project, registry and payload inputs invoke neither backup nor migration and leave the target unchanged."
+    },
+    {
       "id": "runtime.process",
       "kind": "test",
-      "target": "tests/test_core.py::test_process_failure_missing_timeout_and_output",
-      "establishes": "Actual subprocess failure, missing executable, bounded timeout and logs survive the shared runner. Native fixture SDK/version checks exercise installed tool selection."
+      "target": "tests/test_readiness.py::test_owned_descendant_is_gone_after_leader_exits",
+      "establishes": "Real SIGTERM-resistant descendants are terminated after timeout and cancellation even when their leader exits. Core cases also exercise startup failure, exit status and logs."
     },
     {
       "id": "runtime.profiles",
@@ -175,6 +199,18 @@
       "kind": "test",
       "target": "tests/native_delivery.py::test_partial_data_migration_preserves_backup_and_never_repeats",
       "establishes": "A real isolated SQLite backup/migration followed by failed health remains pending without incompatible file rollback; recovery verifies the same resource and does not repeat the migration."
+    },
+    {
+      "id": "runtime.release",
+      "kind": "check",
+      "target": "tests/native_release.py",
+      "establishes": "Native wheel/sdist inventory through Syft preserves selected bytes/modes and rejects tampering; the public workflow separately establishes actual GitHub signatures on an eligible candidate."
+    },
+    {
+      "id": "runtime.remote",
+      "kind": "check",
+      "target": "tests/native_remote.py",
+      "establishes": "Actual SSH/SCP reaches a separate server/filesystem; pinned host-key failure, exact artifact receipts, two-client target exclusion and partial migration recovery are exercised. Production targets and arbitrary server toolchains remain unverified."
     },
     {
       "id": "runtime.reports",
@@ -191,8 +227,8 @@
     {
       "id": "runtime.routing",
       "kind": "test",
-      "target": "tests/test_core.py::test_routing_before_allocation",
-      "establishes": "Known platform/architecture routing and refusal of an unconfirmed private paid-capable route. Actual account entitlements remain review."
+      "target": "tests/test_readiness.py::test_public_always_uses_standard_github_even_with_blacksmith_admission",
+      "establishes": "Public Linux/Windows/macOS refuse provider switching. Private admission/trust and malformed-policy cases run in the core suite; actual account entitlements remain review."
     },
     {
       "id": "runtime.target-lock",
@@ -202,6 +238,20 @@
     }
   ],
   "sources": [
+    {
+      "key": "android-apkanalyzer",
+      "title": "Android Developers: apkanalyzer",
+      "url": "https://developer.android.com/tools/apkanalyzer",
+      "supports": "The SDK can parse an actual APK binary manifest into XML.",
+      "limits": "A parsed manifest does not establish signing, application correctness or store acceptance."
+    },
+    {
+      "key": "android-bundletool",
+      "title": "Android Developers: bundletool",
+      "url": "https://developer.android.com/tools/bundletool",
+      "supports": "Native bundle validation and manifest inspection use the Android toolchain.",
+      "limits": "Toolchain availability must be established; structural validation does not certify signatures or stores."
+    },
     {
       "key": "archunit",
       "title": "ArchUnit",
@@ -466,11 +516,12 @@
       ],
       "criteria": "Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.",
       "since": "0.1.0",
+      "revised": "0.2.0",
       "condition": {
         "from": "item",
         "text": "A job selects an execution provider or runner."
       },
-      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux work uses standard free GitHub-hosted runners. Private Linux work\nuses the declared existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow.\nNon-Linux work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity\nonly under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
+      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
       "source": {
         "path": "spec/foundation.md",
         "line": 59
@@ -499,7 +550,7 @@
       "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 81
+        "line": 82
       }
     },
     {
@@ -526,7 +577,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 104
+        "line": 105
       }
     },
     {
@@ -610,7 +661,8 @@
       "basis": "owner",
       "verification": "partial",
       "verified-by": [
-        "runtime.inputs"
+        "runtime.inputs",
+        "runtime.gitlinks"
       ],
       "criteria": "Distinguish changed base, changed library and unchanged deterministic inputs without fabricating a green status.",
       "since": "0.1.0",
@@ -633,7 +685,8 @@
       "basis": "owner",
       "verification": "partial",
       "verified-by": [
-        "runtime.profiles"
+        "runtime.profiles",
+        "runtime.advanced"
       ],
       "criteria": "Run native positive and failure fixtures for claimed profiles and inspect actual tool/version outputs.",
       "since": "0.1.0",
@@ -891,7 +944,9 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.artifact"
+        "runtime.artifact",
+        "runtime.release",
+        "runtime.oci"
       ],
       "criteria": "Trace artifact bytes from trusted build through download and target installation.",
       "since": "0.1.0",
@@ -913,11 +968,15 @@
       "strength": "MUST",
       "basis": "owner",
       "sources": [
-        "gha-secrets"
+        "gha-secrets",
+        "android-apkanalyzer",
+        "android-bundletool"
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.delivery"
+        "runtime.delivery",
+        "runtime.preflight",
+        "runtime.remote"
       ],
       "criteria": "Run an adapter against an authorized representative target; a generated plan is not an applied result.",
       "since": "0.1.0",
@@ -943,7 +1002,8 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.target-lock"
+        "runtime.target-lock",
+        "runtime.remote"
       ],
       "criteria": "Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.",
       "since": "0.1.0",
@@ -954,7 +1014,7 @@
       "statement": "Concurrent changes to the same delivery target MUST have one effective coordination owner. A unique\nattempt/deployment ID is not a target lock. Repository-local concurrency is not a cross-repository\nlock. An older attempt cannot overwrite a newer accepted target state, and superseding CI cancellation\nis not blindly applied to a running data migration. Read-only or unrelated jobs need not share the\nmutation lock. Native target/infrastructure primitives are preferred over a new scheduling service.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 66
+        "line": 68
       }
     },
     {
@@ -977,7 +1037,7 @@
       "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user explicitly waived it for that scope. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 86
+        "line": 88
       }
     },
     {
@@ -1000,7 +1060,7 @@
       "statement": "Successful delivery MUST identify the intended target revision and demonstrate the relevant health\nor user scenario with available current diagnostics. A process start or absence of log lines alone\nis insufficient when the intended scenario fails. Active DAST, stress and destructive fixtures use\nauthorized suitable test targets, not live customer data by default. Failure remains visible to the\nowning GitHub task; no pipeline auto-closes a delivery parent merely at merge.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 105
+        "line": 107
       }
     },
     {

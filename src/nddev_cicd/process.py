@@ -5,14 +5,56 @@ from __future__ import annotations
 import os
 import signal
 import subprocess
+import threading
 import time
+from contextlib import nullcontext
 from pathlib import Path
 
 from .model import Invalid
 
 
+def terminate(child: subprocess.Popen, stream) -> None:
+    """Reap this operation's leader and kill its remaining group, even after the leader exits."""
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(child.pid), "/T", "/F"],
+            check=False,
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+        )
+        if child.poll() is None:
+            child.kill()
+        child.wait()
+        return
+    try:
+        os.killpg(child.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        child.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+    finally:
+        # wait() observes only the leader. Its descendants may ignore TERM and keep the group alive.
+        try:
+            os.killpg(child.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        child.wait()
+
+
+def cancelled(_signal, _frame) -> None:
+    raise KeyboardInterrupt
+
+
 def run(
-    command: list[str] | str, root: Path, log: Path, *, timeout: int = 900, env: dict[str, str] | None = None
+    command: list[str] | str,
+    root: Path,
+    log: Path,
+    *,
+    timeout: int = 900,
+    env: dict[str, str] | None = None,
+    stderr_log: Path | None = None,
 ) -> dict:
     if not command or not isinstance(timeout, int) or timeout < 1 or timeout > 7200:
         raise Invalid("Native command and bounded timeout (1..7200 seconds) are required")
@@ -37,7 +79,10 @@ def run(
     log.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     status, code, detail = "failure", None, ""
-    with log.open("w", encoding="utf-8") as stream:
+    with (
+        log.open("w", encoding="utf-8") as stream,
+        stderr_log.open("w", encoding="utf-8") if stderr_log else nullcontext(None) as errors,
+    ):
         try:
             child_environment = {
                 k: v
@@ -49,33 +94,23 @@ def run(
                 cwd=root,
                 env={**child_environment, **(env or {})},
                 stdout=stream,
-                stderr=subprocess.STDOUT,
+                stderr=errors if errors is not None else subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
                 start_new_session=os.name != "nt",
             )
+            previous_handler = None
+            if threading.current_thread() is threading.main_thread():
+                previous_handler = signal.signal(signal.SIGTERM, cancelled)
             try:
                 code = child.wait(timeout=timeout)
                 status = "success" if code == 0 else "failure"
             except (subprocess.TimeoutExpired, KeyboardInterrupt) as error:
                 detail = "cancelled" if isinstance(error, KeyboardInterrupt) else "timeout"
-                if os.name != "nt":
-                    os.killpg(child.pid, signal.SIGTERM)
-                else:
-                    subprocess.run(
-                        ["taskkill", "/PID", str(child.pid), "/T", "/F"],
-                        check=False,
-                        stdout=stream,
-                        stderr=subprocess.STDOUT,
-                    )
-                try:
-                    child.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    if os.name != "nt":
-                        os.killpg(child.pid, signal.SIGKILL)
-                    else:
-                        child.kill()
-                    child.wait()
+                terminate(child, stream)
                 code = child.returncode
+            finally:
+                if previous_handler is not None:
+                    signal.signal(signal.SIGTERM, previous_handler)
         except FileNotFoundError as error:
             status, detail = "unavailable", f"Required executable is absent: {error.filename}"
             stream.write(detail + "\n")

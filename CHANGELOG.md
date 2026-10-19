@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 (draft)
+
+Public jobs on Linux, Windows and macOS now exclusively use compatible standard GitHub-hosted
+runners. This removes a permitted public Blacksmith route and therefore increments the normative
+minor edition under STD-0000 R-0012. Private execution and the zero-additional-spend contract remain.
+
+The implementation validates complete native deployment inputs and selected payloads before any
+backup/migration/activation, terminates remaining owned descendants after timeout/cancellation, and
+uses Android SDK apkanalyzer/bundletool for APK/AAB validation. Signing and store submission remain
+separate. An optional SSH transport transfers the exact verified artifact and canonical runtime,
+then executes the native adapter and shared target lock on the remote host. Pinned host keys,
+concurrent callers and partial recovery are covered against an isolated SSH server.
+Optional public security, native verified-payload release/SBOM/signature, OCI archive publication,
+web/browser/accessibility and bounded native fuzz/mutation/benchmark capabilities restore useful
+archived behavior through the shared implementation. Recursive checkout identities are checked before
+and after validation. Regression and native fixture outcomes are recorded by the actual PR jobs.
+
 ## 0.1.0 (draft)
 
 Initial owner-directed combined CI/CD contract, with modular execution, PR-only source validation,

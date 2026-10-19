@@ -65,7 +65,7 @@ name what actually ran rather than repeat requested versions or capabilities.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.inputs]
+verified-by: [runtime.inputs, runtime.gitlinks]
 criteria: Distinguish changed base, changed library and unchanged deterministic inputs without fabricating
   a green status.
 since: 0.1.0
@@ -85,7 +85,7 @@ repetition; material changes require the corresponding affected check.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.profiles]
+verified-by: [runtime.profiles, runtime.advanced]
 criteria: Run native positive and failure fixtures for claimed profiles and inspect actual tool/version
   outputs.
 since: 0.1.0

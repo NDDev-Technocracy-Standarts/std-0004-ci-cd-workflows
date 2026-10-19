@@ -42,6 +42,7 @@ runs:
         set -euo pipefail
         [[ "$NDDEV_RESULT_KEY" =~ ^[A-Za-z0-9_-]{1,64}$ ]]
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        export GIT_CONFIG_GLOBAL="$(mktemp "$RUNNER_TEMP/nddev-git-config.XXXXXXXX")"
         export NDDEV_LIBRARY_REPOSITORY="${NDDEV_LIBRARY_REPOSITORY:-$GITHUB_REPOSITORY}"
         export NDDEV_LIBRARY_REF="${NDDEV_LIBRARY_REF:-$(git -C "$library" rev-parse HEAD)}"
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-library-runtime"

@@ -12,9 +12,34 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, reports
+from . import config, documentation, git_inputs, reports
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
+
+
+def native_command(command, root: Path, contract: dict, diagnostics: Path | None = None):
+    if isinstance(command, list) and command and command[0] == "@library":
+        if len(command) < 2 or command[1] not in {
+            "package-check",
+            "workflow-check",
+            "oci-build",
+            "advanced-fuzz",
+            "advanced-mutation",
+            "benchmark-compare",
+        }:
+            raise Invalid("Select a supported source-only shared native helper")
+        helper = command[1]
+        arguments = [sys.executable, "-m", "nddev_cicd", helper, "--root", str(root), *command[2:]]
+        if (
+            helper in {"advanced-fuzz", "advanced-mutation"}
+            and diagnostics is not None
+            and not any(x == "--output" or x.startswith("--output=") for x in command[2:])
+        ):
+            arguments += ["--output", str(diagnostics)]
+        if helper == "package-check":
+            arguments += ["--contract", contract["_path"]]
+        return arguments
+    return command
 
 
 def selection(root: Path, contract: dict) -> tuple[list[str], dict | None]:
@@ -67,6 +92,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         "expected": [],
     }
     result["impact"] = impact_record
+    try:
+        result["identity"]["submodules"] = git_inputs.submodules(root)
+    except Invalid as error:
+        result["expected"] = ["inputs.submodule-integrity"]
+        result["results"] = [
+            {"name": "inputs.submodule-integrity", "status": "failure", "detail": str(error)}
+        ]
+        result.update(reports.aggregate(result["expected"], result["results"]))
+        atomic_json(output / "result.json", result)
+        return result
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
     result["identity"]["locks"] = {
         path: digest(root / path)
@@ -157,11 +192,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     entry.update(status="success", scopes=scopes)
                     continue
                 command = commands.get(profile_id, {}).get(stage, default)
-                if isinstance(command, list) and command and command[0] == "@library":
-                    helper = command[1]
-                    command = [sys.executable, "-m", "nddev_cicd", helper, "--root", str(root)]
-                    if helper == "package-check":
-                        command += ["--contract", contract["_path"]]
+                command = native_command(command, root, contract, output / name)
                 if command is None:
                     raise Invalid(f"Selected {name} requires a native project command")
                 if stage == definition.get("test_stage", "test"):
@@ -236,7 +267,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             item: dict = {"status": "unavailable", "detail": "Execution cancelled"}
         else:
             item = run(
-                extra["command"],
+                native_command(extra["command"], root, contract, output / ("extra-" + name)),
                 root,
                 output / f"extra-{name}.log",
                 timeout=extra.get("timeout", 600),
@@ -263,6 +294,11 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     ]
     if digest(contained(root, contract["_path"], exists=True)) != result["identity"]["contract_sha256"]:
         changed_inputs.append(contract["_path"])
+    try:
+        if git_inputs.submodules(root) != result["identity"]["submodules"]:
+            changed_inputs.append("submodules")
+    except Invalid:
+        changed_inputs.append("submodules")
     result["results"].append(
         {
             "name": "inputs.lock-integrity",

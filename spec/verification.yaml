@@ -4,8 +4,8 @@ kind: VerificationInventory
 entries:
 - id: runtime.routing
   kind: test
-  target: tests/test_core.py::test_routing_before_allocation
-  establishes: Known platform/architecture routing and refusal of an unconfirmed private paid-capable route. Actual account entitlements remain review.
+  target: tests/test_readiness.py::test_public_always_uses_standard_github_even_with_blacksmith_admission
+  establishes: Public Linux/Windows/macOS refuse provider switching. Private admission/trust and malformed-policy cases run in the core suite; actual account entitlements remain review.
 - id: runtime.impact
   kind: test
   target: tests/test_core.py::test_impact_deletion_dependency_and_uncertainty
@@ -36,8 +36,8 @@ entries:
   establishes: Current local links and canonical generation drift are checked. Executable doctests and Flutter localization generation exercise native examples; prose truth remains review.
 - id: runtime.process
   kind: test
-  target: tests/test_core.py::test_process_failure_missing_timeout_and_output
-  establishes: Actual subprocess failure, missing executable, bounded timeout and logs survive the shared runner. Native fixture SDK/version checks exercise installed tool selection.
+  target: tests/test_readiness.py::test_owned_descendant_is_gone_after_leader_exits
+  establishes: Real SIGTERM-resistant descendants are terminated after timeout and cancellation even when their leader exits. Core cases also exercise startup failure, exit status and logs.
 - id: runtime.cache
   kind: test
   target: tests/test_core.py::test_cache_ownership_actual_lock_and_budget
@@ -57,7 +57,7 @@ entries:
 - id: runtime.delivery
   kind: check
   target: tests/native_delivery.py
-  establishes: Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and a built Android APK exercise the selected adapters. This is not production/store acceptance.
+  establishes: Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and native-validated Android APK/AAB packages exercise the selected adapters. Invalid-operation regressions additionally prove that backup/migration never starts on known invalid input. This is not production/store acceptance.
 - id: runtime.target-lock
   kind: test
   target: tests/native_delivery.py::test_real_target_serialization
@@ -70,3 +70,27 @@ entries:
   kind: test
   target: tests/native_delivery.py::test_real_compose_immutable_image_and_health
   establishes: Actual native target scenarios expose the tested revision. Compose inspection also checks selected running immutable image identities; generic HTTP success is insufficient.
+- id: runtime.remote
+  kind: check
+  target: tests/native_remote.py
+  establishes: Actual SSH/SCP reaches a separate server/filesystem; pinned host-key failure, exact artifact receipts, two-client target exclusion and partial migration recovery are exercised. Production targets and arbitrary server toolchains remain unverified.
+- id: runtime.preflight
+  kind: test
+  target: tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration
+  establishes: Known invalid service, project, registry and payload inputs invoke neither backup nor migration and leave the target unchanged.
+- id: runtime.oci
+  kind: check
+  target: tests/native_oci.py
+  establishes: Native Buildx creates a real OCI archive; strict TLS registry publication preserves its digest, a real running image serves the revision, and corruption/build errors fail. Selected Linux x64 does not establish every platform.
+- id: runtime.release
+  kind: check
+  target: tests/native_release.py
+  establishes: Native wheel/sdist inventory through Syft preserves selected bytes/modes and rejects tampering; the public workflow separately establishes actual GitHub signatures on an eligible candidate.
+- id: runtime.advanced
+  kind: check
+  target: tests/native_advanced.py
+  establishes: Real Rust/C++ fuzz runs, retained crash inputs, caught/missed native mutation outcomes and paired benchmark measurements exercise positive and deliberate failure cases. No application-wide quality or speed claim follows.
+- id: runtime.gitlinks
+  kind: test
+  target: tests/test_git_inputs.py::test_ci_checks_submodule_inputs_before_and_after_commands
+  establishes: Real submodule gitlinks/worktrees match, and stale/dirty/symlinked or command-modified inputs cannot pass source validation.

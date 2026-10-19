@@ -26,7 +26,7 @@ through the project's existing corresponding check path rather than assumed from
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.artifact]
+verified-by: [runtime.artifact, runtime.release, runtime.oci]
 criteria: Trace artifact bytes from trusted build through download and target installation.
 since: 0.1.0
 sources:
@@ -47,12 +47,14 @@ SLSA level certification.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.delivery]
+verified-by: [runtime.delivery, runtime.preflight, runtime.remote]
 criteria: Run an adapter against an authorized representative target; a generated plan is not an applied
   result.
 since: 0.1.0
 sources:
 - gha-secrets
+- android-apkanalyzer
+- android-bundletool
 applies-when: The project selects a deployment adapter.
 ```
 
@@ -69,7 +71,7 @@ completion boundary; a fictitious production service is not required.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.target-lock]
+verified-by: [runtime.target-lock, runtime.remote]
 criteria: Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.
 since: 0.1.0
 sources:

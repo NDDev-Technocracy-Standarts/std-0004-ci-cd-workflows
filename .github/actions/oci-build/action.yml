@@ -1,0 +1,55 @@
+name: Build a native OCI artifact
+description: Build an actual OCI archive without registry publication; preserve source and compiler identities
+inputs:
+  working-directory:
+    default: .
+  context:
+    default: .
+  dockerfile:
+    default: Dockerfile
+  output:
+    default: dist/image.oci.tar
+  platforms:
+    default: linux/amd64
+  builder:
+    description: Optional existing caller-owned bounded Buildx builder; otherwise a disposable builder is used
+    default: ''
+outputs:
+  archive:
+    description: Actual OCI archive inside the caller workspace
+    value: ${{ steps.build.outputs.archive }}
+  metadata:
+    description: Source/digest/compiler binding to retain with the archive
+    value: ${{ steps.build.outputs.metadata }}
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      with:
+        version: '0.13.1'
+        enable-cache: 'false'
+    - id: build
+      shell: bash
+      env:
+        NDDEV_ACTION_PATH: ${{ github.action_path }}
+        NDDEV_LIBRARY_REPOSITORY: ${{ github.action_repository }}
+        NDDEV_LIBRARY_REF: ${{ github.action_ref }}
+        NDDEV_DIRECTORY: ${{ inputs.working-directory }}
+        NDDEV_CONTEXT: ${{ inputs.context }}
+        NDDEV_DOCKERFILE: ${{ inputs.dockerfile }}
+        NDDEV_OCI_OUTPUT: ${{ inputs.output }}
+        NDDEV_PLATFORMS: ${{ inputs.platforms }}
+        NDDEV_BUILDER: ${{ inputs.builder }}
+        UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-oci-runtime
+      run: |
+        set -euo pipefail
+        library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        project="$(uv run --project "$library" --locked --no-dev --python 3.13 python -c \
+          'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_DIRECTORY"],exists=True))')"
+        builder=()
+        if [ -n "$NDDEV_BUILDER" ]; then builder=(--builder "$NDDEV_BUILDER"); fi
+        uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd oci-build \
+          --root "$project" --context "$NDDEV_CONTEXT" --dockerfile "$NDDEV_DOCKERFILE" \
+          --output "$NDDEV_OCI_OUTPUT" --platforms "$NDDEV_PLATFORMS" "${builder[@]}"
+        echo "archive=$project/$NDDEV_OCI_OUTPUT" >> "$GITHUB_OUTPUT"
+        echo "metadata=$project/${NDDEV_OCI_OUTPUT%.*}.json" >> "$GITHUB_OUTPUT"

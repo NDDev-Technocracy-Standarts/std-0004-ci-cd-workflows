@@ -7,6 +7,7 @@ import json
 import os
 import shlex
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -24,6 +25,7 @@ SOURCES = {
     "go": "checksum.go",
     "cpp": "src/main.cpp",
     "node": "checksum.js",
+    "web": "index.html",
     "dotnet": "src/Checksum/Class1.cs",
     "sql": "migrations/002.sql",
     "advanced": "checksum.py",
@@ -51,6 +53,9 @@ def exercise(name: str, output: Path) -> dict:
         root = Path(directory) / "caller"
         standard_ignores = shutil.ignore_patterns(
             ".venv",
+            "node_modules",
+            "test-results",
+            "playwright-report",
             "target",
             "build",
             "dist",
@@ -73,6 +78,18 @@ def exercise(name: str, output: Path) -> dict:
             root,
             ignore=ignored,
         )
+        if name == "web":
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", 0))
+                port = probe.getsockname()[1]
+            with (root / ".github/nddev-ci.toml").open("a") as contract:
+                contract.write(
+                    '\n[environment]\nNDDEV_WEB_PORT="'
+                    + str(port)
+                    + '"\nPLAYWRIGHT_BROWSERS_PATH="'
+                    + str(Path(directory) / "browsers")
+                    + '"\n'
+                )
         if name == "container":
             cleanup.callback(
                 subprocess.run, [sys.executable, str(root / "native.py"), "cleanup"], cwd=root, check=False
@@ -130,6 +147,12 @@ def exercise(name: str, output: Path) -> dict:
         elif name == "architecture":
             # A valid Python import closes a real adapter/domain cycle and violates the declared boundary.
             source.write_text(source.read_text() + "\nfrom . import adapter\n")
+        elif name == "web":
+            original = source.read_text()
+            changed = original.replace("(a + b) % 256", "(a + b + 1) % 256")
+            if changed == original:
+                raise RuntimeError("The native web failure fixture did not alter application behavior")
+            source.write_text(changed)
         elif name == "advanced":
             source.write_text(source.read_text().replace("sum(payload) % 256", "(sum(payload) + 1) % 256"))
         else:
@@ -137,6 +160,8 @@ def exercise(name: str, output: Path) -> dict:
         negative = execute(root, load(root), output / "negative")
         if negative["status"] != "failure" or not negative.get("failed"):
             raise RuntimeError(f"Native {name} accepted deliberately invalid source")
+        if name == "web" and "web.test" not in negative["failed"]:
+            raise RuntimeError("The actual browser must reject the deliberately wrong application result")
         if (
             name == "cpp"
             and next(i for i in negative["results"] if i["name"] == "c-cpp.test")["status"] != "unavailable"
