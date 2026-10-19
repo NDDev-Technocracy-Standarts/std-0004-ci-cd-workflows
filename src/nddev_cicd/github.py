@@ -1,4 +1,4 @@
-"""Bind native successful PR runs, API-downloaded artifacts and integrated source trees."""
+"""Bind native successful source runs, API-downloaded artifacts and integrated source trees."""
 
 from __future__ import annotations
 
@@ -45,12 +45,35 @@ def eligible(
     if (
         run["repository"]["full_name"] != repository
         or run["head_repository"]["full_name"] != repository
-        or run["event"] != "pull_request"
+        or run["event"] not in {"pull_request", "push"}
         or run["status"] != "completed"
         or run["conclusion"] != "success"
         or run["path"] != expected_workflow
     ):
-        raise Invalid("Build run is not the expected successful same-repository PR validation")
+        raise Invalid("Build run is not the expected successful same-repository source validation")
+    if run["event"] == "push":
+        if run.get("head_branch") != "main" or run.get("head_sha") != integrated_revision:
+            raise Invalid("Delivery requires the exact successful main candidate")
+        current = get(f"repos/{repository}/git/ref/heads/main")
+        if current.get("object", {}).get("sha") != integrated_revision:
+            raise Invalid("Main candidate was superseded before delivery admission")
+        binding = {
+            "repository": repository,
+            "head": integrated_revision,
+            "run_id": str(run_id),
+            "attempt": str(run["run_attempt"]),
+            "event": "push",
+        }
+        if source is not None:
+            if (
+                any(source.get(k) != v for k, v in binding.items())
+                or source.get("tested_revision") != integrated_revision
+            ):
+                raise Invalid("Artifact source differs from the successful main run/attempt")
+            candidate = get(f"repos/{repository}/git/commits/{integrated_revision}")
+            if candidate.get("tree", {}).get("sha") != source.get("tested_tree"):
+                raise Invalid("Main artifact differs from its tested source tree")
+        return {**binding, "integrated_revision": integrated_revision, "workflow": expected_workflow}
     pulls = run.get("pull_requests", [])
     if not pulls:
         # GitHub can clear a completed PR run's mutable association list after merge.
@@ -159,3 +182,69 @@ def bundle(
         if not os.environ.get(environment) or manifest["source"].get(field) != os.environ[environment]:
             raise Invalid("Build and delivery require the same explicitly selected library identity")
     return directory / "artifact.tar.gz", manifest, manifest["source"]
+
+
+def authorized_revision(run_id: int, workflow: str, *, allow_dispatch: bool = False) -> str:
+    """Legacy integration or a trusted completed main workflow; event metadata is checked again by API."""
+    event, ref = os.environ.get("GITHUB_EVENT_NAME"), os.environ.get("GITHUB_REF")
+    if event == "push" and ref in {"refs/heads/dev", "refs/heads/main"}:
+        return os.environ.get("GITHUB_SHA", "")
+    if allow_dispatch and event == "workflow_dispatch" and ref == "refs/heads/main":
+        return os.environ.get("GITHUB_SHA", "")
+    if event != "workflow_run" or ref != "refs/heads/main" or not os.environ.get("GITHUB_EVENT_PATH"):
+        raise Invalid("Delivery requires successful main CI or an explicit legacy integration event")
+    payload = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    run = payload.get("workflow_run", {})
+    if (
+        run.get("id") != run_id
+        or run.get("path") != workflow
+        or run.get("event") != "push"
+        or run.get("head_branch") != "main"
+        or run.get("status") != "completed"
+        or run.get("conclusion") != "success"
+    ):
+        raise Invalid("Completion event does not identify the selected successful main workflow")
+    revision = run.get("head_sha", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        raise Invalid("Completion event lacks an exact main revision")
+    return revision
+
+
+def successful_main_base(root: Path, workflow: str) -> str | None:
+    """A pending/failed/superseded push cannot advance the checked impact baseline."""
+    from .model import git
+
+    if not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow):
+        raise Invalid("Select the exact main validation workflow")
+    repository = os.environ.get("GITHUB_REPOSITORY", "")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+        return None
+    try:
+        runs = get(
+            f"repos/{repository}/actions/workflows/{workflow.rsplit('/', 1)[1]}/runs?branch=main&event=push&status=success&per_page=20"
+        )["workflow_runs"]
+        head = git(root, "rev-parse", "HEAD")
+        candidates = []
+        for run in runs:
+            revision = run.get("head_sha", "")
+            if (
+                run.get("repository", {}).get("full_name") != repository
+                or run.get("path") != workflow
+                or run.get("event") != "push"
+                or run.get("head_branch") != "main"
+                or run.get("status") != "completed"
+                or run.get("conclusion") != "success"
+                or not re.fullmatch(r"[0-9a-f]{40}", revision)
+                or revision == head
+            ):
+                continue
+            try:
+                git(root, "merge-base", "--is-ancestor", revision, head)
+                distance = int(git(root, "rev-list", "--count", f"{revision}..{head}"))
+            except Invalid:
+                continue
+            candidates.append((distance, revision))
+        return min(candidates)[1] if candidates else None
+    except (OSError, ValueError, KeyError, TypeError):
+        # Unavailable metadata keeps all obligations; it is never an empty change set.
+        return None

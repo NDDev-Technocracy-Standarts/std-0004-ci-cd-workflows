@@ -16,13 +16,17 @@ def generate(root: Path, *, check: bool = False) -> None:
         "|---|---|---|",
     ]
     for name, definition in catalog().items():
-        required = [stage for stage, command in definition["stages"].items() if command is None]
-        lines.append(
-            f"| `{name}` | {', '.join(definition['stages'])} | {', '.join(required) or 'Native defaults'} |"
-        )
+        optional = definition.get("optional_stages", [])
+        required = [
+            stage
+            for stage, command in definition["stages"].items()
+            if command is None and stage not in optional
+        ]
+        stages = [stage for stage in definition["stages"] if stage not in optional]
+        lines.append(f"| `{name}` | {', '.join(stages)} | {', '.join(required) or 'Native defaults'} |")
     lines += [
         "",
-        "Commands can be overridden through the caller contract; selected baseline stages remain required.",
+        "Commands can be overridden through the caller contract. Catalog-listed waivable stages need an explicit non-applicability reason; selected tests and security remain required. Optional owned cleanup runs when declared.",
         "",
         "## Native defaults",
         "",

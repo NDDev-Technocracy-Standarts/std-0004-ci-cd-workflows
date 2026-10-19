@@ -20,13 +20,17 @@ class StrictLoader(yaml.SafeLoader):
 
 
 def mapping(loader, node, deep=False):
-    out = {}
-    for key, value in node.value:
+    # Reject repeated explicit keys before flattening; merge overrides are valid YAML.
+    seen = set()
+    for key, _ in node.value:
+        if key.tag == "tag:yaml.org,2002:merge":
+            continue
         name = loader.construct_object(key, deep=deep)
-        if name in out:
-            raise Invalid(f"Duplicate YAML key: {name}")
-        out[name] = loader.construct_object(value, deep=deep)
-    return out
+        if name in seen:
+            raise Invalid("Duplicate YAML key")
+        seen.add(name)
+    loader.flatten_mapping(node)
+    return yaml.SafeLoader.construct_mapping(loader, node, deep=deep)
 
 
 StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
@@ -50,10 +54,15 @@ def check(root: Path, settings: dict | None = None) -> dict:
             continue
         text = path.read_text(encoding="utf-8")
         checked += 1
-        if path.suffix == ".json":
-            json.loads(text)
-        elif path.suffix in {".yml", ".yaml"}:
-            list(yaml.load_all(text, Loader=StrictLoader))
+        if path.suffix in {".json", ".yml", ".yaml"}:
+            try:
+                if path.suffix == ".json":
+                    json.loads(text)
+                else:
+                    list(yaml.load_all(text, Loader=StrictLoader))
+            except (yaml.YAMLError, ValueError, TypeError, Invalid) as error:
+                # File identity, not private source excerpts, belongs in shared diagnostics.
+                raise Invalid(f"Invalid structured document: {relative} ({type(error).__name__})") from error
         elif path.suffix == ".md":
             for target in markdown_targets(text):
                 if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:", target) or target.startswith("//"):

@@ -26,8 +26,10 @@ SOURCES = {
     "cpp": "src/main.cpp",
     "node": "checksum.js",
     "web": "index.html",
+    "bun": "index.html",
     "dotnet": "src/Checksum/Class1.cs",
     "sql": "migrations/002.sql",
+    "alembic": "migrations/versions/002_names.py",
     "advanced": "checksum.py",
     "shell": "checksum.sh",
     "qt": "src/fixture_identity.cpp",
@@ -78,7 +80,7 @@ def exercise(name: str, output: Path) -> dict:
             root,
             ignore=ignored,
         )
-        if name == "web":
+        if name in {"web", "bun"}:
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", 0))
                 port = probe.getsockname()[1]
@@ -147,7 +149,7 @@ def exercise(name: str, output: Path) -> dict:
         elif name == "architecture":
             # A valid Python import closes a real adapter/domain cycle and violates the declared boundary.
             source.write_text(source.read_text() + "\nfrom . import adapter\n")
-        elif name == "web":
+        elif name in {"web", "bun"}:
             original = source.read_text()
             changed = original.replace("(a + b) % 256", "(a + b + 1) % 256")
             if changed == original:
@@ -160,7 +162,7 @@ def exercise(name: str, output: Path) -> dict:
         negative = execute(root, load(root), output / "negative")
         if negative["status"] != "failure" or not negative.get("failed"):
             raise RuntimeError(f"Native {name} accepted deliberately invalid source")
-        if name == "web" and "web.test" not in negative["failed"]:
+        if name in {"web", "bun"} and "web.test" not in negative["failed"]:
             raise RuntimeError("The actual browser must reject the deliberately wrong application result")
         if (
             name == "cpp"

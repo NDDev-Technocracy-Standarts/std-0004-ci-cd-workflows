@@ -4,7 +4,7 @@ inputs:
   run-id:
     required: true
   source-workflow:
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   image-file:
     default: dist/image.oci.tar
   metadata-file:
@@ -28,10 +28,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      with:
-        version: '0.13.1'
-        enable-cache: 'false'
     - id: publish
       shell: bash
       env:
@@ -49,10 +45,11 @@ runs:
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        library_uv="$(bash "$library/scripts/library-uv.sh")"
         credentials=()
         if [ -n "$NDDEV_REGISTRY_AUTH" ]; then credentials+=(--auth-file "$NDDEV_REGISTRY_AUTH"); fi
         if [ -n "$NDDEV_REGISTRY_CERTIFICATES" ]; then credentials+=(--certificates "$NDDEV_REGISTRY_CERTIFICATES"); fi
-        uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd oci-publish \
+        "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd oci-publish \
           --run-id "$NDDEV_SOURCE_RUN" --workflow "$NDDEV_SOURCE_WORKFLOW" \
           --download "$RUNNER_TEMP/nddev-oci-publication" --image-file "$NDDEV_IMAGE_FILE" \
           --metadata-file "$NDDEV_METADATA_FILE" --repository "$NDDEV_REGISTRY_REPOSITORY" "${credentials[@]}" > "$RUNNER_TEMP/nddev-oci-published.json"

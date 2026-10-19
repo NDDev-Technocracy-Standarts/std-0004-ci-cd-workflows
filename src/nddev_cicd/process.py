@@ -10,7 +10,7 @@ import time
 from contextlib import nullcontext
 from pathlib import Path
 
-from .model import Invalid
+from .model import Invalid, git_environment
 
 
 def terminate(child: subprocess.Popen, stream) -> None:
@@ -92,7 +92,7 @@ def run(
             child = subprocess.Popen(
                 command,
                 cwd=root,
-                env={**child_environment, **(env or {})},
+                env=git_environment({**child_environment, **(env or {})}),
                 stdout=stream,
                 stderr=errors if errors is not None else subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,

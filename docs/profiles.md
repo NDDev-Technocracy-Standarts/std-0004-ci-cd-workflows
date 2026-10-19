@@ -29,7 +29,7 @@ Generated from the executed runtime catalog; not a native-fixture verification c
 | `advanced-testing` | bounded-operation, result | bounded-operation, result |
 | `web` | setup, toolchain, browser, format, html, css, test, build | Native defaults |
 
-Commands can be overridden through the caller contract; selected baseline stages remain required.
+Commands can be overridden through the caller contract. Catalog-listed waivable stages need an explicit non-applicability reason; selected tests and security remain required. Optional owned cleanup runs when declared.
 
 ## Native defaults
 

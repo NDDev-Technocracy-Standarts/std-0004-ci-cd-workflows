@@ -1,4 +1,4 @@
-"""Prepare a separate owned SSH server; deliver the exact successful PR artifact remotely."""
+"""Prepare a separate owned SSH server; deliver the exact successful main artifact remotely."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import sys
 import urllib.request
 from pathlib import Path
 
-from nddev_cicd.github import get
+from nddev_cicd.github import authorized_revision, eligible
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tests"))
 import oci_fixture
@@ -26,22 +26,11 @@ if args.operation == "cleanup":
     ssh_fixture.stop(root / "server")
 elif args.operation == "prepare":
     root.mkdir(exist_ok=False)
-    repository, revision = os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"]
-    selected = [
-        p
-        for p in get(f"repos/{repository}/commits/{revision}/pulls")
-        if p.get("merged_at") and p.get("merge_commit_sha") == revision
-    ]
-    if len(selected) != 1:
-        raise RuntimeError("One exact merged PR must own this integrated source")
-    head = selected[0]["head"]["sha"]
-    runs = get(
-        f"repos/{repository}/actions/workflows/ci.yml/runs?event=pull_request&head_sha={head}&per_page=100"
-    )["workflow_runs"]
-    runs = [r for r in runs if r["status"] == "completed" and r["conclusion"] == "success"]
-    if not runs:
-        raise RuntimeError("No completed successful source validation is available")
-    run = max(runs, key=lambda r: (r["id"], r["run_attempt"]))
+    repository = os.environ["GITHUB_REPOSITORY"]
+    event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
+    source_run = event["workflow_run"]["id"]
+    revision = authorized_revision(source_run, ".github/workflows/main-ci.yml")
+    eligible(repository, source_run, revision, ".github/workflows/main-ci.yml")
     fixture = ssh_fixture.start(root / "server")
     registry = oci_fixture.start(root / "registry")
     config = {
@@ -55,7 +44,7 @@ elif args.operation == "prepare":
     (root / "target.json").write_text(json.dumps(config))
     (root / "transport.json").write_text(json.dumps(fixture["transport"]))
     with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
-        print("run_id=" + str(run["id"]), file=output)
+        print("run_id=" + str(source_run), file=output)
         print("target=" + str(root / "target.json"), file=output)
         print("transport=" + str(root / "transport.json"), file=output)
         print("oci_repository=" + registry["endpoint"] + "/fixture", file=output)
@@ -93,7 +82,10 @@ else:
                     "status": "success",
                     "artifact": state["artifact"],
                     "tested_revision": state["revision"],
-                    "integrated_revision": os.environ["GITHUB_SHA"],
+                    "integrated_revision": authorized_revision(
+                        json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())["workflow_run"]["id"],
+                        ".github/workflows/main-ci.yml",
+                    ),
                     "target": "separate isolated SSH server/filesystem; no production deployment",
                 }
             )

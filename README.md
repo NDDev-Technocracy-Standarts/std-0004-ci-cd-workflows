@@ -22,11 +22,14 @@ capacity; private Windows/macOS require compatible confirmed no-overage admissio
 ## Source, artifact, target
 
 The [CI composite](.github/actions/ci/action.yml) executes profiles selected by the caller's native
-contract. The [admission composite](.github/actions/admit/action.yml) resolves capacity before job
+contract. A short PR gate permits merge; full main CI establishes production readiness. Affected
+components include changes from any superseded or failed main validation. The [admission composite](.github/actions/admit/action.yml) resolves capacity before job
 allocation. The [delivery composite](.github/actions/deliver/action.yml) consumes the successful PR
-artifact after integration, verifies lineage and tested-tree identity, and coordinates an existing
-target. Source is not rebuilt after merging. Each callee resolves its own package separately from
-the caller checkout.
+artifact from successful full main CI, verifies lineage and tested-tree identity, and coordinates an
+existing target. Delivery promotes that artifact without rebuilding it. Each callee resolves its own package separately from
+the caller checkout. The [impact planner](.github/actions/impact/action.yml) exposes component selection
+before dependent jobs allocate capacity. The [failure publisher](.github/actions/feedback/action.yml)
+returns bounded native run feedback to an owning Issue without executing candidate code.
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to
@@ -42,7 +45,7 @@ local checks. Ordinary documentation remains directly editable.
 
 Native fixture drivers exercise selected SDKs and failure paths. Source workflows include public
 Linux, Windows and Apple runners. Remote delivery fixtures use isolated targets and actual SSH/SCP;
-existing dev/main smoke checks artifact lineage and recovery. These checks do not establish every
+main completion smoke checks artifact lineage and recovery. These checks do not establish every
 SDK combination, a production deployment, or acceptance on a physical remote server.
 
 The [normative descriptor](standard.yml), [consumer guide](docs/usage.md),
