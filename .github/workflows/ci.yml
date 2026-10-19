@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh security
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@3c36acdc62389493e907d77e36d89f4ceaac3eb4 # 0.2.0 draft
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@905817f33428b861ae488b48015ab8fbc947d4f6 # 0.2.0 draft
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -145,11 +145,11 @@ jobs:
       macos: ${{ steps.macos.outputs.runner }}
     steps:
       - id: windows
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@3c36acdc62389493e907d77e36d89f4ceaac3eb4 # 0.2.0 draft
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@905817f33428b861ae488b48015ab8fbc947d4f6 # 0.2.0 draft
         with:
           policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
       - id: macos
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@3c36acdc62389493e907d77e36d89f4ceaac3eb4 # 0.2.0 draft
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@905817f33428b861ae488b48015ab8fbc947d4f6 # 0.2.0 draft
         with:
           policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
   windows:
