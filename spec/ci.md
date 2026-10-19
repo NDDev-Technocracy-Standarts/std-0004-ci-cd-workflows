@@ -1,13 +1,12 @@
 # Ci
 
-## R-0007 Pull requests own source validation
+## R-0007 Short PR gates precede full main validation
 
 ```item
 strength: MUST
 basis: owner
 verification: review
-criteria: Map triggers to the task/dev/main flow; push-only source validation and hidden schedules are
-  absent.
+criteria: Trace short PR eligibility, affected full main validation and completed-artifact delivery; duplicate full PR/dev paths and undeclared schedules are absent.
 sources:
 - gha-events
 applies-when: The subject defines or invokes source-validation CI.
@@ -39,7 +38,7 @@ an explicit scoped owner decision.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.impact]
+verified-by: [runtime.impact, runtime.consumer-contracts]
 criteria: Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.
 sources:
 - gha-events

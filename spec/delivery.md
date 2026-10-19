@@ -7,7 +7,7 @@ strength: MUST
 basis: owner
 verification: partial
 verified-by: [runtime.lineage]
-criteria: Exercise late base changes, superseded PR results and malicious/unrelated artifact references.
+criteria: Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; retain explicit historical PR lineage checks.
 sources:
 - gha-events
 applies-when: The subject determines eligibility for deployment.

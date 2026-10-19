@@ -60,11 +60,11 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "a2c26896bc6184707a906cc8f9c7fdc6837e596c7a992fbe9d91ef41ee373147"
+      "sha256": "8c4498a28f5eac587ddbbb7ac735490853e10c05f79e569b7bc98766c4c52be6"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "d427f2dff7942548bb53dff36f2ef9a5fb94bda7ebfcf379ee33be86b5832ec5"
+      "sha256": "eb93a8b633ed50e3efa7663138edaf37c53e72b169d45247aa42d1401fb44439"
     },
     {
       "path": "spec/foundation.md",
@@ -88,7 +88,7 @@
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "d02dfb1dadab2daee2a79d2d9eb3043c282635690af5d31b587dc585b4f7f98b"
+      "sha256": "39b0869fd79acb63f1d6f3e4499ab29440986fd662c01bd788f1a1f5b4636327"
     },
     {
       "path": "standard.yml",
@@ -96,7 +96,7 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "a17f22700c92b3589c3d5ff21de611c08c01f3183796046122dc0bd859f5b9ed",
+  "inputs-sha256": "57ee13988b6f58b4db90ede59258c5402011fe30d899b0e46116c4f5097b4317",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -168,7 +168,7 @@
       "id": "runtime.impact",
       "kind": "test",
       "target": "tests/test_core.py::test_impact_deletion_dependency_and_uncertainty",
-      "establishes": "Actual Git deletion/rename, nested scopes, root shared locks, dependents and missing-base cases retain required scopes. Anchored glob regressions run in tests/test_consumer_contracts.py; the impact action exposes that same closure."
+      "establishes": "Actual Git deletion/rename, dependents and missing-base cases retain required scopes. The separate consumer-contract binding covers anchored recursive globs, root locks and successful-main baselines."
     },
     {
       "id": "runtime.inputs",
@@ -609,7 +609,7 @@
     {
       "id": "R-0007",
       "kind": "requirement",
-      "title": "Pull requests own source validation",
+      "title": "Short PR gates precede full main validation",
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
@@ -617,7 +617,7 @@
         "gha-events"
       ],
       "verification": "review",
-      "criteria": "Map triggers to the task/dev/main flow; push-only source validation and hidden schedules are absent.",
+      "criteria": "Trace short PR eligibility, affected full main validation and completed-artifact delivery; duplicate full PR/dev paths and undeclared schedules are absent.",
       "since": "0.1.0",
       "revised": "0.3.0",
       "condition": {
@@ -642,7 +642,8 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.impact"
+        "runtime.impact",
+        "runtime.consumer-contracts"
       ],
       "criteria": "Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.",
       "since": "0.1.0",
@@ -654,7 +655,7 @@
       "statement": "The run MUST identify its selected profiles and all affected obligations, including dependent\ncomponents, shared locks, generated contracts and behavior-changing build configuration. Deletions,\nrenames and unavailable comparison bases do not produce a false empty change set. An uncertain\nimpact calculation conservatively retains required coverage or fails explicitly. Selected expensive\nchecks use finite project-appropriate budgets and relevant PR conditions; required coverage is not\nmoved to an unobserved future run solely to make a PR fast. Main impact comparison starts from a\ncompleted successful ancestor under the applicable main workflow, not from a failed, cancelled or\nstill-pending push. Unverified changes remain in scope across superseding pushes.",
       "source": {
         "path": "spec/ci.md",
-        "line": 36
+        "line": 35
       }
     },
     {
@@ -678,7 +679,7 @@
       "statement": "An aggregate success MUST account for every expected result for this candidate. No tests discovered,\na missing report, an unsupported selected target, a tool startup failure and an unexpected skipped\njob are not passed checks. Non-applicability is distinguishable from inability to execute. Optional\nchecks are optional because the project contract says so, not because they failed. Success summaries\nname what actually ran rather than repeat requested versions or capabilities.",
       "source": {
         "path": "spec/ci.md",
-        "line": 58
+        "line": 57
       }
     },
     {
@@ -702,7 +703,7 @@
       "statement": "Reusable results MUST identify the source candidate and significant validation inputs sufficiently\nto prevent reuse for a different change. Head/base or tested merge context, workflow implementation,\nlocks, selected configuration and platform matter where they affect the result. Cache hits and a\nmatching branch name do not establish check success. Expired vulnerability data and time-dependent\nchecks retain their own freshness semantics. Identical input results may be reused without ritual\nrepetition; material changes require the corresponding affected check.",
       "source": {
         "path": "spec/ci.md",
-        "line": 75
+        "line": 74
       }
     },
     {
@@ -726,7 +727,7 @@
       "statement": "A language or SDK profile MUST execute its selected native build, analysis, test and packaging\noperations with compatible resolved toolchains. It verifies the interpreter/compiler that actually\nruns and honors project locks without silently rewriting them. Installed tools, caller commands and\nplatform-specific behavior are handled explicitly. The capability catalog differentiates native\nexecution, cross-compilation and unverified hardware; declaring a language in YAML is not support.",
       "source": {
         "path": "spec/ci.md",
-        "line": 94
+        "line": 93
       }
     },
     {
@@ -752,7 +753,7 @@
       "statement": "Required build, test, type, secret and selected security/architecture failures MUST affect the run\nresult. Severity and project thresholds are explicit; the library does not invent one universal\ncoverage percentage or suppress findings to obtain green. Secondary diagnostics retain a truthful\nproject-owned disposition. Retries are limited to established transient causes and never erase a\nreproducible assertion failure or silently convert flaky behavior into an unconditional pass.",
       "source": {
         "path": "spec/ci.md",
-        "line": 112
+        "line": 111
       }
     },
     {
@@ -780,7 +781,7 @@
       "statement": "A selected architecture check MUST evaluate declared component responsibilities and dependency\nconstraints using suitable language-native or established analysis tools. It does not impose a\nhexagonal folder skeleton on every script. Empty matched scopes cannot prove a declared boundary;\ndynamic/framework entrypoints are considered when evaluating unused code. The result reports the\nspecific dependency/layer/cycle constraints evaluated, not general architecture perfection.",
       "source": {
         "path": "spec/ci.md",
-        "line": 132
+        "line": 131
       }
     },
     {
@@ -806,7 +807,7 @@
       "statement": "Documentation checks MUST use canonical generation, executable examples and meaningful path/link\nvalidation where these apply. Prose is kept aligned by the primary agent in the same engineering\nchange; an automated link or schema pass does not establish its truth. This library introduces no\nmandatory prose digest, periodic attest ritual or automatic reviewer platform. An older adopted\nstandard's stronger claim rule is changed through an explicit compatible adoption process, not\nsilently disabled by this workflow. Artifact and provenance digests retain their separate purpose.",
       "source": {
         "path": "spec/ci.md",
-        "line": 154
+        "line": 153
       }
     },
     {
@@ -830,7 +831,7 @@
       "statement": "CI MUST separate untrusted source execution from deployment secrets, write authority and private\nhost state. Public fork PR code never gains access to the NDDev machine or deployment credentials.\nPrivileged event handlers do not execute candidate code, artifact scripts or attacker-supplied\ncommands before validating the actual trust boundary. Private repository visibility alone is not a\nproof that every fork or workflow change is trusted. Only required permissions and secrets reach a\njob; paid security functionality is not assumed from the fact that its CLI runs on a local machine.",
       "source": {
         "path": "spec/ci.md",
-        "line": 174
+        "line": 173
       }
     },
     {
@@ -949,7 +950,7 @@
       "verified-by": [
         "runtime.lineage"
       ],
-      "criteria": "Exercise late base changes, superseded PR results and malicious/unrelated artifact references.",
+      "criteria": "Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; retain explicit historical PR lineage checks.",
       "since": "0.1.0",
       "revised": "0.3.0",
       "condition": {

@@ -9,7 +9,7 @@ entries:
 - id: runtime.impact
   kind: test
   target: tests/test_core.py::test_impact_deletion_dependency_and_uncertainty
-  establishes: Actual Git deletion/rename, nested scopes, root shared locks, dependents and missing-base cases retain required scopes. Anchored glob regressions run in tests/test_consumer_contracts.py; the impact action exposes that same closure.
+  establishes: Actual Git deletion/rename, dependents and missing-base cases retain required scopes. The separate consumer-contract binding covers anchored recursive globs, root locks and successful-main baselines.
 - id: runtime.reports
   kind: test
   target: tests/test_core.py::test_native_report_collection

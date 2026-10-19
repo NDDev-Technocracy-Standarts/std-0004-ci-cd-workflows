@@ -25,7 +25,7 @@ jobs:
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-24.04
     outputs:
-      library-ref: '4d3147eb007afe4f110339463ba9f66b618b2272'
+      library-ref: 'b4db416c0f9f43ab132320ea1bce994db569270c'
       status: ${{ steps.native.outputs.status }}
     timeout-minutes: 30
     steps:
@@ -38,7 +38,7 @@ jobs:
           version: ${{ inputs.uv }}
           python-version: ${{ inputs.python }}
           enable-cache: 'false'
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@4d3147eb007afe4f110339463ba9f66b618b2272
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@b4db416c0f9f43ab132320ea1bce994db569270c
         id: native
         with:
           contract: ${{ inputs.contract }}
