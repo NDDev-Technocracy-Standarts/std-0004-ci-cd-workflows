@@ -9,7 +9,7 @@ entries:
 - id: runtime.impact
   kind: test
   target: tests/test_core.py::test_impact_deletion_dependency_and_uncertainty
-  establishes: Actual Git deletion/rename, dependents and missing-base cases retain required scopes; additional graph/unknown-path cases run in the same suite.
+  establishes: Actual Git deletion/rename, nested scopes, root shared locks, dependents and missing-base cases retain required scopes. Anchored glob regressions run in tests/test_consumer_contracts.py; the impact action exposes that same closure.
 - id: runtime.reports
   kind: test
   target: tests/test_core.py::test_native_report_collection
@@ -17,7 +17,7 @@ entries:
 - id: runtime.inputs
   kind: test
   target: tests/test_core.py::test_validation_cannot_change_its_locked_inputs
-  establishes: Validation cannot silently replace the selected contract/native lock inputs; artifact manifests additionally bind actual source/tree/run/callee identities.
+  establishes: Validation cannot silently replace tracked nested ecosystem locks or explicitly selected inputs. Consumer regressions mutate a nested bun lock and reject it; artifact manifests also bind actual source/tree/run/callee identities.
 - id: runtime.profiles
   kind: check
   target: tests/run_native.py
@@ -98,3 +98,7 @@ entries:
   kind: test
   target: tests/test_git_inputs.py::test_ci_checks_submodule_inputs_before_and_after_commands
   establishes: Real submodule gitlinks/worktrees match, and stale/dirty/symlinked or command-modified inputs cannot pass source validation.
+- id: runtime.consumer-contracts
+  kind: check
+  target: tests/test_consumer_contracts.py
+  establishes: Native process/Git regressions cover requirements-only command selection, explicit non-applicability, manager lock resolution, named manifests, bounded diagnostics, YAML merge handling, isolated outputs and owned cleanup. Mocked API cases cover feedback marker/attempt and pagination contracts; they do not establish live publication.

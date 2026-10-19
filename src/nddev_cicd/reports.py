@@ -129,7 +129,17 @@ def aggregate(expected: list[str], results: list[dict]) -> dict:
         and item.get("advisory_outage", {}).get("issue_refs")
     ]
     failed = [
-        item["name"] for item in results if item.get("status") != "success" and item["name"] not in limited
+        item["name"]
+        for item in results
+        if not (
+            item.get("status") == "success"
+            or (
+                item.get("status") == "not-applicable"
+                and isinstance(item.get("reason"), str)
+                and item["reason"].strip()
+            )
+        )
+        and item["name"] not in limited
     ]
     return {"status": "failure" if failed else "success", "failed": failed, "limitations": limited}
 

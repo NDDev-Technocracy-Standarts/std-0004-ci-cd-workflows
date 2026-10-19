@@ -26,7 +26,9 @@ contract. The [admission composite](.github/actions/admit/action.yml) resolves c
 allocation. The [delivery composite](.github/actions/deliver/action.yml) consumes the successful PR
 artifact after integration, verifies lineage and tested-tree identity, and coordinates an existing
 target. Source is not rebuilt after merging. Each callee resolves its own package separately from
-the caller checkout.
+the caller checkout. The [impact planner](.github/actions/impact/action.yml) exposes component selection
+before dependent jobs allocate capacity. The [failure publisher](.github/actions/feedback/action.yml)
+returns bounded native run feedback to an owning Issue without executing candidate code.
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to

@@ -1,7 +1,9 @@
 {
   "python": {
     "manifests": [
-      "pyproject.toml"
+      "pyproject.toml",
+      "requirements*.txt",
+      "requirements/*.txt"
     ],
     "stages": {
       "setup": [
@@ -9,12 +11,7 @@
         "sync",
         "--locked"
       ],
-      "toolchain": [
-        "uv",
-        "run",
-        "python",
-        "--version"
-      ],
+      "toolchain": "uv --version && uv run python --version",
       "format": [
         "uv",
         "run",
@@ -60,7 +57,11 @@
       "consumer": [
         "build"
       ]
-    }
+    },
+    "waivable_stages": [
+      "build",
+      "consumer"
+    ]
   },
   "rust": {
     "manifests": [
@@ -216,7 +217,10 @@
       "package": [
         "build"
       ]
-    }
+    },
+    "waivable_stages": [
+      "package"
+    ]
   },
   "c-cpp": {
     "manifests": [
@@ -665,8 +669,11 @@
   },
   "sql-data": {
     "manifests": [
-      "*.sql",
-      "migrations/*.sql"
+      "**/*.sql",
+      "alembic.ini",
+      "**/alembic.ini",
+      "**/migrations/**/*.py",
+      "**/schema.prisma"
     ],
     "stages": {
       "lint": [
@@ -685,10 +692,8 @@
   },
   "shell-powershell": {
     "manifests": [
-      "*.sh",
-      "*.ps1",
-      "scripts/*.sh",
-      "scripts/*.ps1"
+      "**/*.sh",
+      "**/*.ps1"
     ],
     "stages": {
       "syntax": null,
@@ -732,8 +737,11 @@
   },
   "container": {
     "manifests": [
-      "Dockerfile",
-      "**/Dockerfile"
+      "**/Dockerfile",
+      "**/*.Dockerfile",
+      "**/Dockerfile.*",
+      "**/Containerfile",
+      "**/Containerfile.*"
     ],
     "stages": {
       "lint": [
@@ -743,7 +751,8 @@
       "build": null,
       "test": null,
       "scan": null,
-      "sbom": null
+      "sbom": null,
+      "cleanup": null
     },
     "report": {
       "kind": "junit",
@@ -759,7 +768,13 @@
       "sbom": [
         "build"
       ]
-    }
+    },
+    "optional_stages": [
+      "cleanup"
+    ],
+    "finally_stages": [
+      "cleanup"
+    ]
   },
   "infrastructure": {
     "manifests": [
@@ -772,8 +787,15 @@
       "format": null,
       "validate": null,
       "security": null,
-      "generate": null
-    }
+      "generate": null,
+      "cleanup": null
+    },
+    "optional_stages": [
+      "cleanup"
+    ],
+    "finally_stages": [
+      "cleanup"
+    ]
   },
   "security": {
     "manifests": [],
@@ -863,9 +885,6 @@
     "report": {
       "kind": "junit",
       "path": ".nddev-reports/web.xml"
-    },
-    "locked_inputs": [
-      "package-lock.json"
-    ]
+    }
   }
 }

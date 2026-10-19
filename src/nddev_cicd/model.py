@@ -49,8 +49,27 @@ def atomic_json(path: Path, data: Any) -> None:
     os.replace(temporary, path)
 
 
+def git_environment(environment: dict | None = None) -> dict:
+    """Discard inherited Git injection/config and make machine output uncoloured."""
+    values = dict(os.environ if environment is None else environment)
+    values = {k: v for k, v in values.items() if not k.startswith("GIT_CONFIG_")}
+    values.update(
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_SYSTEM=os.devnull,
+        GIT_CONFIG_GLOBAL=os.devnull,
+        GIT_CONFIG_COUNT="2",
+        GIT_CONFIG_KEY_0="color.ui",
+        GIT_CONFIG_VALUE_0="false",
+        GIT_CONFIG_KEY_1="log.showSignature",
+        GIT_CONFIG_VALUE_1="false",
+    )
+    return values
+
+
 def git(root: Path, *args: str) -> str:
-    result = subprocess.run(["git", "-C", str(root), *args], check=False, capture_output=True, text=True)
+    result = subprocess.run(
+        ["git", "-C", str(root), *args], check=False, capture_output=True, text=True, env=git_environment()
+    )
     if result.returncode:
         raise Invalid(result.stderr.strip() or "Git operation failed")
     return result.stdout.strip()

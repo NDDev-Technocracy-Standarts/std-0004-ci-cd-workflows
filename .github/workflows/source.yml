@@ -29,6 +29,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
         id: native
         with:

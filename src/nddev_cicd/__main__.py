@@ -20,6 +20,20 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--root", type=Path, default=Path.cwd())
     run.add_argument("--contract", default=".github/nddev-ci.toml")
     run.add_argument("--output", type=Path, required=True)
+    impact = sub.add_parser("impact", help="Expose the same conservative plan before dependent jobs allocate")
+    impact.add_argument("--root", type=Path, default=Path.cwd())
+    impact.add_argument("--contract", default=".github/nddev-ci.toml")
+    impact.add_argument("--base")
+    impact.add_argument("--head")
+    feedback = sub.add_parser("feedback", help="Publish bounded metadata-only failure feedback")
+    feedback.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
+    feedback.add_argument("--workflows", required=True, help="JSON array of exact workflow paths")
+    feedback.add_argument("--creators", required=True, help="JSON array of allowed run creators")
+    feedback.add_argument(
+        "--conclusions", default='["failure","timed_out","action_required","startup_failure"]'
+    )
+    feedback.add_argument("--run-id", type=int)
+    feedback.add_argument("--task-issue", type=int)
     route = sub.add_parser("route", help="Choose admitted capacity before the affected job is allocated")
     route.add_argument("--policy", type=Path, required=True)
     pack = sub.add_parser("pack", help="Package exact selected files with source identity")
@@ -142,6 +156,32 @@ def main(argv=None) -> int:
                 )
             )
             return 0 if result["status"] == "success" else 1
+        if args.operation == "impact":
+            root = args.root.resolve()
+            selected, plan = ci.selection(root, config.load(root, args.contract), args.base, args.head)
+            if plan is None:
+                raise Invalid("The impact entrypoint requires declared components")
+            result = {
+                "profiles": selected,
+                "selected": plan["selected_components"],
+                "not_applicable": plan["not_applicable"],
+                "base": plan["base"],
+            }
+            print(json.dumps(result))
+            return 0
+        if args.operation == "feedback":
+            from .feedback import publish
+
+            result = publish(
+                args.repository,
+                json.loads(args.workflows),
+                json.loads(args.creators),
+                run_id=args.run_id,
+                task_issue=args.task_issue,
+                conclusions=json.loads(args.conclusions),
+            )
+            print(json.dumps(result))
+            return 0
         if args.operation == "sarif-check":
             from .reports import sarif
 

@@ -19,6 +19,13 @@ composition. CD on accepted integration events is separate and may perform targe
 A manual retry or reproduction is tied to a specific authorized PR or failed attempt; it is not a
 hidden parallel periodic CI system. No unrelated runner is provisioned merely because a PR exists.
 
+This baseline consumes the branch and acceptance policy owned by the adopted GitHub workflow
+standard. A main-only integration flow or nonblocking post-merge source validation needs an explicit
+scoped owner departure for the affected requirements; a different trigger alone does not establish
+conformance. A declared narrow schedule for advisory refresh, owned registry reclamation or failure
+feedback is not duplicate source validation. Its purpose, owner, selected inputs and finite budget
+remain explicit. An undeclared purpose or a second periodic full-CI path is a hidden schedule.
+
 ## R-0008 Selected coverage includes affected dependents
 
 ```item
@@ -45,7 +52,7 @@ moved to an unobserved future run solely to make a PR fast.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.reports]
+verified-by: [runtime.reports, runtime.consumer-contracts]
 criteria: Inject a missing report, zero-test result and skipped required job; the aggregate cannot pass.
 applies-when: The subject summarizes or gates validation results.
 ```

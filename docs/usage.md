@@ -9,7 +9,10 @@ The library's own CI demonstrates a direct composite caller. Do not use the publ
 for private execution: keep private jobs and their self-hosted labels in the caller, including planners
 and final aggregation. Never grant public/fork code access to a private runner or deployment secret.
 
-The CI action reads `.github/nddev-ci.toml` in the caller checkout. Select profiles with actual native
+The CI action resolves `contract` inside `working-directory` (the checkout root by default).
+A component can keep its contract at `backend/.github/nddev-ci.toml` and select
+`working-directory: backend`. Separate invocations use unique `result-key` values; reusing an
+existing result directory is refused. Select profiles with actual native
 manifests and all relevant extras. For example, a Python package with architectural contracts selects
 `profiles = ["python", "architecture"]`; its architecture configuration declares nonempty source scopes
 and the native dependency command (such as Import Linter). Exact stage names and defaults are generated
@@ -30,7 +33,7 @@ needs them. Never pass deployment credentials to source checks.
 
 `[artifacts] files = ["dist/*.whl", "dist/*.tar.gz"]` packages only explicit successful outputs.
 The manifest binds bytes/modes, caller source/merge tree, lock/contract identities, run attempt and callee
-code identity. GitHub stores the small selected bundle with three-day retention. Caches and credentials
+code identity. The upload policy and bounded retention belong to the action inputs. Caches and credentials
 are rejected. This is content/provenance binding, not a claim of signed SLSA attestation.
 
 # Admission and delivery
@@ -255,3 +258,88 @@ comments, HTML attributes and fenced examples. Native link destinations retain t
 The check reports paths and mechanical categories without printing document content. It does not
 establish factual correctness or semantic completeness. See this repository's
 [native contract](../.github/nddev-ci.toml) for a selected example.
+
+
+## Explicit native shapes and diagnostics
+
+Impact paths use root-anchored POSIX globs: `*` stays within one path segment and `**` spans zero or
+more segments. Root locks are shared inputs. Fetch the comparison base explicitly or use
+`fetch-depth: 0`; unavailable bases select every component. The `impact` composite exposes `selected`,
+`not-applicable`, `profiles` and `base` as JSON. A dependent job can use
+`if: contains(fromJSON(needs.impact.outputs.selected), 'backend')` before SDK/sidecar setup.
+
+The security profile's default history scan requires `fetch-depth: 0` and a positive native scanned
+commit count. A shallow checkout or a scanner that examined no commits fails. Machine Git output
+ignores inherited global/system/config-injection settings and disables colour. Caller overrides of
+security commands own their actual coverage and native finding thresholds.
+
+Tracked locks at every depth are bound to the result and checked again after execution. Native
+ecosystem names include JavaScript managers, Gradle and Swift. `[inputs] locks = ["config/tool.lock"]`
+adds a project-specific tracked input; a selector matching nothing fails.
+`[inputs.manifests] sql-data = ["database/revisions/*.py"]` names an actual migration layout.
+Selectors must remain inside the selected project. Alembic, nested SQL/ORM migration scripts,
+recursive shell scripts and named Dockerfile/Containerfile layouts are recognised directly.
+Non-default layouts supply their real native lint/build/test commands.
+
+Requirements-only Python applications provide explicit commands for each stage instead of invoking
+package defaults against a nonexistent project. `[not_applicable.python]` can give bounded nonempty
+reasons for `build` and `consumer`; `[not_applicable.typescript-javascript]` can explain `package`.
+The result records `not-applicable` with its reason. Tests, setup and security cannot be waived.
+A prerequisite that did not execute cannot satisfy a dependent native operation. Application image
+or bundle packaging uses its real command; an unneeded wheel or registry package uses the declared
+non-applicability. An empty command or successful no-op is not evidence of packaging.
+
+JavaScript and web defaults resolve one native manager from `packageManager` and the tracked npm,
+bun, pnpm or yarn lock. Conflicting managers fail. Frozen installation and script commands use that
+manager. Node remains part of the toolchain even for bun; provision both when the project requires
+Node-based tools. Non-npm package publication needs an explicit native command or allowed
+non-applicability. Test scripts select their actual unit/browser scopes so bun does not collect
+Playwright cases accidentally. The library neither provisions every SDK nor changes caller uv:
+its own bootstrap uses an absolute verified executable outside caller PATH.
+
+The Linux `tools` action accepts a space/comma-separated capability list, for example
+`capability: security shell container`. Workflow tools include actionlint, lychee and zizmor;
+security adds Gitleaks and OSV-Scanner, shell adds Bats and ShellCheck. The native script validates
+capabilities and verified owned binaries before reuse. SDKs and system libraries such as libmagic
+belong to the runner owner or an explicit job-local caller setup. A caller setup verifies downloaded
+packages against its trusted native package metadata and supplies only that job's library paths;
+the shared action does not install packages into the host.
+
+Non-success stages print a bounded diagnostic tail in the job log and an escaped summary detail.
+`[diagnostics] tail_lines = 200` selects the limit, from zero to one thousand. Passing stages keep
+full logs without flooding the console. Known secret environment values are redacted in exported
+tails; caller-native masking and safe commands remain necessary for arbitrary private output.
+Workflow-command processing is suspended while tails are printed.
+
+The CI action accepts `upload: always`, `failure` or `never` and `retention-days` from one to three.
+The compatibility default is `always`. Text results use artifact compression. `deliver`,
+`oci-publish` and `prepare-release` need `always` on their source run because they consume its exact
+bundle. A log-only caller can select failure-only upload or retain diagnostics in the native log.
+
+Container and infrastructure contracts may declare `[commands.container] cleanup = [...]` or the
+corresponding infrastructure command. Selected cleanup runs after success, failure, native timeout
+or cooperative cancellation, and cleanup failure also fails the aggregate. It removes only resources
+owned by that invocation. Use run ID, attempt and component in tags/container/network names.
+A shared-host prune is not a cleanup contract. Runner termination can bypass process cleanup;
+self-hosted callers also retain an `if: always()` recovery step scoped to those same resource IDs.
+
+## Failure feedback and pin identity
+
+The `feedback` composite accepts exact workflow paths and a creator allowlist, plus one completed
+`run-id` or bounded reconciliation of recent completed runs. It needs `actions: read` and
+`issues: write`. An optional `task-issue` receives deduplicated comments; otherwise one failure Issue
+is created for each run attempt. Closed markers are reused and reruns have distinct attempt markers.
+Markers are accepted only from the workflow bot or explicitly allowed actors. Missing pagination
+coverage fails before publication. All publishers in a repository share one concurrency group with
+`cancel-in-progress: false`, so simultaneous event and reconciliation calls serialize.
+
+A trusted `workflow_run` caller invokes the pinned action without checking out the failed candidate,
+reading its artifacts or executing its code. Pass only the native run ID as data; paths, creator
+allowlists and permissions come from trusted workflow configuration. The same bounded entrypoint
+can serve an explicitly declared feedback schedule; it does not rerun source CI or repair code.
+The owning agent still returns to native diagnostics and unresolved task work.
+
+The native [runtime lock](../.github/runtime-lock.json) maps reviewed implementation and reusable workflow
+commits independently. A draft pin has no invented release-tag comment. Published release notes
+must identify both native refs; a standard edition tag alone does not identify the facade/backend
+pair. The online zizmor job complements offline source analysis with read-only metadata checks.

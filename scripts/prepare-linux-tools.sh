@@ -12,19 +12,45 @@ mkdir -p "$tools"
 printf 'std-0004-ci-tools/v1\n' > "$tools/.nddev-tools-owner"
 install_archive() {
   local url="$1" expected="$2" binary="$3" archive="$tools/$3.tar.gz" member
+  if [[ -f "$tools/$binary.source" && "$(cat "$tools/$binary.source")" == "$expected" ]] && \
+    (cd "$tools" && sha256sum --check --status "$binary.sha256"); then
+    return
+  fi
   curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$archive"
   printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --status
   member="$(tar -tzf "$archive" | awk -F/ -v binary="$binary" '$NF == binary { print }')"
   [[ -n "$member" && "$member" != *$'\n'* ]]
-  tar -xOzf "$archive" "$member" > "$tools/$binary"
-  chmod 755 "$tools/$binary"
+  tar -xOzf "$archive" "$member" > "$tools/$binary.new"
+  chmod 755 "$tools/$binary.new"
+  mv "$tools/$binary.new" "$tools/$binary"
   rm "$archive"
+  printf '%s\n' "$expected" > "$tools/$binary.source"
+  (cd "$tools" && sha256sum "$binary" > "$binary.sha256")
 }
+install_file() {
+  local url="$1" expected="$2" binary="$3"
+  if [[ -f "$tools/$binary" ]] && printf '%s  %s\n' "$expected" "$tools/$binary" | sha256sum --check --status; then
+    return
+  fi
+  curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$tools/$binary.new"
+  printf '%s  %s\n' "$expected" "$tools/$binary.new" | sha256sum --check --status
+  chmod 755 "$tools/$binary.new"
+  mv "$tools/$binary.new" "$tools/$binary"
+}
+capabilities="${*//,/ }"
+unique=''
+for capability in $capabilities; do
+  case "$capability" in rust|security|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
+  case " $unique " in *" $capability "*) ;; *) unique+=" $capability" ;; esac
+done
 install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz' \
   '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8' actionlint
 install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-musl.tar.gz' \
   '73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5' lychee
-if [[ "${1:-}" == rust ]]; then
+install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
+  'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
+for capability in $unique; do
+if [[ "$capability" == rust ]]; then
   install_archive 'https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz' \
     '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' cargo-deny
   install_archive 'https://github.com/mozilla/sccache/releases/download/v0.18.0/sccache-v0.18.0-x86_64-unknown-linux-musl.tar.gz' \
@@ -32,12 +58,17 @@ if [[ "${1:-}" == rust ]]; then
   "$tools/cargo-deny" --version
   "$tools/sccache" --version
 fi
-if [[ "${1:-}" == security ]]; then
+if [[ "$capability" == security ]]; then
   install_archive 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz' \
     '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' gitleaks
   "$tools/gitleaks" version
+  install_file 'https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64' \
+    'ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108' osv-scanner
+  "$tools/osv-scanner" --version
 fi
-if [[ "${1:-}" == shell ]]; then
+if [[ "$capability" == shell ]]; then
+  install_archive 'https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz' \
+    'b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6' shellcheck
   archive="$tools/bats.tar.gz"
   curl --fail --silent --show-error --location --proto '=https' \
     'https://codeload.github.com/bats-core/bats-core/tar.gz/eb7f42f8d608ac693d7a4b67474f6714ea68cfc5' --output "$archive"
@@ -48,18 +79,17 @@ if [[ "${1:-}" == shell ]]; then
   "$tools/bats-sdk/bin/bats" --version
   if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/bats-sdk/bin" >> "$GITHUB_PATH"; fi
 fi
-if [[ "${1:-}" == container || "${1:-}" == infrastructure ]]; then
+if [[ "$capability" == container || "$capability" == infrastructure ]]; then
   install_archive 'https://github.com/aquasecurity/trivy/releases/download/v0.76.0/trivy_0.76.0_Linux-64bit.tar.gz' \
     'e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7' trivy
   "$tools/trivy" --version
 fi
-if [[ "${1:-}" == container ]]; then
-  curl --fail --silent --show-error --location --proto '=https' \
-    'https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64' --output "$tools/hadolint"
-  printf '%s  %s\n' 'c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507' "$tools/hadolint" | sha256sum --check --status
-  chmod 755 "$tools/hadolint"
+if [[ "$capability" == container ]]; then
+  install_file 'https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64' \
+    'c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507' hadolint
   "$tools/hadolint" --version
 fi
+done
 "$tools/actionlint" --version
 "$tools/lychee" --version
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools" >> "$GITHUB_PATH"; fi

@@ -17,6 +17,11 @@ jobs:
           fetch-depth: 0
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh security
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          python-version: '3.13'
+          enable-cache: 'false'
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
   native:
     name: native (${{ matrix.profile }})
@@ -26,7 +31,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android, web]
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android, web, bun, alembic]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,11 +42,16 @@ jobs:
           enable-cache: 'false'
           python-version: '3.13'
       - name: Select the declared native Node toolchain
-        if: ${{ matrix.profile == 'node' || matrix.profile == 'web' }}
+        if: ${{ matrix.profile == 'node' || matrix.profile == 'web' || matrix.profile == 'bun' }}
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.0'
           package-manager-cache: false
+      - name: Select the fixture's native bun manager alongside Node
+        if: ${{ matrix.profile == 'bun' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.3'
       - name: Select the R SDK declared by the native lockfile
         if: ${{ matrix.profile == 'r' }}
         uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
@@ -121,6 +131,9 @@ jobs:
           RENV_CONFIG_CONSENT: 'TRUE'
           NDDEV_CACHE_ROOT: ${{ matrix.profile == 'rust' && format('{0}/nddev-native-cache', runner.temp) || '' }}
         run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
+      - name: Reject known findings with the default provisioned scanners
+        if: ${{ matrix.profile == 'security' }}
+        run: uv run --locked pytest -q tests/native_tools_acceptance.py
       - name: Prepare the pinned native Android bundle validator
         if: ${{ matrix.profile == 'android' }}
         run: scripts/prepare-mobile-tools.sh
@@ -137,6 +150,81 @@ jobs:
           path: ${{ runner.temp }}/native-fixture
           if-no-files-found: error
           retention-days: 3
+  impact-plan:
+    name: Native impact outputs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      selected: ${{ steps.impact.outputs.selected }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: impact
+        uses: ./.github/actions/impact
+        with:
+          working-directory: tests/native/action-contract
+          base: unavailable-comparison
+  contract-actions:
+    needs: impact-plan
+    if: ${{ contains(fromJSON(needs.impact-plan.outputs.selected), 'runtime') }}
+    name: Consumer actions (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: read # Verify this run's selected artifact policy.
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.12.24'
+          python-version: '3.13'
+          enable-cache: 'false'
+      - name: Capture the caller's executable
+        run: command -v uv > "$RUNNER_TEMP/caller-uv-path"
+      - id: positive
+        uses: ./.github/actions/ci
+        with:
+          working-directory: tests/native/action-contract
+          result-key: contract-${{ runner.os }}-positive
+          upload: failure
+      - id: negative
+        continue-on-error: true
+        uses: ./.github/actions/ci
+        with:
+          working-directory: tests/native/action-contract
+          contract: .github/failure.toml
+          result-key: contract-${{ runner.os }}-negative
+          upload: failure
+          retention-days: '1'
+      - id: never
+        uses: ./.github/actions/ci
+        with:
+          working-directory: tests/native/action-contract
+          result-key: contract-${{ runner.os }}-never
+          upload: never
+      - name: Inspect actual results and retained upload
+        env:
+          POSITIVE: ${{ steps.positive.outputs.result-directory }}
+          NEGATIVE: ${{ steps.negative.outputs.result-directory }}
+          NEVER: ${{ steps.never.outputs.result-directory }}
+          NEGATIVE_OUTCOME: ${{ steps.negative.outcome }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(command -v uv)" = "$(cat "$RUNNER_TEMP/caller-uv-path")"
+          uv --version | grep '^uv 0[.]12[.]24 '
+          python3 scripts/check-action-fixture.py
   admission:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -236,8 +324,25 @@ jobs:
     uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@3f27f2d1707b9525898b80d1c04978a8cffa3de3
     with:
       languages: python,actions
+  online-refs:
+    name: Native online action reference audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          python-version: '3.13'
+          enable-cache: 'false'
+      - name: Check actual remote references with read-only metadata access
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: uv run --locked zizmor --persona auditor --min-severity medium --format plain .github
   gate:
-    needs: [source, native, admission, windows, macos, delivery, public-security, advanced-native]
+    needs: [source, native, admission, windows, macos, delivery, public-security, advanced-native, contract-actions, impact-plan, online-refs]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -245,4 +350,4 @@ jobs:
       - env:
           NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
           NDDEV_PUBLIC_SECURITY_STATUS: ${{ needs.public-security.outputs.status }}
-        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery","public-security","advanced-native"} and all(v["result"]=="success" for v in jobs.values()) and os.environ["NDDEV_PUBLIC_SECURITY_STATUS"]=="success", jobs'
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery","public-security","advanced-native","contract-actions","impact-plan","online-refs"} and all(v["result"]=="success" for v in jobs.values()) and os.environ["NDDEV_PUBLIC_SECURITY_STATUS"]=="success", jobs'

@@ -42,7 +42,9 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
     return command
 
 
-def selection(root: Path, contract: dict) -> tuple[list[str], dict | None]:
+def selection(
+    root: Path, contract: dict, base: str | None = None, head: str | None = None
+) -> tuple[list[str], dict | None]:
     selected = list(contract["profiles"])
     impact_record = None
     if contract.get("impact"):
@@ -60,11 +62,15 @@ def selection(root: Path, contract: dict) -> tuple[list[str], dict | None]:
             ".github/workflows/*",
         ]
         chosen = affected(
-            root, source.get("base") or "missing-base", source["tested_revision"], components, shared
+            root,
+            base or source.get("base") or "missing-base",
+            head or source["tested_revision"],
+            components,
+            shared,
         )
         selected = sorted(set(selected) | {p for name in chosen for p in components[name]["profiles"]})
         impact_record = {
-            "base": source.get("base"),
+            "base": base or source.get("base"),
             "selected_components": chosen,
             "not_applicable": {
                 name: "No changed declared input or dependent" for name in components if name not in chosen
@@ -75,8 +81,8 @@ def selection(root: Path, contract: dict) -> tuple[list[str], dict | None]:
 
 
 def _execute(root: Path, contract: dict, output: Path) -> dict:
-    profiles = config.catalog()
     selected, impact_record = selection(root, contract)
+    profiles = config.resolve(root, contract, selected)
     unknown = set(selected) - profiles.keys()
     if unknown:
         raise Invalid(f"Unsupported selected profiles: {sorted(unknown)}")
@@ -103,27 +109,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         atomic_json(output / "result.json", result)
         return result
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
-    result["identity"]["locks"] = {
-        path: digest(root / path)
-        for path in (
-            "uv.lock",
-            "Cargo.lock",
-            "package-lock.json",
-            "pnpm-lock.yaml",
-            "go.sum",
-            "composer.lock",
-            "Gemfile.lock",
-            "packages.lock.json",
-            "pubspec.lock",
-            "renv.lock",
-        )
-        if (root / path).is_file()
-    }
-    for selected_profile in selected:
-        for locked_input in profiles[selected_profile].get("locked_inputs", []):
-            path = contained(root, locked_input, exists=True)
-            if not path.is_file() or path.is_symlink() or not git(root, "ls-files", "--", locked_input):
-                raise Invalid(f"{selected_profile} needs a tracked native lockfile: {locked_input}")
+    result["identity"]["locks"] = config.locks(root, contract)
     commands = contract.get("commands", {})
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
@@ -150,14 +136,14 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     cancelled = False
     for profile_id in selected:
         definition = profiles[profile_id]
-        manifests = definition.get("manifests", [])
-        if manifests and not any(list(root.glob(pattern)) for pattern in manifests):
-            raise Invalid(f"{profile_id} has no matching native manifest: {manifests}")
         stage_status = {}
         setup_failed = any(
             i["status"] != "success" for i in result["results"] if i["name"].startswith("tool.")
         )
         for stage, default in definition["stages"].items():
+            if stage in definition.get("optional_stages", []) and stage not in commands.get(profile_id, {}):
+                continue
+            finalizer = stage in definition.get("finally_stages", [])
             name = f"{profile_id}.{stage}"
             result["expected"].append(name)
             entry: dict = {"name": name, "status": "failure"}
@@ -168,7 +154,11 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             result["status"] = "failure"
             atomic_json(output / "result.json", result)
             try:
-                if cancelled or setup_failed:
+                reason = contract.get("not_applicable", {}).get(profile_id, {}).get(stage)
+                if reason:
+                    entry.update(status="not-applicable", reason=reason, detail=reason)
+                    continue
+                if not finalizer and (cancelled or setup_failed):
                     entry.update(
                         status="unavailable",
                         detail="Execution cancelled"
@@ -199,6 +189,13 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
                     reports.fresh(root, report)
+                if (
+                    profile_id == "security"
+                    and stage == "secrets"
+                    and command == default
+                    and git(root, "rev-parse", "--is-shallow-repository") != "false"
+                ):
+                    raise Invalid("Secret history scan requires a full checkout (fetch-depth: 0)")
                 if profile_id == "documentation" and stage == "external-links":
                     native_report = contract.get("documentation", {}).get("external_link_report")
                     if native_report:
@@ -212,6 +209,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         env=env,
                     )
                 )
+                if (
+                    profile_id == "security"
+                    and stage == "secrets"
+                    and command == default
+                    and entry["status"] == "success"
+                ):
+                    counts = re.findall(r"(\d+) commits? scanned", Path(entry["log"]).read_text())
+                    if not counts or sum(map(int, counts)) <= 0:
+                        raise Invalid("Secret history scanner established no examined commits")
+                    entry["commits_scanned"] = sum(map(int, counts))
                 if (
                     entry["status"] == "success"
                     and stage in definition.get("empty_output", [])
@@ -287,11 +294,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                 item.update(status="failure", detail=str(error))
         result["results"].append({"name": "extra." + name, **item})
     result["expected"].append("inputs.lock-integrity")
-    changed_inputs = [
+    try:
+        current_locks = config.locks(root, contract)
+    except Invalid:
+        current_locks = {}
+    original_locks = result["identity"]["locks"]
+    changed_inputs = sorted(
         path
-        for path, expected_digest in result["identity"]["locks"].items()
-        if not (root / path).is_file() or digest(root / path) != expected_digest
-    ]
+        for path in original_locks.keys() | current_locks.keys()
+        if original_locks.get(path) != current_locks.get(path)
+    )
     if digest(contained(root, contract["_path"], exists=True)) != result["identity"]["contract_sha256"]:
         changed_inputs.append(contract["_path"])
     try:
@@ -308,18 +320,31 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     )
     result.update(reports.aggregate(result["expected"], result["results"]))
     result["inputs_digest"] = identity(result["identity"])
+    diagnostics(result, contract)
     atomic_json(output / "result.json", result)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with Path(summary).open("a", encoding="utf-8") as stream:
-            stream.write("\n| Native check | Result |\n|---|---|\n")
+            from html import escape
+
+            stream.write("\n| Native check | Result | Detail |\n|---|---|---|\n")
             for entry in result["results"]:
-                stream.write(f"| {entry['name']} | {entry['status']} |\n")
+                detail = (
+                    escape(
+                        redact(entry.get("detail", "") + "\n" + entry.get("diagnostic_tail", "")).strip()[
+                            :2000
+                        ]
+                    )
+                    .replace("|", "&#124;")
+                    .replace("\n", "<br>")
+                )
+                stream.write(f"| {escape(entry['name'])} | {entry['status']} | {detail} |\n")
     return result
 
 
 def execute(root: Path, contract: dict, output: Path) -> dict:
     contract = copy.deepcopy(contract)
+    output.mkdir(parents=True, exist_ok=False)
     cache_root = os.environ.get("NDDEV_CACHE_ROOT")
     if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)
@@ -428,3 +453,36 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
     finally:
         if (storage / ".nddev-cache-owner.json").is_file():
             reclaim(storage, budget, reserve, ttl)
+
+
+def redact(text: str) -> str:
+    for key, value in os.environ.items():
+        if re.search(r"TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE_KEY", key, re.IGNORECASE) and len(value) >= 4:
+            text = text.replace(value, "***")
+    return text
+
+
+def diagnostics(result: dict, contract: dict) -> None:
+    import uuid
+    from collections import deque
+
+    count = contract.get("diagnostics", {}).get("tail_lines", 200)
+    for entry in result["results"]:
+        if entry["status"] in {"success", "not-applicable"}:
+            continue
+        tail = ""
+        if count and entry.get("log") and Path(entry["log"]).is_file():
+            with Path(entry["log"]).open(encoding="utf-8", errors="replace") as stream:
+                tail = "".join(deque((line[:2000] for line in stream), maxlen=count))
+        tail = redact(tail)
+        detail = redact(entry.get("detail") or f"Native command exited with {entry.get('exit_code')}")
+        entry["diagnostic_tail"] = tail[-1500:].strip()
+        entry["detail"] = detail
+        marker = uuid.uuid4().hex
+        print(f"::group::{entry['name']} ({entry['status']})")
+        print(f"::stop-commands::{marker}")
+        print(detail)
+        if tail:
+            print(tail)
+        print(f"::{marker}::")
+        print("::endgroup::")
