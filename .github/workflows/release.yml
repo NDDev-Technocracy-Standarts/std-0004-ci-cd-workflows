@@ -7,7 +7,7 @@ on:
         required: true
       source-workflow:
         type: string
-        default: .github/workflows/ci.yml
+        default: .github/workflows/main-ci.yml
       files:
         type: string
         default: '["dist/*.whl","dist/*.tar.gz"]'
@@ -19,7 +19,7 @@ on:
 permissions: {}
 jobs:
   candidate:
-    if: ${{ github.event.repository.private == false && ((github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
+    if: ${{ github.event.repository.private == false && ((github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

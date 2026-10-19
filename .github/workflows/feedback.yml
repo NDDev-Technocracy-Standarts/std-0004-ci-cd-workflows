@@ -2,7 +2,7 @@ name: native-failure-feedback
 # Trusted pinned metadata-only publisher; no candidate checkout, artifact reads or code execution.
 on: # zizmor: ignore[dangerous-triggers]
   workflow_run:
-    workflows: [source-ci, integrated-delivery-smoke]
+    workflows: [source-ci, main-ci, integrated-delivery-smoke]
     types: [completed]
   workflow_dispatch:
 permissions: {}
@@ -24,6 +24,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
-          workflows: '[".github/workflows/ci.yml",".github/workflows/delivery-smoke.yml"]'
+          workflows: '[".github/workflows/ci.yml",".github/workflows/main-ci.yml",".github/workflows/delivery-smoke.yml"]'
           creators: '["rldyourmnd","dependabot[bot]"]'
           run-id: ${{ github.event.workflow_run.id || '' }}

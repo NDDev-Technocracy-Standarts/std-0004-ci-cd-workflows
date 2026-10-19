@@ -319,3 +319,143 @@ def test_non_applicability_requires_a_real_reason(repository, reason):
     )
     with pytest.raises(Invalid, match="nonempty reason"):
         config.load(root)
+
+
+def test_main_impact_keeps_changes_from_unverified_pushes(repository, monkeypatch):
+    from nddev_cicd import github
+
+    root = repository({"runtime/app.py": "a", "docs/guide.md": "a"})
+    accepted = git(root, "rev-parse", "HEAD")
+    (root / "runtime/app.py").write_text("b")
+    git(root, "commit", "-am", "unverified runtime change")
+    previous = git(root, "rev-parse", "HEAD")
+    (root / "docs/guide.md").write_text("b")
+    git(root, "commit", "-am", "new push while prior CI is pending")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/project")
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    monkeypatch.setenv("GITHUB_REF", "refs/heads/main")
+    monkeypatch.setattr(
+        github,
+        "get",
+        lambda path: {
+            "workflow_runs": [
+                {
+                    "repository": {"full_name": "example/project"},
+                    "path": ".github/workflows/main-ci.yml",
+                    "head_sha": accepted,
+                    "event": "push",
+                    "head_branch": "main",
+                    "status": "completed",
+                    "conclusion": "success",
+                }
+            ]
+        },
+    )
+    monkeypatch.setattr(
+        ci,
+        "source_identity",
+        lambda root: {"base": previous, "tested_revision": git(root, "rev-parse", "HEAD")},
+    )
+    contract = {
+        "profiles": ["workflows"],
+        "_path": ".github/impact.toml",
+        "impact": {
+            "baseline_workflow": ".github/workflows/main-ci.yml",
+            "components": {
+                "runtime": {"paths": ["runtime/**"], "profiles": ["python"]},
+                "docs": {"paths": ["docs/**"], "profiles": ["documentation"]},
+            },
+        },
+    }
+    _, plan = ci.selection(root, contract)
+    assert plan["base"] == accepted and plan["selected_components"] == ["docs", "runtime"]
+    monkeypatch.setattr(github, "get", lambda path: {"workflow_runs": []})
+    _, plan = ci.selection(root, contract)
+    assert plan["base"] is None and plan["selected_components"] == ["docs", "runtime"]
+
+
+def test_main_artifact_eligibility_rejects_obsolete_revision_and_other_tree(monkeypatch):
+    from nddev_cicd import github
+
+    revision, tree = "a" * 40, "b" * 40
+    run_data = {
+        "repository": {"full_name": "example/project"},
+        "head_repository": {"full_name": "example/project"},
+        "event": "push",
+        "head_branch": "main",
+        "status": "completed",
+        "conclusion": "success",
+        "path": ".github/workflows/main-ci.yml",
+        "head_sha": revision,
+        "run_attempt": 2,
+    }
+
+    def get(path):
+        if "/actions/runs/" in path:
+            return run_data
+        if "/git/ref/" in path:
+            return {"object": {"sha": revision}}
+        return {"tree": {"sha": tree}}
+
+    monkeypatch.setattr(github, "get", get)
+    source = {
+        "repository": "example/project",
+        "head": revision,
+        "run_id": "42",
+        "attempt": "2",
+        "event": "push",
+        "tested_revision": revision,
+        "tested_tree": tree,
+    }
+    assert github.eligible("example/project", 42, revision, run_data["path"], source)["event"] == "push"
+    with pytest.raises(Invalid, match="tested source tree"):
+        github.eligible("example/project", 42, revision, run_data["path"], source | {"tested_tree": "c" * 40})
+    original = get
+    monkeypatch.setattr(
+        github, "get", lambda path: {"object": {"sha": "c" * 40}} if "/git/ref/" in path else original(path)
+    )
+    with pytest.raises(Invalid, match="superseded"):
+        github.eligible("example/project", 42, revision, run_data["path"], source)
+
+
+def test_completed_main_event_binds_delivery_to_the_source_revision(tmp_path, monkeypatch):
+    from nddev_cicd import github
+
+    revision = "a" * 40
+    payload = {
+        "workflow_run": {
+            "id": 42,
+            "path": ".github/workflows/main-ci.yml",
+            "event": "push",
+            "head_branch": "main",
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": revision,
+        }
+    }
+    event_file = tmp_path / "event.json"
+    event_file.write_text(json.dumps(payload))
+    for key, value in {
+        "GITHUB_EVENT_NAME": "workflow_run",
+        "GITHUB_REF": "refs/heads/main",
+        "GITHUB_SHA": "b" * 40,
+        "GITHUB_EVENT_PATH": str(event_file),
+    }.items():
+        monkeypatch.setenv(key, value)
+    assert github.authorized_revision(42, ".github/workflows/main-ci.yml") == revision
+    with pytest.raises(Invalid, match="selected successful"):
+        github.authorized_revision(43, ".github/workflows/main-ci.yml")
+    payload["workflow_run"]["event"] = "pull_request"
+    event_file.write_text(json.dumps(payload))
+    with pytest.raises(Invalid, match="selected successful"):
+        github.authorized_revision(42, ".github/workflows/main-ci.yml")
+
+
+def test_main_fixture_scope_is_the_native_driver_inventory():
+    import runpy
+    import tomllib
+
+    root = Path(__file__).resolve().parent.parent
+    native = runpy.run_path(str(root / "tests/run_native.py"))["SOURCES"]
+    scope = tomllib.loads((root / ".github/impact.toml").read_text())["impact"]["components"]
+    assert {name.removeprefix("fixture-") for name in scope if name.startswith("fixture-")} == set(native)

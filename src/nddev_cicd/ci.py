@@ -55,6 +55,17 @@ def selection(
         if not components or any(not item.get("profiles") for item in components.values()):
             raise Invalid("Every impact component requires explicit native profiles")
         source = source_identity(root)
+        resolved_base = base or source.get("base")
+        baseline_workflow = specification.get("baseline_workflow")
+        if (
+            base is None
+            and baseline_workflow
+            and os.environ.get("GITHUB_EVENT_NAME") == "push"
+            and os.environ.get("GITHUB_REF") == "refs/heads/main"
+        ):
+            from .github import successful_main_base
+
+            resolved_base = successful_main_base(root, baseline_workflow)
         shared = list(specification.get("shared", [])) + [
             contract["_path"],
             "**/*lock*",
@@ -63,14 +74,14 @@ def selection(
         ]
         chosen = affected(
             root,
-            base or source.get("base") or "missing-base",
+            resolved_base or "missing-base",
             head or source["tested_revision"],
             components,
             shared,
         )
         selected = sorted(set(selected) | {p for name in chosen for p in components[name]["profiles"]})
         impact_record = {
-            "base": base or source.get("base"),
+            "base": resolved_base,
             "selected_components": chosen,
             "not_applicable": {
                 name: "No changed declared input or dependent" for name in components if name not in chosen

@@ -49,7 +49,7 @@ entries:
 - id: runtime.lineage
   kind: test
   target: tests/test_core.py::test_github_lineage_rejects_other_tree_and_attempt
-  establishes: Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases.
+  establishes: Native run-binding logic rejects mismatched source trees/attempts and obsolete main revisions. Main-baseline regressions preserve changes from unverified pushes. Actual main-run API/download execution supplements these finite cases.
 - id: runtime.artifact
   kind: test
   target: tests/test_core.py::test_artifact_bytes_mode_escape_and_tampering

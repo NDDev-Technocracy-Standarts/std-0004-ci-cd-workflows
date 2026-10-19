@@ -1,12 +1,12 @@
 name: Deliver an integrated artifact
-description: Verify the native PR run and exact artifact lineage, serialize one existing target, then use its native module.
+description: Verify the native main run and exact artifact lineage, serialize one existing target, then use its native module.
 inputs:
   run-id:
-    description: Completed source PR run ID, not the CD run ID
+    description: Completed full main source run ID, not the CD run ID
     required: true
   source-workflow:
     description: Exact caller source workflow path
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   target-config:
     description: Existing trusted target-owner JSON path; credentials come from caller secrets
     required: true

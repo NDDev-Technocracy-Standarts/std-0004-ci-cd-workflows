@@ -94,7 +94,8 @@ def source_identity(root: Path, library: Path | None = None) -> dict:
         "tested_revision": git(root, "rev-parse", "HEAD"),
         "tested_tree": git(root, "rev-parse", "HEAD^{tree}"),
         "head": pr.get("head", {}).get("sha", git(root, "rev-parse", "HEAD")),
-        "base": pr.get("base", {}).get("sha"),
+        "base": pr.get("base", {}).get("sha")
+        or (event.get("before") if event.get("before") != "0" * 40 else None),
         "run_id": os.environ.get("GITHUB_RUN_ID"),
         "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
         "library_repository": os.environ.get("NDDEV_LIBRARY_REPOSITORY", "local"),

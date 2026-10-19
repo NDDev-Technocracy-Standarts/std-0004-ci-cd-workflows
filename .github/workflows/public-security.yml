@@ -17,12 +17,12 @@ on:
         default: ''
     outputs:
       status:
-        description: Success only after the applicable public PR analysis completed
+        description: Success only after the applicable public source analysis completed
         value: ${{ jobs.analysis.outputs.status }}
 permissions: {}
 jobs:
   analysis:
-    if: ${{ github.event_name == 'pull_request' && github.event.repository.private == false }}
+    if: ${{ (github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')) && github.event.repository.private == false }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -39,6 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - id: initialize
         uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
         with:
@@ -82,5 +83,7 @@ jobs:
           fail-on-severity: ${{ inputs.fail-on-severity }}
           allow-licenses: ${{ inputs.allow-licenses }}
           comment-summary-in-pr: never
+          base-ref: ${{ github.event.before }}
+          head-ref: ${{ github.sha }}
       - id: complete
         run: echo status=success >> "$GITHUB_OUTPUT"

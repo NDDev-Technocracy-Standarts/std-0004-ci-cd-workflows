@@ -4,7 +4,7 @@ inputs:
   run-id:
     required: true
   source-workflow:
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   image-file:
     default: dist/image.oci.tar
   metadata-file:

@@ -1,7 +1,7 @@
 # Consumer contract
 
-Pin each external action/workflow to a reviewed full commit SHA. Keep source jobs on `pull_request`.
-A public caller may use `.github/workflows/source.yml`. Its facade pins a reviewed implementation
+Pin each external action/workflow to a reviewed full commit SHA. Keep a short gate on `pull_request` and full validation on `main` pushes.
+A public main caller may use `.github/workflows/source.yml`; its explicit `uv` and `python` inputs own the project toolchain. Its facade pins a reviewed implementation
 commit; use that exact implementation commit for `deliver` and inspect its `library-ref` output.
 Require its `status` output to equal `success`;
 its public-only contract deliberately exports no successful result for an inapplicable event/visibility.
@@ -45,11 +45,14 @@ Blacksmith no-overage route, then an equivalent admitted standard GitHub route.
 An email alert is insufficient. A failing test is never rerun on another provider to obtain success.
 Use `admit` outputs in a dependent job's `runs-on: fromJSON(...)` before that job exists.
 
-Delivery runs only on integrated `dev`/`main` pushes, with a read-scoped `GITHUB_TOKEN` able to read
-Actions artifacts and PR metadata. Pass the completed PR source run ID, exact source workflow path and
-a trusted existing target JSON file to `deliver`. Build and delivery use the same library SHA. The
-runtime downloads the exact attempt's native artifact, rejects failed/unrelated/superseded runs and
-requires the integrated source tree to equal the tested tree. It does not rebuild source after merging.
+Delivery follows completion of full main CI, using read-scoped Actions access. A trusted
+`workflow_run` caller first invokes `eligible` with the source run ID, exact workflow and main
+revision before checking out delivery code or preparing a target. It admits only a completed
+successful same-repository main run that still identifies current main. Pass that run and a trusted
+existing target JSON to `deliver`. Build and delivery use the same library SHA. The runtime verifies
+the exact attempt, source tree and artifact bytes again before mutation; it does not rebuild them.
+The historical PR-artifact integration mode remains available only through its explicit source
+workflow selection for older adoptions.
 
 Target configuration selects one of `static-web`, `systemd-binary`, `compose`, `packages`,
 `mobile-artifacts`; an existing `target_directory`; a monotonically increasing target-owner `generation`;
@@ -169,7 +172,7 @@ Only transport staging is removed automatically; current/recovery releases remai
 
 `tests/native_remote.py` exercises a separate SSH server/container and filesystem through actual
 SSH/SCP with pinned host identity, concurrent clients and failed-health recovery. The integrated
-`dev`/`main` smoke uses that same transport with the successful PR artifact. This is representative
+main completion smoke uses that same transport with its successful full-CI artifact. This is representative
 remote transport acceptance, not a production deployment or a separate physical-server benchmark.
 
 The optional `remote-environment` input names a caller-owned JSON file of explicitly selected native
@@ -180,7 +183,7 @@ refused. Existing systemd service secrets remain in their native target-owned en
 
 ## Public security and release modules
 
-`public-security.yml` is a public PR-only reusable module. It executes pinned native CodeQL,
+`public-security.yml` is a public source-analysis reusable module for main pushes and explicit legacy PR callers. It executes pinned native CodeQL,
 SARIF finding thresholds, Dependency Review and community runner hardening. Enable the repository's
 free dependency graph before selecting Dependency Review. The module grants no private Code Security
 entitlement, starts no private hosted helper, and returns no successful status for an inapplicable event.
@@ -193,8 +196,8 @@ the library does not invent a dependency list. Native cataloger support still bo
 identified. Supporting metadata describes those limits; an SBOM is not a vulnerability-free certificate.
 
 Public `release.yml` adds actual GitHub provenance and SBOM attestations, verifies both signatures,
-and uploads the candidate plus offline bundles. It requires an integrated dev/main push or explicit
-main dispatch. It creates no tag or published release. Private free consumers use the preparation
+and uploads the candidate plus offline bundles. It follows successful full main CI or explicit main
+dispatch. It creates no tag or published release. Private free consumers use the preparation
 composite on their existing Linux job without assuming private GitHub attestations are available.
 Actions retention is bounded; retain an accepted/current candidate in the project's existing release
 store before expiration. Payloads are promoted unchanged; source is not rebuilt after integration.
@@ -343,3 +346,20 @@ The native [runtime lock](../.github/runtime-lock.json) maps reviewed implementa
 commits independently. A draft pin has no invented release-tag comment. Published release notes
 must identify both native refs; a standard edition tag alone does not identify the facade/backend
 pair. The online zizmor job complements offline source analysis with read-only metadata checks.
+
+
+## Validation phases
+
+The short PR gate uses finite syntax, lint/type, relevant unit and critical secret checks. Full main
+CI owns native builds, SDK/browser cells, package consumption, selected security and target readiness.
+Each repository keeps its real commands in the existing workflow/contract, without a second gate
+inventory. GitHub dev pushes perform neither full CI nor CD. An existing dev server builds dev
+locally; repositories without one can still promote normally. A parent task remains open until its
+applicable main validation and target acceptance finish.
+
+A main impact contract declares `impact.baseline_workflow` as the exact full-validation workflow.
+Its comparison starts at a completed successful ancestor obtained from bounded native run metadata.
+Failed, pending and cancelled pushes cannot advance that baseline. Missing history or API coverage
+selects every declared component. Shared inputs and dependency closure still apply. Superseding main
+CI can cancel obsolete source work; target mutations use their existing lock and recovery rules.
+A source-only repository has a package/documentation completion boundary and needs no invented server.

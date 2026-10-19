@@ -5,7 +5,7 @@ inputs:
     description: Exact successful integrated PR source run
     required: true
   source-workflow:
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   files:
     description: JSON list of native artifact paths inside the verified source bundle
     default: '["dist/*.whl","dist/*.tar.gz"]'
