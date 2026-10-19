@@ -17,7 +17,7 @@ Public Linux uses standard hosted capacity. Private Linux uses caller-owned exis
 Public Windows/macOS also use standard GitHub-hosted runners. Private Windows/macOS require confirmed compatible no-overage admission.
 
 `uv run pytest` exercises the shared runtime invariants. Native fixtures and the library source workflow
-cover the 23 catalog families; `tests/run_native.py` drives language/tool fixtures while documentation
+cover the 24 catalog families; `tests/run_native.py` drives language/tool fixtures while documentation
 and workflow profiles validate the library itself. SDK preparation is in the PR workflow; the selected
 OS cells are Linux x64, public Windows x64 Python and public Apple ARM Swift. Deliberate source,
 report and dependency-graph failures are rejected. This is finite verification, not every SDK or OS.
@@ -29,3 +29,10 @@ mobile delivery consumes the actual Android build. No production device, registr
 Integrated dev/main pushes separately validate native GitHub run/artifact lineage and install the
 already-tested fixture artifact into a separate isolated SSH target. Source is not rebuilt after merging.
 The source is [AGPL-3.0-only](LICENSE). See [origins](docs/origins.md) for the historical comparison.
+
+Optional [public security](.github/workflows/public-security.yml),
+[release preparation](.github/actions/prepare-release/action.yml),
+[OCI build](.github/actions/oci-build/action.yml) and [OCI publication](.github/actions/oci-publish/action.yml)
+entrypoints share the same implementation and explicit applicability boundaries.
+`tests/native_oci.py`, `tests/native_release.py` and `tests/native_advanced.py` exercise their native
+positive/failure paths. Web fixtures include an actual Chromium scenario and axe accessibility scan.

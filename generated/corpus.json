@@ -60,11 +60,11 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "3163579b80fbee5acc24fa82751219a1776ca39c7f824dd7cc80bf21addbc01b"
+      "sha256": "42960647d2c7cb7a7093a20601f4768ba9cc20c827a3a261d4c261b701ad33ce"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "cd026f73de97fe3ee0b6179aa0e432c6f784afd965add0557f6d238d244af642"
+      "sha256": "e96c67e5e3326d7ac3a7666464ad7ed302a07b9d137901b8aeacfa88a7199eb6"
     },
     {
       "path": "spec/foundation.md",
@@ -88,7 +88,7 @@
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "82e9b27be668c6cd9b28797a7fbff9a8b06adf92d71c6bcf0984da62ed8e2086"
+      "sha256": "69be2c0e7a02ad41b64f08408940b61a1625865dcc1afa2777b5f2a698b08738"
     },
     {
       "path": "standard.yml",
@@ -96,8 +96,14 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "0b6ec7663132df0fd31fffe224d3333a47de2f3a8f1f8bb6397c760908e26a52",
+  "inputs-sha256": "7ce91f641f25fa7401ae4281a916a02d1449aa2df21193a36ff0c5df03b5b5cd",
   "verification": [
+    {
+      "id": "runtime.advanced",
+      "kind": "check",
+      "target": "tests/native_advanced.py",
+      "establishes": "Real Rust/C++ fuzz runs, retained crash inputs, caught/missed native mutation outcomes and paired benchmark measurements exercise positive and deliberate failure cases. No application-wide quality or speed claim follows."
+    },
     {
       "id": "runtime.architecture",
       "kind": "check",
@@ -135,6 +141,12 @@
       "establishes": "Declared native external transport/access limits remain unavailable with Issue references; broken responses remain failures. Findings still need project-specific review."
     },
     {
+      "id": "runtime.gitlinks",
+      "kind": "test",
+      "target": "tests/test_git_inputs.py::test_ci_checks_submodule_inputs_before_and_after_commands",
+      "establishes": "Real submodule gitlinks/worktrees match, and stale/dirty/symlinked or command-modified inputs cannot pass source validation."
+    },
+    {
       "id": "runtime.health",
       "kind": "test",
       "target": "tests/native_delivery.py::test_real_compose_immutable_image_and_health",
@@ -159,6 +171,12 @@
       "establishes": "Native run-binding logic rejects mismatched source trees/attempts. Actual merged-run API/download execution supplements these finite negative cases."
     },
     {
+      "id": "runtime.oci",
+      "kind": "check",
+      "target": "tests/native_oci.py",
+      "establishes": "Native Buildx creates a real OCI archive; strict TLS registry publication preserves its digest, a real running image serves the revision, and corruption/build errors fail. Selected Linux x64 does not establish every platform."
+    },
+    {
       "id": "runtime.preflight",
       "kind": "test",
       "target": "tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration",
@@ -181,6 +199,12 @@
       "kind": "test",
       "target": "tests/native_delivery.py::test_partial_data_migration_preserves_backup_and_never_repeats",
       "establishes": "A real isolated SQLite backup/migration followed by failed health remains pending without incompatible file rollback; recovery verifies the same resource and does not repeat the migration."
+    },
+    {
+      "id": "runtime.release",
+      "kind": "check",
+      "target": "tests/native_release.py",
+      "establishes": "Native wheel/sdist inventory through Syft preserves selected bytes/modes and rejects tampering; the public workflow separately establishes actual GitHub signatures on an eligible candidate."
     },
     {
       "id": "runtime.remote",
@@ -637,7 +661,8 @@
       "basis": "owner",
       "verification": "partial",
       "verified-by": [
-        "runtime.inputs"
+        "runtime.inputs",
+        "runtime.gitlinks"
       ],
       "criteria": "Distinguish changed base, changed library and unchanged deterministic inputs without fabricating a green status.",
       "since": "0.1.0",
@@ -660,7 +685,8 @@
       "basis": "owner",
       "verification": "partial",
       "verified-by": [
-        "runtime.profiles"
+        "runtime.profiles",
+        "runtime.advanced"
       ],
       "criteria": "Run native positive and failure fixtures for claimed profiles and inspect actual tool/version outputs.",
       "since": "0.1.0",
@@ -918,7 +944,9 @@
       ],
       "verification": "partial",
       "verified-by": [
-        "runtime.artifact"
+        "runtime.artifact",
+        "runtime.release",
+        "runtime.oci"
       ],
       "criteria": "Trace artifact bytes from trusted build through download and target installation.",
       "since": "0.1.0",

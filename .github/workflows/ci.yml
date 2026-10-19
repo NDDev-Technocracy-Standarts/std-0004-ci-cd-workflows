@@ -26,7 +26,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android]
+        profile: [python, rust, go, cpp, node, dotnet, sql, advanced, shell, qt, flutter, jvm, ruby, architecture, infrastructure, container, php, security, r, android, web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -37,7 +37,7 @@ jobs:
           enable-cache: 'false'
           python-version: '3.13'
       - name: Select the declared native Node toolchain
-        if: ${{ matrix.profile == 'node' }}
+        if: ${{ matrix.profile == 'node' || matrix.profile == 'web' }}
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.22.0'
@@ -200,7 +200,34 @@ jobs:
       - name: Prepare the pinned native release inventory tool
         run: scripts/prepare-release-tools.sh
       - name: Exercise native registries, target concurrency and data-compatible recovery
-        run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py tests/native_release.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+        run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py tests/native_release.py tests/native_oci.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+  advanced-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Select an owned job-local Cargo dependency cache
+        run: echo "CARGO_HOME=$RUNNER_TEMP/nddev-advanced-cargo" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: 'false'
+          python-version: '3.13'
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
+        with:
+          toolchain: nightly-2026-10-19
+          components: rust-src
+      - name: Select a compatible native Clang and libFuzzer runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clang-18 libclang-rt-18-dev
+          echo "CXX=clang++-18" >> "$GITHUB_ENV"
+      - name: Prepare checksum-pinned native fuzz and mutation tools
+        run: scripts/prepare-advanced-tools.sh
+      - name: Exercise native fuzz, mutation and paired benchmark failures
+        run: uv run --locked pytest -q tests/native_advanced.py --junitxml="$RUNNER_TEMP/advanced.xml"
   public-security:
     permissions:
       contents: read
@@ -210,7 +237,7 @@ jobs:
     with:
       languages: python,actions
   gate:
-    needs: [source, native, admission, windows, macos, delivery, public-security]
+    needs: [source, native, admission, windows, macos, delivery, public-security, advanced-native]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -218,4 +245,4 @@ jobs:
       - env:
           NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
           NDDEV_PUBLIC_SECURITY_STATUS: ${{ needs.public-security.outputs.status }}
-        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery","public-security"} and all(v["result"]=="success" for v in jobs.values()) and os.environ["NDDEV_PUBLIC_SECURITY_STATUS"]=="success", jobs'
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery","public-security","advanced-native"} and all(v["result"]=="success" for v in jobs.values()) and os.environ["NDDEV_PUBLIC_SECURITY_STATUS"]=="success", jobs'

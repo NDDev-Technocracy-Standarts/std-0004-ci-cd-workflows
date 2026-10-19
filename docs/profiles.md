@@ -27,6 +27,7 @@ Generated from the executed runtime catalog; not a native-fixture verification c
 | `security` | secrets, dependencies, sast, licenses | sast, licenses |
 | `architecture` | scope, dependencies | dependencies |
 | `advanced-testing` | bounded-operation, result | bounded-operation, result |
+| `web` | setup, toolchain, browser, format, html, css, test, build | Native defaults |
 
 Commands can be overridden through the caller contract; selected baseline stages remain required.
 
@@ -848,6 +849,60 @@ Commands can be overridden through the caller contract; selected baseline stages
       "kind": "junit",
       "path": ".nddev-reports/property.xml"
     }
+  },
+  "web": {
+    "manifests": [
+      "package.json",
+      "index.html"
+    ],
+    "stages": {
+      "setup": [
+        "npm",
+        "ci"
+      ],
+      "toolchain": [
+        "node",
+        "--version"
+      ],
+      "browser": [
+        "npm",
+        "run",
+        "install:browser"
+      ],
+      "format": [
+        "npm",
+        "run",
+        "format:check"
+      ],
+      "html": [
+        "npm",
+        "run",
+        "lint:html"
+      ],
+      "css": [
+        "npm",
+        "run",
+        "lint:css"
+      ],
+      "test": [
+        "npm",
+        "run",
+        "test:web"
+      ],
+      "build": [
+        "npm",
+        "run",
+        "build"
+      ]
+    },
+    "test_stage": "test",
+    "report": {
+      "kind": "junit",
+      "path": ".nddev-reports/web.xml"
+    },
+    "locked_inputs": [
+      "package-lock.json"
+    ]
   }
 }
 ```

@@ -78,3 +78,19 @@ entries:
   kind: test
   target: tests/test_readiness.py::test_invalid_operation_never_starts_backup_or_migration
   establishes: Known invalid service, project, registry and payload inputs invoke neither backup nor migration and leave the target unchanged.
+- id: runtime.oci
+  kind: check
+  target: tests/native_oci.py
+  establishes: Native Buildx creates a real OCI archive; strict TLS registry publication preserves its digest, a real running image serves the revision, and corruption/build errors fail. Selected Linux x64 does not establish every platform.
+- id: runtime.release
+  kind: check
+  target: tests/native_release.py
+  establishes: Native wheel/sdist inventory through Syft preserves selected bytes/modes and rejects tampering; the public workflow separately establishes actual GitHub signatures on an eligible candidate.
+- id: runtime.advanced
+  kind: check
+  target: tests/native_advanced.py
+  establishes: Real Rust/C++ fuzz runs, retained crash inputs, caught/missed native mutation outcomes and paired benchmark measurements exercise positive and deliberate failure cases. No application-wide quality or speed claim follows.
+- id: runtime.gitlinks
+  kind: test
+  target: tests/test_git_inputs.py::test_ci_checks_submodule_inputs_before_and_after_commands
+  establishes: Real submodule gitlinks/worktrees match, and stale/dirty/symlinked or command-modified inputs cannot pass source validation.

@@ -813,5 +813,59 @@
       "kind": "junit",
       "path": ".nddev-reports/property.xml"
     }
+  },
+  "web": {
+    "manifests": [
+      "package.json",
+      "index.html"
+    ],
+    "stages": {
+      "setup": [
+        "npm",
+        "ci"
+      ],
+      "toolchain": [
+        "node",
+        "--version"
+      ],
+      "browser": [
+        "npm",
+        "run",
+        "install:browser"
+      ],
+      "format": [
+        "npm",
+        "run",
+        "format:check"
+      ],
+      "html": [
+        "npm",
+        "run",
+        "lint:html"
+      ],
+      "css": [
+        "npm",
+        "run",
+        "lint:css"
+      ],
+      "test": [
+        "npm",
+        "run",
+        "test:web"
+      ],
+      "build": [
+        "npm",
+        "run",
+        "build"
+      ]
+    },
+    "test_stage": "test",
+    "report": {
+      "kind": "junit",
+      "path": ".nddev-reports/web.xml"
+    },
+    "locked_inputs": [
+      "package-lock.json"
+    ]
   }
 }

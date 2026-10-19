@@ -26,7 +26,7 @@ through the project's existing corresponding check path rather than assumed from
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.artifact]
+verified-by: [runtime.artifact, runtime.release, runtime.oci]
 criteria: Trace artifact bytes from trusted build through download and target installation.
 since: 0.1.0
 sources:

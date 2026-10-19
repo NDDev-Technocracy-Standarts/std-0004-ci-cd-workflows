@@ -57,6 +57,47 @@ def parser() -> argparse.ArgumentParser:
     release.add_argument(
         "--files", required=True, help="JSON list of selected native package/artifact patterns"
     )
+    image = sub.add_parser(
+        "oci-build", help="Build an actual OCI archive without publishing source PR credentials"
+    )
+    image.add_argument("--root", type=Path, default=Path.cwd())
+    image.add_argument("--output", default="dist/image.oci.tar")
+    image.add_argument("--context", default=".")
+    image.add_argument("--dockerfile", default="Dockerfile")
+    image.add_argument("--platforms", default="linux/amd64")
+    image.add_argument("--builder")
+    publish = sub.add_parser(
+        "oci-publish", help="Publish the exact eligible OCI archive to an existing registry"
+    )
+    publish.add_argument("--run-id", type=int, required=True)
+    publish.add_argument("--workflow", default=".github/workflows/ci.yml")
+    publish.add_argument("--download", type=Path, required=True)
+    publish.add_argument("--image-file", default="dist/image.oci.tar")
+    publish.add_argument("--metadata-file", default="dist/image.oci.json")
+    publish.add_argument("--repository", required=True)
+    publish.add_argument("--auth-file", type=Path)
+    publish.add_argument("--certificates", type=Path)
+    heavy = sub.add_parser("advanced-fuzz", help="Run a real bounded native cargo-fuzz/libFuzzer target")
+    heavy.add_argument("--root", type=Path, default=Path.cwd())
+    heavy.add_argument("--output", type=Path, required=True)
+    heavy.add_argument("--engine", choices=["rust", "libfuzzer"], default="rust")
+    heavy.add_argument("--target", required=True)
+    heavy.add_argument("--corpus", required=True)
+    heavy.add_argument("--runs", type=int, default=1000)
+    heavy.add_argument("--seconds", type=int, default=30)
+    heavy.add_argument("--toolchain", default="nightly-2026-10-19")
+    mutation = sub.add_parser(
+        "advanced-mutation", help="Run actual cargo-mutants with native result accounting"
+    )
+    mutation.add_argument("--root", type=Path, default=Path.cwd())
+    mutation.add_argument("--output", type=Path, required=True)
+    mutation.add_argument("--maximum-missed", type=int, default=0)
+    mutation.add_argument("--timeout", type=int, default=15)
+    compare = sub.add_parser("benchmark-compare", help="Compare real paired pytest-benchmark measurements")
+    compare.add_argument("--root", type=Path, default=Path.cwd())
+    compare.add_argument("--baseline", type=Path, required=True)
+    compare.add_argument("--candidate", type=Path, required=True)
+    compare.add_argument("--maximum-ratio", type=float, required=True)
     reference = sub.add_parser("reference")
     reference.add_argument("--root", type=Path, default=Path.cwd())
     reference.add_argument("--check", action="store_true")
@@ -136,6 +177,68 @@ def main(argv=None) -> int:
             result = artifacts.pack(args.root.resolve(), args.files, args.archive, evidence["identity"])
         elif args.operation == "eligible":
             result = github.eligible(args.repository, args.run_id, args.revision, args.workflow)
+        elif args.operation in {"advanced-fuzz", "advanced-mutation", "benchmark-compare"}:
+            from . import advanced
+
+            if args.operation == "advanced-fuzz":
+                result = advanced.fuzz(
+                    args.root.resolve(),
+                    args.output.resolve(),
+                    args.target,
+                    engine=args.engine,
+                    corpus=args.corpus,
+                    runs=args.runs,
+                    seconds=args.seconds,
+                    toolchain=args.toolchain,
+                )
+            elif args.operation == "advanced-mutation":
+                result = advanced.mutation(
+                    args.root.resolve(),
+                    args.output.resolve(),
+                    maximum_missed=args.maximum_missed,
+                    timeout=args.timeout,
+                )
+            else:
+                result = advanced.benchmark(args.baseline, args.candidate, args.maximum_ratio)
+            print(json.dumps(result, indent=2))
+            return 0 if result["status"] == "success" else 1
+        elif args.operation == "oci-build":
+            from . import oci
+
+            result = oci.build(
+                args.root,
+                args.output,
+                context=args.context,
+                dockerfile=args.dockerfile,
+                platforms=args.platforms,
+                builder=args.builder,
+            )
+        elif args.operation == "oci-publish":
+            from . import oci
+            from .model import contained
+
+            if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") not in {
+                "refs/heads/dev",
+                "refs/heads/main",
+            }:
+                raise Invalid("OCI publication requires an authorized integrated dev/main push")
+            archive, manifest, expected = github.bundle(
+                os.environ.get("GITHUB_REPOSITORY", ""),
+                args.run_id,
+                os.environ.get("GITHUB_SHA", ""),
+                args.workflow,
+                args.download,
+            )
+            payload = args.download / "verified-payload"
+            artifacts.unpack(archive, manifest, payload, expected)
+            result = oci.publish(
+                contained(payload, args.image_file, exists=True),
+                json.loads(contained(payload, args.metadata_file, exists=True).read_text()),
+                expected,
+                args.repository,
+                auth=args.auth_file,
+                certificates=args.certificates,
+            )
         elif args.operation == "prepare-release":
             from . import release
 

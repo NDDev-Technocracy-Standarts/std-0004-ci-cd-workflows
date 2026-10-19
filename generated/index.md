@@ -20,8 +20,8 @@ Verification meanings are defined by STD-0000; a structural or partial binding i
 | [R-0007](../spec/ci.md) | MUST | Pull requests own source validation | condition (item): The subject defines or invokes source-validation CI. | review | — |
 | [R-0008](../spec/ci.md) | MUST | Selected coverage includes affected dependents | condition (item): The subject determines applicable validation coverage. | partial | `runtime.impact` |
 | [R-0009](../spec/ci.md) | MUST | Passing means the expected work ran | condition (item): The subject summarizes or gates validation results. | partial | `runtime.reports` |
-| [R-0010](../spec/ci.md) | MUST | Results identify their actual inputs | condition (item): The subject records, compares or reuses validation results. | partial | `runtime.inputs` |
-| [R-0011](../spec/ci.md) | MUST | Toolchains and language profiles are real | condition (item): A language or SDK profile is selected. | partial | `runtime.profiles` |
+| [R-0010](../spec/ci.md) | MUST | Results identify their actual inputs | condition (item): The subject records, compares or reuses validation results. | partial | `runtime.inputs`, `runtime.gitlinks` |
+| [R-0011](../spec/ci.md) | MUST | Toolchains and language profiles are real | condition (item): A language or SDK profile is selected. | partial | `runtime.profiles`, `runtime.advanced` |
 | [R-0012](../spec/ci.md) | MUST | Quality gates have stable meanings | condition (item): The subject applies quality or security gates. | partial | `runtime.gates` |
 | [R-0013](../spec/ci.md) | MUST | Architecture checks enforce actual boundaries | condition (item): The project selects an architectural boundary check. | partial | `runtime.architecture` |
 | [R-0014](../spec/ci.md) | MUST | Documentation feedback follows executable sources | condition (item): The subject checks or updates implementation documentation. | partial | `runtime.documents` |
@@ -31,7 +31,7 @@ Verification meanings are defined by STD-0000; a structural or partial binding i
 | [R-0018](../spec/performance.md) | MUST | Caches have owners and bounded lifetimes | condition (item): The subject reads, writes or reclaims acceleration state. | partial | `runtime.cache` |
 | [R-0019](../spec/performance.md) | MUST | Reports remain useful without storage duplication | condition (item): The subject exports or retains run diagnostics or artifacts. | partial | `runtime.retention` |
 | [R-0020](../spec/delivery.md) | MUST | CD consumes an eligible integrated result | condition (item): The subject determines eligibility for deployment. | partial | `runtime.lineage` |
-| [R-0021](../spec/delivery.md) | MUST | Artifact promotion preserves identity | condition (item): A build artifact is produced, published or promoted. | partial | `runtime.artifact` |
+| [R-0021](../spec/delivery.md) | MUST | Artifact promotion preserves identity | condition (item): A build artifact is produced, published or promoted. | partial | `runtime.artifact`, `runtime.release`, `runtime.oci` |
 | [R-0022](../spec/delivery.md) | MUST | Native deployment is complete rather than declarative only | condition (item): The project selects a deployment adapter. | partial | `runtime.delivery`, `runtime.preflight`, `runtime.remote` |
 | [R-0023](../spec/delivery.md) | MUST | The target serializes deployment | condition (item): The subject can mutate a shared delivery target. | partial | `runtime.target-lock`, `runtime.remote` |
 | [R-0024](../spec/delivery.md) | MUST | Recovery respects data and partial state | condition (item): Delivery changes data or encounters partial execution or failure. | partial | `runtime.recovery` |

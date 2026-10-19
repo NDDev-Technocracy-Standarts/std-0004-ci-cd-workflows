@@ -12,7 +12,10 @@ uses Android SDK apkanalyzer/bundletool for APK/AAB validation. Signing and stor
 separate. An optional SSH transport transfers the exact verified artifact and canonical runtime,
 then executes the native adapter and shared target lock on the remote host. Pinned host keys,
 concurrent callers and partial recovery are covered against an isolated SSH server.
-Regression and native fixture outcomes are recorded by the actual PR jobs.
+Optional public security, native verified-payload release/SBOM/signature, OCI archive publication,
+web/browser/accessibility and bounded native fuzz/mutation/benchmark capabilities restore useful
+archived behavior through the shared implementation. Recursive checkout identities are checked before
+and after validation. Regression and native fixture outcomes are recorded by the actual PR jobs.
 
 ## 0.1.0 (draft)
 

@@ -1,0 +1,239 @@
+"""Native OCI archive builds and digest-preserving publication; no rebuild during promotion."""
+
+from __future__ import annotations
+
+import json
+import os
+import platform
+import re
+import subprocess
+import tempfile
+import uuid
+from pathlib import Path
+
+from .model import Invalid, Unavailable, atomic_json, contained, digest, source_identity
+from .process import run
+
+SKOPEO = "quay.io/skopeo/stable@sha256:cb18e3ddb78c7ce4c06d53de494e0d83b9a63f58bd205149d2c156d75fdecfe4"
+BUILDKIT = "moby/buildkit@sha256:98cc6a3fc46220d00f8224ae483f3274fc874e9be8d7dd1e2e2c5481209228b5"
+
+
+def native(arguments: list[str], root: Path, name: str) -> str:
+    with tempfile.TemporaryDirectory(prefix="nddev-oci-log-") as directory:
+        path = Path(directory) / "native.log"
+        result = run(arguments, root, path, timeout=900)
+        output = path.read_text()
+        if result["status"] != "success":
+            raise Invalid(f"Native OCI {name} failed (exit {result['exit_code']}): " + output[-2000:])
+        return output
+
+
+def skopeo(
+    arguments: list[str],
+    archive: Path | None = None,
+    auth: Path | None = None,
+    certificates: Path | None = None,
+    *,
+    daemon=False,
+) -> str:
+    if platform.system() != "Linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
+        raise Unavailable("This pinned native OCI SDK surface currently requires Linux x64")
+    name = "nddev-oci-sdk-" + uuid.uuid4().hex
+    command = ["docker", "run", "--rm", "--name", name, "--network", "host"]
+    if archive:
+        if not archive.is_file() or archive.is_symlink():
+            raise Invalid("OCI input must be an existing regular archive")
+        command += ["--volume", str(archive.resolve()) + ":/input/image.oci.tar:ro"]
+    if auth:
+        if not auth.is_file() or auth.is_symlink() or os.name != "nt" and auth.stat().st_mode & 0o077:
+            raise Invalid("Registry auth must be an explicitly private caller-owned regular file")
+        command += [
+            "--volume",
+            str(auth.resolve()) + ":/input/auth.json:ro",
+            "--env",
+            "REGISTRY_AUTH_FILE=/input/auth.json",
+        ]
+    if certificates:
+        if not certificates.is_dir() or certificates.is_symlink():
+            raise Invalid("Declare the existing native registry CA/client-certificate directory")
+        command += ["--volume", str(certificates.resolve()) + ":/certificates:ro"]
+    if daemon:
+        command += ["--volume", "/var/run/docker.sock:/var/run/docker.sock"]
+    try:
+        return native([*command, SKOPEO, *arguments], Path.cwd(), "SDK")
+    finally:
+        subprocess.run(["docker", "rm", "--force", name], check=False, capture_output=True, timeout=30)
+
+
+def inspect(archive: Path) -> dict:
+    result = json.loads(skopeo(["inspect", "oci-archive:/input/image.oci.tar"], archive))
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", result.get("Digest", "")):
+        raise Invalid("Native OCI archive has no immutable image digest")
+    return result
+
+
+def build(
+    root: Path,
+    output: str,
+    *,
+    context=".",
+    dockerfile="Dockerfile",
+    platforms="linux/amd64",
+    builder: str | None = None,
+) -> dict:
+    if platform.system() != "Linux" or platform.machine().lower() not in {"x86_64", "amd64"}:
+        raise Unavailable("This pinned OCI build surface currently requires Linux x64")
+    root = root.resolve()
+    context_path, file = contained(root, context, exists=True), contained(root, dockerfile, exists=True)
+    if not context_path.is_dir() or not file.is_file():
+        raise Invalid("Select an existing native build context and Dockerfile")
+    selected = platforms.split(",")
+    if not selected or set(selected) - {"linux/amd64", "linux/arm64"}:
+        raise Invalid("Select supported Linux OCI platforms with the corresponding native/cross SDK")
+    if builder and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}", builder):
+        raise Invalid("Select a known caller-owned Buildx builder name")
+    if any(character in output for character in ("\n", "\r", "\0", ",")):
+        raise Invalid("OCI output path cannot contain control characters or Buildx option separators")
+    target = contained(root, output)
+    if target.exists() or target.with_suffix(".json").exists():
+        raise Invalid("Do not overwrite a previous build artifact; use an owned fresh output")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    owner = builder is None
+    builder = builder or "nddev-oci-" + uuid.uuid4().hex
+    pending = target.with_name("." + target.name + ".pending")
+    metadata = target.with_name("." + target.name + ".buildx.json")
+    source = source_identity(root)
+    failed = False
+    try:
+        if owner:
+            native(
+                [
+                    "docker",
+                    "buildx",
+                    "create",
+                    "--name",
+                    builder,
+                    "--driver",
+                    "docker-container",
+                    "--driver-opt",
+                    "image=" + BUILDKIT,
+                    "--driver-opt",
+                    "memory=2g",
+                ],
+                root,
+                "owned builder setup",
+            )
+        native(
+            [
+                "docker",
+                "buildx",
+                "build",
+                "--builder",
+                builder,
+                "--file",
+                str(file),
+                "--platform",
+                platforms,
+                "--provenance=false",
+                "--label",
+                "org.opencontainers.image.revision=" + source["tested_revision"],
+                "--metadata-file",
+                str(metadata),
+                "--output",
+                "type=oci,dest=" + str(pending),
+                str(context_path),
+            ],
+            root,
+            "build",
+        )
+        if pending.stat().st_size > 512 * 1024**2:
+            raise Invalid("OCI archive exceeds the source artifact's 512MiB transfer budget")
+        actual = inspect(pending)
+        if actual.get("Labels", {}).get("org.opencontainers.image.revision") != source["tested_revision"]:
+            raise Invalid("Built OCI image does not identify the tested source revision")
+        os.replace(pending, target)
+        record = {
+            "schema": 1,
+            "archive_sha256": digest(target),
+            "digest": actual["Digest"],
+            "source": source,
+            "platforms": selected,
+            "observed_platform": {"os": actual.get("Os"), "architecture": actual.get("Architecture")},
+            "buildx_version": native(["docker", "buildx", "version"], root, "version").strip(),
+            "sdk": {"skopeo": SKOPEO, "buildkit": BUILDKIT if owner else "caller-owned"},
+        }
+        atomic_json(target.with_suffix(".json"), record)
+        return {
+            "status": "success",
+            "archive": str(target),
+            "metadata": str(target.with_suffix(".json")),
+            **record,
+        }
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        pending.unlink(missing_ok=True)
+        metadata.unlink(missing_ok=True)
+        if owner:
+            # Never select/prune the shared/default builder or another job's state.
+            cleanup = subprocess.run(
+                ["docker", "buildx", "rm", "--force", builder], check=False, capture_output=True, timeout=30
+            )
+            if cleanup.returncode and not failed:
+                raise Invalid("Owned Buildx cleanup failed; reconcile builder " + builder)
+
+
+def publish(
+    archive: Path,
+    record: dict,
+    expected: dict,
+    repository: str,
+    *,
+    auth: Path | None = None,
+    certificates: Path | None = None,
+) -> dict:
+    if not re.fullmatch(r"[a-z0-9][a-z0-9.:-]*/[a-z0-9_./-]+", repository) or ".." in repository.split("/"):
+        raise Invalid(
+            "Declare the approved existing registry/repository, without mutable tags or credentials"
+        )
+    if record.get("schema") != 1 or digest(archive) != record.get("archive_sha256"):
+        raise Invalid("OCI archive differs from its checked source metadata")
+    for key in ("repository", "tested_revision", "tested_tree", "library_ref", "implementation_digest"):
+        if not expected.get(key) or record.get("source", {}).get(key) != expected[key]:
+            raise Invalid("OCI build and publication have different source/implementation bindings")
+    actual = inspect(archive)
+    if (
+        actual["Digest"] != record["digest"]
+        or actual.get("Labels", {}).get("org.opencontainers.image.revision") != expected["tested_revision"]
+    ):
+        raise Invalid("Native OCI image identity differs from the tested artifact")
+    # Same digest means the same target object; different candidates never race to replace 'latest'.
+    destination = repository + ":sha256-" + actual["Digest"].split(":")[1]
+    options = ["--dest-cert-dir=/certificates"] if certificates else []
+    skopeo(
+        [
+            "copy",
+            "--all",
+            "--preserve-digests",
+            *options,
+            "oci-archive:/input/image.oci.tar",
+            "docker://" + destination,
+        ],
+        archive,
+        auth,
+        certificates,
+    )
+    options = ["--cert-dir=/certificates"] if certificates else []
+    installed = json.loads(
+        skopeo(["inspect", *options, "docker://" + destination], auth=auth, certificates=certificates)
+    )
+    if installed.get("Digest") != actual["Digest"]:
+        raise Invalid("Registry did not preserve the tested OCI digest")
+    return {
+        "status": "success",
+        "image": repository + "@" + actual["Digest"],
+        "digest": actual["Digest"],
+        "source": expected,
+        "publication": "existing registry; no source rebuild",
+    }
