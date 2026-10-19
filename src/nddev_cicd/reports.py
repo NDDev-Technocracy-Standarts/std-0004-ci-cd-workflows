@@ -207,6 +207,17 @@ def sarif(directory: Path, minimum: str = "moderate") -> dict:
                         "score": score,
                         "blocking": blocking,
                         "message": result.get("message", {}).get("text", ""),
+                        "locations": [
+                            {
+                                "path": location.get("physicalLocation", {})
+                                .get("artifactLocation", {})
+                                .get("uri"),
+                                "line": location.get("physicalLocation", {})
+                                .get("region", {})
+                                .get("startLine"),
+                            }
+                            for location in result.get("locations", [])
+                        ],
                     }
                 )
     return {

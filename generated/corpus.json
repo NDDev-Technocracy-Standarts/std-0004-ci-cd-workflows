@@ -88,7 +88,7 @@
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "39b0869fd79acb63f1d6f3e4499ab29440986fd662c01bd788f1a1f5b4636327"
+      "sha256": "c2058d1ae453fdc83b978293ff052d05be32c92242a04eafc05f65e49bc8cf7a"
     },
     {
       "path": "standard.yml",
@@ -96,7 +96,7 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "57ee13988b6f58b4db90ede59258c5402011fe30d899b0e46116c4f5097b4317",
+  "inputs-sha256": "a2c511b847222d8dfb0f7c016121f88f974aea28a0885b71300ffc1e2f0ccd4c",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -126,7 +126,7 @@
       "id": "runtime.consumer-contracts",
       "kind": "check",
       "target": "tests/test_consumer_contracts.py",
-      "establishes": "Native process/Git regressions cover requirements-only command selection, explicit non-applicability, manager lock resolution, named manifests, bounded diagnostics, YAML merge handling, isolated outputs and owned cleanup. Mocked API cases cover feedback marker/attempt and pagination contracts; they do not establish live publication."
+      "establishes": "Native process/Git regressions cover requirements-only command selection, explicit non-applicability, manager lock resolution, named manifests, bounded diagnostics, YAML merge handling, isolated outputs and owned cleanup. Main scope cases retain affected native platform cells and advanced dependents. Mocked API cases cover feedback marker/attempt and pagination contracts; they do not establish live publication."
     },
     {
       "id": "runtime.current",
