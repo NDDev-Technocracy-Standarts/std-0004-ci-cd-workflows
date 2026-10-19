@@ -76,7 +76,7 @@
     },
     {
       "path": "spec/maintenance.md",
-      "sha256": "c97cfea2764fd5941e3253421da2be7f960e63eaad942301ccf30c2402c75da4"
+      "sha256": "fda165e1ecf3405df768e01051d803bdfa9ad59345075b9781c0892b9f26d880"
     },
     {
       "path": "spec/performance.md",
@@ -96,7 +96,7 @@
     }
   ],
   "listings": [],
-  "inputs-sha256": "f754ff4b908f92b681d8831305a109b957d7e703cd2fe3357b4b3a8c0c61d3a2",
+  "inputs-sha256": "e0131e858db91dfcf54a80b0e3c567c0ee14abdaf783d21660766004464f4f5f",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -1111,6 +1111,10 @@
       "status": "active",
       "strength": "MUST",
       "basis": "owner",
+      "sources": [
+        "archived-native-fixtures",
+        "archived-fuzz-fixtures"
+      ],
       "verification": "review",
       "criteria": "Compare each advertised capability against an actual result and its named limits.",
       "since": "0.1.0",
@@ -1141,7 +1145,7 @@
       "statement": "Adoption MUST preserve existing consumers and issued identities until an explicit transition replaces\nthem. Each rollout has an explicit project and infrastructure scope; successful catalog registration or\na pilot does not authorize a fleet-wide migration. Obsolete task-created workflows, settings, dead code and duplicated instructions\nare removed after the replacement works. Valid unrelated backlog and historical evidence remain.\nThe task finishes after the agreed implementation, pilot and integration; new audit services, quotas\nof reruns and fleet-wide migrations are not added to manufacture certainty.",
       "source": {
         "path": "spec/maintenance.md",
-        "line": 35
+        "line": 36
       }
     }
   ]

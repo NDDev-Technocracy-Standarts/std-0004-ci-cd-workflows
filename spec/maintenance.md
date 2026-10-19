@@ -23,6 +23,7 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Compare each advertised capability against an actual result and its named limits.
+sources: [archived-native-fixtures, archived-fuzz-fixtures]
 applies-when: The implementation declares capabilities or verification coverage.
 ```
 

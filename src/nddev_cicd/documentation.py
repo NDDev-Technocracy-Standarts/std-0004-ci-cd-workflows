@@ -129,7 +129,7 @@ def external_outage(root: Path, settings: dict, operation: dict) -> dict | None:
 
 
 _STYLE_ROLES = {"authored", "generated", "historical", "literal", "legal"}
-_RELEASE_VALUE = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?(?![\w.])")
+_RELEASE_VALUE = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?(?!\w|\.\d)")
 _FINGERPRINT = re.compile(r"(?<![\w])[a-fA-F0-9]{40,64}(?![\w])")
 _URL = re.compile(r"(?:https?|ssh|git)://[^\s<>\"'\])]+")
 _FRESHNESS = re.compile(

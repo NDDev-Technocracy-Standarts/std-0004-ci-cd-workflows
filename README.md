@@ -4,6 +4,8 @@ A public OSS library for thin GitHub workflows, native source checks and deliver
 artifact. Maintainers select applicable profiles and retain their existing build tools, runners and
 targets. Public consumers need no private NDDev compiler, corpus or credentials.
 
+![Admission precedes native source checks and exact artifact delivery to an existing target](docs/architecture.svg)
+
 ## Try runner selection
 
 From this checkout, prepare the locked environment and inspect the real public routes:

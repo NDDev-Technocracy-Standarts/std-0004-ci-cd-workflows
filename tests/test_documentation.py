@@ -12,6 +12,7 @@ from nddev_cicd.model import Invalid, git
         ("An authored sentence\u2014with punctuation.\n", "decorative-prose"),
         ("A result \u2705\n", "decorative-prose"),
         ("Project version: 1.2.3\n", "release-value"),
+        ("The chosen release is 1.2.3.\n", "release-value"),
         ("<!-- Version: 1.2.3 -->\n", "release-value"),
         ("```yaml\nimage: example/app@sha256:" + "a" * 64 + "\n```\n", "fingerprint"),
         ("Fingerprint: " + "b" * 40 + "\n", "fingerprint"),
