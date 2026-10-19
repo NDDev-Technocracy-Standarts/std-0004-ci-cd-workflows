@@ -1,0 +1,28 @@
+name: native-failure-feedback
+on:
+  workflow_run:
+    workflows: [source-ci, integrated-delivery-smoke]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read # Read native run metadata only; no failed-run artifacts or checkout.
+  issues: write # Publish deduplicated failure Issues for the owning agent.
+concurrency:
+  group: native-failure-feedback
+  cancel-in-progress: false
+jobs:
+  publish:
+    name: Bounded native failure publication
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(fromJSON('["failure","timed_out","action_required","startup_failure"]'), github.event.workflow_run.conclusion) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # zizmor: ignore[dangerous-triggers] -- A reviewed pinned action reads metadata only; candidate code is never checked out or executed.
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@4d3147eb007afe4f110339463ba9f66b618b2272
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          workflows: '[".github/workflows/ci.yml",".github/workflows/delivery-smoke.yml"]'
+          creators: '["rldyourmnd","dependabot[bot]"]'
+          run-id: ${{ github.event.workflow_run.id || '' }}
