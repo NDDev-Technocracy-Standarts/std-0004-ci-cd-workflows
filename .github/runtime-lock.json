@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "repository": "NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows",
-  "implementation": "4d3147eb007afe4f110339463ba9f66b618b2272",
-  "facade": "323c2113bb01931e4cc0e5501f5f4fc199e9e06c",
+  "implementation": "c6bdaf9d221d0c85ca7dd786975b6db639a64935",
+  "facade": "ce4c468719278600c5b3d602025165dd76145964",
   "package": "0.4.0",
   "standard": {
     "id": "std-0004",
-    "edition": "0.2.1",
+    "edition": "0.3.0",
     "status": "draft"
   },
   "issue": 33
