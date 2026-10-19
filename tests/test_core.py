@@ -253,6 +253,23 @@ def test_static_delivery_actual_health_stale_data_guard_and_recovery(repository,
         assert (target / "current/public/index.html").read_text() == "actual-application-revision " + source[
             "tested_revision"
         ]
+        # A subsequent valid delivery must still replace the owned current symlink.
+        previous_release = (target / "current").resolve()
+        (root / "public/index.html").write_text(
+            "next actual-application-revision " + source["tested_revision"]
+        )
+        next_archive = tmp_path / "next-site.tar.gz"
+        next_manifest = artifacts.pack(root, ["public/index.html"], next_archive, source)
+        next_record = delivery.apply(
+            next_archive,
+            next_manifest,
+            source,
+            {**settings, "generation": 2, "expected_previous": record["artifact"]},
+            authorized=True,
+        )
+        assert next_record["status"] == "success" and next_record["generation"] == 2
+        assert (target / "current").is_symlink() and (target / "current").resolve() != previous_release
+        assert previous_release.is_dir()
     finally:
         server.shutdown()
         server.server_close()

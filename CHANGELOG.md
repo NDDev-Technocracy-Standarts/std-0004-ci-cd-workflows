@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.2.0 (draft)
+## 0.2.0 (published 2026-10-19)
+
+First published edition, released at the owner's request after the final reviewed runtime correction.
+An existing non-symlink `current` is rejected under the target lock before release/state creation,
+backup or migration; activation retains its final guard. Real file/directory regressions preserve
+existing data and invoke no mutation commands; subsequent delivery through an owned symlink still
+succeeds. This corrects the implementation of the existing contract and adds verification bindings;
+it introduces no further normative obligation or edition increment within the unpublished draft.
 
 Public jobs on Linux, Windows and macOS now exclusively use compatible standard GitHub-hosted
 runners. This removes a permitted public Blacksmith route and therefore increments the normative

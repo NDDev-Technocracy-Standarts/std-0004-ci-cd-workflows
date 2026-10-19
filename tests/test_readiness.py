@@ -107,6 +107,46 @@ def test_invalid_operation_never_starts_backup_or_migration(tmp_path, settings):
     assert list(target.iterdir()) == []
 
 
+@pytest.mark.parametrize("kind", ["file", "directory"])
+def test_unowned_current_is_rejected_before_backup_migration_or_release(tmp_path, kind):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "index.html").write_text("valid selected payload")
+    identity = {"repository": "example:current-conflict", "tested_revision": "fixture"}
+    archive = tmp_path / "artifact.tar.gz"
+    manifest = artifacts.pack(source, ["index.html"], archive, identity)
+    target = tmp_path / "target"
+    target.mkdir()
+    current = target / "current"
+    if kind == "directory":
+        current.mkdir()
+    existing = current / "existing.txt" if kind == "directory" else current
+    existing.write_bytes(b"existing owner data\x00\n")
+    backup, migration = tmp_path / "backup-ran", tmp_path / "migration-ran"
+    config = {
+        "module": "static-web",
+        "entrypoint": "index.html",
+        "health_url": "http://127.0.0.1/health",
+        "target_directory": str(target),
+        "generation": 1,
+        "expected_previous": None,
+        "backup_command": [sys.executable, "-c", f"from pathlib import Path; Path({str(backup)!r}).touch()"],
+        "data_migration": [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(migration)!r}).touch()",
+        ],
+    }
+    with pytest.raises(Invalid, match="unowned target"):
+        delivery.apply(archive, manifest, identity, config, authorized=True)
+    assert not backup.exists() and not migration.exists()
+    assert not (target / ".nddev-releases").exists()
+    assert not (target / ".nddev-deployment.json").exists()
+    assert existing.read_bytes() == b"existing owner data\x00\n"
+    assert not current.is_symlink()
+    assert sorted(p.name for p in target.iterdir()) == [".nddev-deploy.lock", "current"]
+
+
 @pytest.mark.parametrize("platform,architecture", [("linux", "x64"), ("windows", "x64"), ("macos", "arm64")])
 def test_public_always_uses_standard_github_even_with_blacksmith_admission(platform, architecture):
     admission = {

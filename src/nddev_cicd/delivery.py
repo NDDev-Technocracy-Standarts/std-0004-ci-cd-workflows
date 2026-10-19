@@ -62,10 +62,15 @@ def health(config: dict, revision: str) -> dict:
     raise Invalid("Target scenario/version did not match the intended tested revision")
 
 
-def activate(root: Path, release: Path) -> None:
+def validate_current(root: Path) -> None:
     current = root / "current"
     if current.exists() and not current.is_symlink():
         raise Invalid("Do not replace an unowned target directory")
+
+
+def activate(root: Path, release: Path) -> None:
+    validate_current(root)
+    current = root / "current"
     pending = root / f".current-{os.getpid()}"
     pending.symlink_to(release, target_is_directory=True)
     os.replace(pending, current)
@@ -152,6 +157,8 @@ def apply(archive: Path, manifest: dict, expected: dict, config: dict, *, author
         }
     )
     with lock(target / ".nddev-deploy.lock"):
+        if module in {"static-web", "systemd-binary"}:
+            validate_current(target)
         state_path = target / ".nddev-deployment.json"
         state = (
             json.loads(state_path.read_text()) if state_path.exists() else {"generation": 0, "artifact": None}

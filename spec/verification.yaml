@@ -82,6 +82,10 @@ entries:
   kind: check
   target: tests/native_oci.py
   establishes: Native Buildx creates a real OCI archive; strict TLS registry publication preserves its digest, a real running image serves the revision, and corruption/build errors fail. Selected Linux x64 does not establish every platform.
+- id: runtime.current
+  kind: test
+  target: tests/test_readiness.py::test_unowned_current_is_rejected_before_backup_migration_or_release
+  establishes: Existing current files/directories are refused before backup, migration, release or pending-state creation and their bytes remain intact. The core static delivery scenario also exercises a successful subsequent activation through the owned current symlink.
 - id: runtime.release
   kind: check
   target: tests/native_release.py
