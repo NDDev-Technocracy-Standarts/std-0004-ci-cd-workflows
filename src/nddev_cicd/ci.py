@@ -22,6 +22,7 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
         if len(command) < 2 or command[1] not in {
             "package-check",
             "secrets-check",
+            "documentation-check",
             "workflow-check",
             "oci-build",
             "advanced-fuzz",

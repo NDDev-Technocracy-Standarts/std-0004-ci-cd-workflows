@@ -34,6 +34,11 @@ def parser() -> argparse.ArgumentParser:
     )
     feedback.add_argument("--run-id", type=int)
     feedback.add_argument("--task-issue", type=int)
+    document = sub.add_parser(
+        "documentation-check", help="Check local documentation without network or authoring prerequisites"
+    )
+    document.add_argument("--root", type=Path, default=Path.cwd())
+    document.add_argument("--contract", default=".github/nddev-ci.toml")
     secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
     secret.add_argument("--root", type=Path, default=Path.cwd())
     secret.add_argument("--output", type=Path)
@@ -161,6 +166,13 @@ def main(argv=None) -> int:
                 )
             )
             return 0 if result["status"] == "success" else 1
+        if args.operation == "documentation-check":
+            from .documentation import check
+
+            root = args.root.resolve()
+            result = check(root, config.load(root, args.contract).get("documentation"))
+            print(json.dumps(result))
+            return 0
         if args.operation == "secrets-check":
             root = args.root.resolve()
             output = (
