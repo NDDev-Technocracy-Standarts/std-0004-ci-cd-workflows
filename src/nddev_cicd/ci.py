@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, reports
+from . import config, documentation, git_inputs, reports
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -67,6 +67,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         "expected": [],
     }
     result["impact"] = impact_record
+    try:
+        result["identity"]["submodules"] = git_inputs.submodules(root)
+    except Invalid as error:
+        result["expected"] = ["inputs.submodule-integrity"]
+        result["results"] = [
+            {"name": "inputs.submodule-integrity", "status": "failure", "detail": str(error)}
+        ]
+        result.update(reports.aggregate(result["expected"], result["results"]))
+        atomic_json(output / "result.json", result)
+        return result
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
     result["identity"]["locks"] = {
         path: digest(root / path)
@@ -263,6 +273,11 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     ]
     if digest(contained(root, contract["_path"], exists=True)) != result["identity"]["contract_sha256"]:
         changed_inputs.append(contract["_path"])
+    try:
+        if git_inputs.submodules(root) != result["identity"]["submodules"]:
+            changed_inputs.append("submodules")
+    except Invalid:
+        changed_inputs.append("submodules")
     result["results"].append(
         {
             "name": "inputs.lock-integrity",
