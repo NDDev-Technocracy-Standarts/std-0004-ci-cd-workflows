@@ -361,7 +361,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@ce4c468719278600c5b3d602025165dd76145964
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@29f7e8781a216607f1d31c0353abddd1b25845e3
     with:
       languages: python,actions
     needs: impact-plan
