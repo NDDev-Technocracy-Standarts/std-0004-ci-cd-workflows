@@ -32,3 +32,13 @@ were checked against the official Gradle 9.5.0 release. Its selected native targ
 
 Generated Flutter web scaffolding/assets retain the Flutter SDK BSD notice in
 `tests/native/flutter/FLUTTER-LICENSE`; the SDK version is declared by the native fixture.
+
+The Rust fuzz target/lock and C++ libFuzzer harness additionally retain the original notices from
+`NDDev-Technocracy-Archive/ci-workflows-20261014` at
+`4b53916e8a7b1c2dd220766b6dd4170a843f622e` (`tests/fixtures/rust/fuzz/` and
+`tests/fixtures/fuzzing/checksum_fuzzer.cpp`). Their grants remain in the adjacent NOTICE files.
+The restored security/release/OCI entrypoints use maintained official tool/action interfaces;
+no proprietary approval platform or paid capability tier is required. The new web example uses
+native CSS-tree and Prettier because the inspected Stylelint dependency chain included an unpatched
+high-severity braces vulnerability. Native package audit findings were resolved by changing tools,
+not by suppressing the advisory or forcing an incompatible dependency override.

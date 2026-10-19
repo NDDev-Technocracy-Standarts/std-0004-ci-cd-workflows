@@ -408,6 +408,7 @@ def test_deployment_rejects_foreign_release_owner_and_unscoped_waiver(repository
     (releases / ".nddev-owner").write_text("another-producer\n")
     (releases / "valuable").write_text("keep")
     settings = {
+        "health_url": "http://127.0.0.1/fixture-health",
         "module": "static-web",
         "target_directory": str(target),
         "generation": 1,

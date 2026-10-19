@@ -65,6 +65,7 @@ verification: partial
 verified-by: [runtime.routing]
 criteria: Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.
 since: 0.1.0
+revised: 0.2.0
 sources:
 - gha-reuse
 - blacksmith-runners
@@ -72,10 +73,10 @@ applies-when: A job selects an execution provider or runner.
 ```
 
 Every library job MUST follow the owner's execution routing, including routing, reporting and other
-small helper jobs. Public Linux work uses standard free GitHub-hosted runners. Private Linux work
-uses the declared existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow.
-Non-Linux work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity
-only under R-0005. A failed test is not retried on a different provider to obtain a passing result.
+small helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public
+work never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared
+existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS
+work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.
 The repository that supplies a public workflow does not change the caller's billing or trust context.
 
 ## R-0005 Execution remains within zero additional spend

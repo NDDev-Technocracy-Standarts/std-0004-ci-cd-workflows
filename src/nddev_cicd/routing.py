@@ -66,11 +66,21 @@ def select(
         raise Invalid("Unknown repository visibility or platform")
     if architecture not in {"x64", "arm64"}:
         raise Invalid("Unknown runner architecture")
+    choices = admission or {}
+    if not isinstance(choices, dict):
+        raise Invalid("Capacity admission must be an object")
+    for provider in ("blacksmith", "github"):
+        policy = choices.get(provider, {})
+        if not isinstance(policy, dict) or type(policy.get("enabled", False)) is not bool:
+            raise Invalid("Capacity admission enabled must be a boolean")
+    if visibility == "public":
+        if architecture != ("arm64" if platform == "macos" else "x64"):
+            raise Unavailable("Declare a verified compatible standard GitHub runner separately")
+        github = choices.get("github", {})
+        if github.get("enabled") and github.get("runners", {}).get(platform) != [STANDARD[platform]]:
+            raise Invalid("Public capacity must use the compatible standard GitHub runner")
+        return {"provider": "github", "runner": [STANDARD[platform]], "basis": "standard-public"}
     if platform == "linux":
-        if visibility == "public":
-            if architecture != "x64":
-                raise Unavailable("Declare a verified standard public ARM runner separately")
-            return {"provider": "github", "runner": [STANDARD[platform]], "basis": "standard-public"}
         if not trusted:
             raise Unavailable("Untrusted/fork code cannot schedule private self-hosted capacity")
         labels = private_labels or []
@@ -89,7 +99,6 @@ def select(
                 "Private labels must include the verified Linux and selected architecture capabilities"
             )
         return {"provider": "self-hosted", "runner": labels, "basis": "existing-private-capacity"}
-    choices = admission or {}
     for provider in ("blacksmith", "github"):
         policy = choices.get(provider, {})
         if type(policy.get("enabled", False)) is not bool:
@@ -113,6 +122,4 @@ def select(
         ):
             raise Invalid("Standard public admission cannot allocate larger or incompatible runners")
         return {"provider": provider, "runner": runner, "basis": policy["reference"]}
-    if visibility == "public" and architecture == ("arm64" if platform == "macos" else "x64"):
-        return {"provider": "github", "runner": [STANDARD[platform]], "basis": "standard-public"}
     raise Unavailable("No confirmed compatible no-overage route; paid-capable dispatch remains disabled")

@@ -259,6 +259,7 @@ def test_real_python_registry_publish_and_consumer(repository, tmp_path, monkeyp
     )
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Registry)
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    tls.minimum_version = ssl.TLSVersion.TLSv1_2
     tls.load_cert_chain(certificate, key)
     server.socket = tls.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -362,8 +363,9 @@ def test_real_systemd_service_activation(repository, tmp_path):
         subprocess.run(["systemctl", "--user", "reset-failed", name], check=False, capture_output=True)
 
 
-def test_real_mobile_artifact_delivery(tmp_path):
-    apk = Path(os.environ["NDDEV_ANDROID_APK"])
+@pytest.mark.parametrize("format", ["apk", "aab"])
+def test_real_mobile_artifact_delivery(tmp_path, format):
+    apk = Path(os.environ["NDDEV_ANDROID_APK"]).with_suffix("." + format)
     result_path = apk.parent.parent / "result.json"
     result = json.loads(result_path.read_text())
     assert result["status"] == "success"
@@ -373,10 +375,12 @@ def test_real_mobile_artifact_delivery(tmp_path):
     source = result["identity"]
     root = tmp_path / "source"
     root.mkdir()
-    shutil.copyfile(apk, root / "fixture.apk")
-    assert delivery.mobile_format(root / "fixture.apk")["format"] == "apk"
+    shutil.copyfile(apk, root / ("fixture." + format))
+    assert delivery.mobile_format(root / ("fixture." + format))["validator"] == (
+        "apkanalyzer" if format == "apk" else "bundletool"
+    )
     archive = tmp_path / "mobile.tar.gz"
-    manifest = artifacts.pack(root, ["fixture.apk"], archive, source)
+    manifest = artifacts.pack(root, ["fixture." + format], archive, source)
     target = tmp_path / "target"
     target.mkdir()
     receipt = delivery.apply(
@@ -388,15 +392,24 @@ def test_real_mobile_artifact_delivery(tmp_path):
             "target_directory": str(target),
             "generation": 1,
             "expected_previous": None,
-            "mobile_files": ["fixture.apk"],
+            "mobile_files": ["fixture." + format],
         },
         authorized=True,
     )
     assert receipt["status"] == "success" and receipt["boundary"].startswith("artifact-delivery")
-    assert (target / ".nddev-releases" / receipt["artifact"] / "fixture.apk").read_bytes() == apk.read_bytes()
-    (root / "invalid.apk").write_bytes(b"invalid native artifact")
+    assert (
+        target / ".nddev-releases" / receipt["artifact"] / ("fixture." + format)
+    ).read_bytes() == apk.read_bytes()
+    import zipfile
+
+    invalid = root / ("invalid." + format)
+    with zipfile.ZipFile(invalid, "w") as fake:
+        fake.writestr(
+            "AndroidManifest.xml" if format == "apk" else "base/manifest/AndroidManifest.xml",
+            b"arbitrary text",
+        )
     with pytest.raises(Invalid):
-        delivery.mobile_format(root / "invalid.apk")
+        delivery.mobile_format(invalid)
 
 
 def test_real_compose_immutable_image_and_health(repository, tmp_path):
@@ -515,7 +528,8 @@ def test_partial_data_migration_preserves_backup_and_never_repeats(repository, t
         source = source_identity(root)
         (public / "index.html").write_text("fixture " + source["tested_revision"])
         archive = tmp_path / "second.tar.gz"
-        manifest = artifacts.pack(root, ["public/index.html"], archive, source)
+        (public / "other.html").write_text("alternative route " + source["tested_revision"])
+        manifest = artifacts.pack(root, ["public/index.html", "public/other.html"], archive, source)
         backup = target / "backup.sqlite"
         settings.update(
             generation=2,

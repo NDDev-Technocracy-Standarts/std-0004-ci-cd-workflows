@@ -132,3 +132,76 @@ def aggregate(expected: list[str], results: list[dict]) -> dict:
         item["name"] for item in results if item.get("status") != "success" and item["name"] not in limited
     ]
     return {"status": "failure" if failed else "success", "failed": failed, "limitations": limited}
+
+
+def sarif(directory: Path, minimum: str = "moderate") -> dict:
+    """Gate actual CodeQL SARIF findings without treating an empty/missing analysis as success."""
+    import math
+
+    scores = {"low": 0.1, "moderate": 4.0, "high": 7.0, "critical": 9.0}
+    if minimum not in scores:
+        raise Invalid("Select a known native SARIF security severity")
+    files = sorted(directory.rglob("*.sarif")) if directory.is_dir() else []
+    if not files or len(files) > 32:
+        raise Invalid("Expected bounded native CodeQL SARIF output is missing")
+    findings, runs = [], 0
+    for file in files:
+        if file.is_symlink() or file.stat().st_size > 64 * 1024 * 1024:
+            raise Invalid("Native SARIF report is not a bounded regular output")
+        document = json.loads(file.read_text())
+        if document.get("version") != "2.1.0" or not document.get("runs"):
+            raise Invalid("Native SARIF lacks actual analysis runs")
+        for run in document["runs"]:
+            driver = run.get("tool", {}).get("driver", {})
+            invocations = run.get("invocations", [])
+            if (
+                driver.get("name") != "CodeQL"
+                or not invocations
+                or any(x.get("executionSuccessful") is not True for x in invocations)
+            ):
+                raise Invalid("CodeQL did not establish a successful native analysis")
+            runs += 1
+            rules = driver.get("rules", [])
+            for result in run.get("results", []):
+                if result.get("kind", "fail") != "fail":
+                    continue
+                descriptor = result.get("rule", {})
+                component = descriptor.get("toolComponent", {})
+                selected = driver
+                if "index" in component:
+                    extensions = run["tool"].get("extensions", [])
+                    number = component["index"]
+                    if type(number) is not int or not 0 <= number < len(extensions):
+                        raise Invalid("Native SARIF references an unknown tool component")
+                    selected = extensions[number]
+                rules = selected.get("rules", [])
+                index = descriptor.get("index", result.get("ruleIndex"))
+                rule_id = descriptor.get("id", result.get("ruleId"))
+                rule = (
+                    rules[index]
+                    if type(index) is int and 0 <= index < len(rules)
+                    else next((r for r in rules if r.get("id") == rule_id), None)
+                )
+                if rule is not None and rule_id is not None and rule.get("id") != rule_id:
+                    raise Invalid("Native SARIF rule index and identity disagree")
+                if rule is None:
+                    raise Invalid("Native SARIF finding has no identifiable rule")
+                raw = rule.get("properties", {}).get("security-severity")
+                score = float(raw) if raw is not None else None
+                if score is not None and (not math.isfinite(score) or not 0 <= score <= 10):
+                    raise Invalid("Native SARIF security score is invalid")
+                blocking = score >= scores[minimum] if score is not None else result.get("level") == "error"
+                findings.append(
+                    {
+                        "rule": rule["id"],
+                        "score": score,
+                        "blocking": blocking,
+                        "message": result.get("message", {}).get("text", ""),
+                    }
+                )
+    return {
+        "status": "failure" if any(f["blocking"] for f in findings) else "success",
+        "runs": runs,
+        "minimum": minimum,
+        "findings": findings,
+    }

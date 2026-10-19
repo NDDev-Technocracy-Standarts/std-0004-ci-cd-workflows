@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This is the source for STD-0004 CI/CD Workflows, edition 0.1.0 draft. The authoring basis
+This is the source for STD-0004 CI/CD Workflows, edition 0.2.0 draft. The authoring basis
 is STD-0000 1.2.0; structure explicitly adopts STD-0001 1.2.0. The Python package backs the native
 composite entrypoints. Keep implementation and actual native-fixture verification claims distinct.
 
