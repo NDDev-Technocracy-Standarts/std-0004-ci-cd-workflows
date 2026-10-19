@@ -199,12 +199,21 @@ jobs:
           python-version: '3.13'
       - name: Exercise native registries, target concurrency and data-compatible recovery
         run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+  public-security:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@f97a3d8541e4fc0b8a1bd5b87617459e4655115e # 0.2.0 draft
+    with:
+      languages: python,actions
   gate:
-    needs: [source, native, admission, windows, macos, delivery]
+    needs: [source, native, admission, windows, macos, delivery, public-security]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
       - env:
           NDDEV_EXPECTED_JOBS: ${{ toJSON(needs) }}
-        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery"} and all(v["result"]=="success" for v in jobs.values()), jobs'
+          NDDEV_PUBLIC_SECURITY_STATUS: ${{ needs.public-security.outputs.status }}
+        run: python3 -c 'import json,os; jobs=json.loads(os.environ["NDDEV_EXPECTED_JOBS"]); assert set(jobs)=={"source","native","admission","windows","macos","delivery","public-security"} and all(v["result"]=="success" for v in jobs.values()) and os.environ["NDDEV_PUBLIC_SECURITY_STATUS"]=="success", jobs'
