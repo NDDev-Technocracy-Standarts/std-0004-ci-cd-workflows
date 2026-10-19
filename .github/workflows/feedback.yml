@@ -5,16 +5,17 @@ on: # zizmor: ignore[dangerous-triggers]
     workflows: [source-ci, integrated-delivery-smoke]
     types: [completed]
   workflow_dispatch:
-permissions:
-  contents: read
-  actions: read # Read native run metadata only; no failed-run artifacts or checkout.
-  issues: write # Publish deduplicated failure Issues for the owning agent.
+permissions: {}
 concurrency:
   group: native-failure-feedback
   cancel-in-progress: false
 jobs:
   publish:
     name: Bounded native failure publication
+    permissions:
+      contents: read
+      actions: read # Read native run metadata only; no failed-run artifacts or checkout.
+      issues: write # Publish deduplicated failure Issues for the owning agent.
     if: ${{ github.event_name == 'workflow_dispatch' || contains(fromJSON('["failure","timed_out","action_required","startup_failure"]'), github.event.workflow_run.conclusion) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10

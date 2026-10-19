@@ -292,3 +292,30 @@ def test_feedback_page_limit_fails_before_publication(monkeypatch):
     monkeypatch.setattr(feedback.github, "get", lambda path: [{}] * 100)
     with pytest.raises(Invalid, match="pagination budget"):
         feedback.pages("repos/example/project/issues", limit=2)
+
+
+def test_failure_is_published_before_a_later_contract_error(repository, tmp_path, capsys):
+    root = repository({"README.md": "# Source\n", ".github/nddev-ci.toml": DOC_COMMANDS})
+    contract = config.load(root)
+    contract["commands"]["documentation"]["examples"] = [
+        sys.executable,
+        "-c",
+        "raise AssertionError('earlier native failure')",
+    ]
+    contract["extras"] = {"invalid": {"command": ["git", "status"]}}
+    with pytest.raises(Invalid, match="concrete purpose"):
+        ci.execute(root, contract, tmp_path / "out")
+    assert "earlier native failure" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("reason", ["", "   ", 42])
+def test_non_applicability_requires_a_real_reason(repository, reason):
+    root = repository(
+        {
+            ".github/nddev-ci.toml": 'schema=1\nprofiles=["python"]\n[not_applicable.python]\nconsumer='
+            + json.dumps(reason)
+            + "\n"
+        }
+    )
+    with pytest.raises(Invalid, match="nonempty reason"):
+        config.load(root)

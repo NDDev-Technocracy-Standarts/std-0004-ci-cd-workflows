@@ -20,11 +20,12 @@ trap 'rm -rf "$stage"' EXIT
 archive="$stage/uv.$extension"
 curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
   "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
-if command -v sha256sum >/dev/null; then
-  printf '%s  %s\n' "$checksum" "$archive" | sha256sum --check --status
+if [[ "$target" == *apple* ]]; then
+  observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
 else
-  printf '%s  %s\n' "$checksum" "$archive" | shasum -a 256 --check --status
+  observed="$(sha256sum "$archive" | awk '{print $1}')"
 fi
+[[ "$observed" == "$checksum" ]]
 if [[ "$extension" == zip ]]; then
   unzip -qq "$archive" "$binary" -d "$stage"
 else

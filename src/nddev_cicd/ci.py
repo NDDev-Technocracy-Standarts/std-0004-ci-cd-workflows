@@ -106,6 +106,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             {"name": "inputs.submodule-integrity", "status": "failure", "detail": str(error)}
         ]
         result.update(reports.aggregate(result["expected"], result["results"]))
+        diagnostics(result, contract)
         atomic_json(output / "result.json", result)
         return result
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
@@ -132,7 +133,9 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
             pattern, Path(item["log"]).read_text(), re.MULTILINE
         ):
             item.update(status="failure", detail="Executed tool version differs from selected contract")
-        result["results"].append({"name": name, **item})
+        tool_result = {"name": name, **item}
+        result["results"].append(tool_result)
+        diagnostics({"results": [tool_result]}, contract)
     cancelled = False
     for profile_id in selected:
         definition = profiles[profile_id]
@@ -264,6 +267,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         )
                     except (Invalid, OSError) as error:
                         entry.update(status="failure", detail=str(error))
+                diagnostics({"results": [entry]}, contract)
     for name, extra in contract.get("extras", {}).items():
         if not isinstance(extra, dict) or not extra.get("command") or not extra.get("purpose"):
             raise Invalid("Each selected extra needs a concrete purpose, command and finite timeout")
@@ -292,7 +296,9 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                 )
             except (Invalid, OSError) as error:
                 item.update(status="failure", detail=str(error))
-        result["results"].append({"name": "extra." + name, **item})
+        extra_result = {"name": "extra." + name, **item}
+        result["results"].append(extra_result)
+        diagnostics({"results": [extra_result]}, contract)
     result["expected"].append("inputs.lock-integrity")
     try:
         current_locks = config.locks(root, contract)
@@ -468,7 +474,7 @@ def diagnostics(result: dict, contract: dict) -> None:
 
     count = contract.get("diagnostics", {}).get("tail_lines", 200)
     for entry in result["results"]:
-        if entry["status"] in {"success", "not-applicable"}:
+        if entry["status"] in {"success", "not-applicable"} or entry.get("diagnostics_published"):
             continue
         tail = ""
         if count and entry.get("log") and Path(entry["log"]).is_file():
@@ -485,4 +491,5 @@ def diagnostics(result: dict, contract: dict) -> None:
         if tail:
             print(tail)
         print(f"::{marker}::")
-        print("::endgroup::")
+        print("::endgroup::", flush=True)
+        entry["diagnostics_published"] = True
