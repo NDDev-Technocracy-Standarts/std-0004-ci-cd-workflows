@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 0
       - name: Prepare pinned job-local native tools
         run: scripts/prepare-linux-tools.sh security
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@38e9692852b17a71995893e6829a8c86eadc23c5
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -145,11 +145,11 @@ jobs:
       macos: ${{ steps.macos.outputs.runner }}
     steps:
       - id: windows
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@38e9692852b17a71995893e6829a8c86eadc23c5
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
         with:
           policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
       - id: macos
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@38e9692852b17a71995893e6829a8c86eadc23c5
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
         with:
           policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
   windows:
@@ -233,7 +233,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@38e9692852b17a71995893e6829a8c86eadc23c5
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
     with:
       languages: python,actions
   gate:
