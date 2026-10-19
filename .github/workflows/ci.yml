@@ -197,8 +197,10 @@ jobs:
           version: '0.13.1'
           enable-cache: 'false'
           python-version: '3.13'
+      - name: Prepare the pinned native release inventory tool
+        run: scripts/prepare-release-tools.sh
       - name: Exercise native registries, target concurrency and data-compatible recovery
-        run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
+        run: uv run --locked pytest -q tests/native_delivery.py tests/native_remote.py tests/native_release.py -k 'not systemd and not mobile' --junitxml="$RUNNER_TEMP/native-delivery.xml"
   public-security:
     permissions:
       contents: read
