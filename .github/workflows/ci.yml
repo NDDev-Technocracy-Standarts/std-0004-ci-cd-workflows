@@ -121,6 +121,9 @@ jobs:
           RENV_CONFIG_CONSENT: 'TRUE'
           NDDEV_CACHE_ROOT: ${{ matrix.profile == 'rust' && format('{0}/nddev-native-cache', runner.temp) || '' }}
         run: uv run --locked python tests/run_native.py "$NDDEV_NATIVE_PROFILE" --output "$RUNNER_TEMP/native-fixture"
+      - name: Prepare the pinned native Android bundle validator
+        if: ${{ matrix.profile == 'android' }}
+        run: scripts/prepare-mobile-tools.sh
       - name: Deliver and verify the actual built Android package
         if: ${{ matrix.profile == 'android' }}
         env:

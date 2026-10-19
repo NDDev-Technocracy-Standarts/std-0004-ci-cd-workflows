@@ -1,0 +1,133 @@
+"""Regressions reproduced by the independent review, using owned real processes and targets."""
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import zipfile
+from pathlib import Path
+
+import pytest
+
+from nddev_cicd import artifacts, delivery, routing
+from nddev_cicd.model import Invalid
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process-group regression; Windows uses taskkill /T")
+@pytest.mark.parametrize("cancel", [False, True], ids=["timeout", "sigterm-cancellation"])
+def test_owned_descendant_is_gone_after_leader_exits(tmp_path, cancel):
+    marker = tmp_path / "owned.json"
+    descendant = (
+        "import os,signal,time,json; from pathlib import Path; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        f"Path({str(marker)!r}).write_text(json.dumps({{'pid':os.getpid(),'group':os.getpgrp()}})); "
+        "time.sleep(60)"
+    )
+    leader = (
+        f"import subprocess,sys,time; subprocess.Popen([sys.executable,'-c',{descendant!r}]); time.sleep(60)"
+    )
+    worker = (
+        "import os,signal,sys,threading,json; from pathlib import Path; from nddev_cicd.process import run; "
+        + ("threading.Timer(0.7,lambda:os.kill(os.getpid(),signal.SIGTERM)).start(); " if cancel else "")
+        + f"print(json.dumps(run([sys.executable,'-c',{leader!r}],Path({str(tmp_path)!r}),"
+        f"Path({str(tmp_path / 'native.log')!r}),timeout={5 if cancel else 1})))"
+    )
+    try:
+        completed = subprocess.run(
+            [sys.executable, "-c", worker], check=True, capture_output=True, text=True, timeout=15
+        )
+        result = json.loads(completed.stdout)
+        assert result["status"] == "failure"
+        assert result["detail"] == ("cancelled" if cancel else "timeout")
+        owned = json.loads(marker.read_text())
+        state = Path("/proc") / str(owned["pid"]) / "stat"
+        # A killed orphan may await init reaping; it must no longer execute.
+        assert not state.exists() or state.read_text().split(") ", 1)[1][0] == "Z"
+    finally:
+        if marker.exists():
+            owned = json.loads(marker.read_text())
+            try:
+                assert owned["group"] != os.getpgrp() and os.getpgid(owned["pid"]) == owned["group"]
+                os.kill(owned["pid"], signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        {
+            "module": "systemd-binary",
+            "service": "not-a-service-unit",
+            "health_url": "http://127.0.0.1/health",
+        },
+        {
+            "module": "compose",
+            "project": "INVALID PROJECT",
+            "services": ["app"],
+            "health_url": "http://127.0.0.1/health",
+        },
+        {
+            "module": "packages",
+            "publisher": "python",
+            "registry": "http://unsafe.invalid",
+            "package_file": "index.html",
+        },
+        {"module": "static-web", "entrypoint": "missing.html", "health_url": "http://127.0.0.1/health"},
+    ],
+)
+def test_invalid_operation_never_starts_backup_or_migration(tmp_path, settings):
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "index.html").write_text("real selected payload")
+    identity = {"repository": "example:preflight", "tested_revision": "fixture"}
+    archive = tmp_path / "artifact.tar.gz"
+    manifest = artifacts.pack(source, ["index.html"], archive, identity)
+    target = tmp_path / "target"
+    target.mkdir()
+    backup, migration = tmp_path / "backup-ran", tmp_path / "migration-ran"
+    config = {
+        "target_directory": str(target),
+        "generation": 1,
+        "expected_previous": None,
+        "backup_command": [sys.executable, "-c", f"from pathlib import Path; Path({str(backup)!r}).touch()"],
+        "data_migration": [
+            sys.executable,
+            "-c",
+            f"from pathlib import Path; Path({str(migration)!r}).touch()",
+        ],
+        **settings,
+    }
+    with pytest.raises(Invalid):
+        delivery.apply(archive, manifest, identity, config, authorized=True)
+    assert not backup.exists() and not migration.exists()
+    assert list(target.iterdir()) == []
+
+
+@pytest.mark.parametrize("platform,architecture", [("linux", "x64"), ("windows", "x64"), ("macos", "arm64")])
+def test_public_always_uses_standard_github_even_with_blacksmith_admission(platform, architecture):
+    admission = {
+        "blacksmith": {
+            "enabled": True,
+            "guarantee": "hard-no-overage",
+            "reference": "fixture-owner-confirmation",
+            "platforms": [platform],
+            "architectures": [architecture],
+            "runners": {platform: ["blacksmith-example"]},
+        }
+    }
+    result = routing.select("public", platform, architecture=architecture, admission=admission)
+    assert result["provider"] == "github" and result["runner"] == [routing.STANDARD[platform]]
+
+
+@pytest.mark.parametrize(
+    "suffix,entry", [("apk", "AndroidManifest.xml"), ("aab", "base/manifest/AndroidManifest.xml")]
+)
+def test_mobile_filename_and_zip_entry_never_establish_native_validity(tmp_path, suffix, entry):
+    path = tmp_path / ("fake." + suffix)
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(entry, "arbitrary text is not an Android manifest")
+    # Missing native SDK is an unavailable validation, never a successful ZIP-only fallback.
+    with pytest.raises(Invalid):
+        delivery.mobile_format(path)

@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "status": "draft",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -64,11 +64,11 @@
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "9c0872d9802e18721eacc3731801492c11a1054005b2b51981bae1ae765cfd7e"
+      "sha256": "be3c7d896d8368b75e68f7688217e763d27e103c10022d73c0af10bd9397fbdc"
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "661bf45219810597305fe364f48ca74b0357ed259a408ea7138f738ad2b2eabf"
+      "sha256": "8ccd7fd8f1978f5409a22d4f6465946bc22f760468ffbb39e5a85a7204ffd5ee"
     },
     {
       "path": "spec/intent.md",
@@ -84,19 +84,19 @@
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "807f57eb56f526e6eef9f80d8bd105da81a17fbcc957adebc19cbf48ac8d26d2"
+      "sha256": "1439709c382dc048d1085c39823042e6b39e6a5587f6452b237109261f783a23"
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "bd04536113dd9d426e85ae7c77be43cb49817d607075f2abccb9f81323e86689"
+      "sha256": "2d3bfe1365f1d3a7e53cbb5a9b2de4a546de657d58f5c3a88af1bc28640ea400"
     },
     {
       "path": "standard.yml",
-      "sha256": "8404a4f430624f0818c970070a36e46023c8f796806e51c31634b11df141e23b"
+      "sha256": "04712b25aa10f8484281c2910794dba19f3392ca3ef1978e87d3642bf64adf43"
     }
   ],
   "listings": [],
-  "inputs-sha256": "68420f394d8c67631a68824712e56a6d5e2bd4fc43a38f2a2c2043d3e23cfc81",
+  "inputs-sha256": "695cc12314e3bda81514e44957796f31c37fd504d5deae76731cabd2aaf00d72",
   "verification": [
     {
       "id": "runtime.architecture",
@@ -120,7 +120,7 @@
       "id": "runtime.delivery",
       "kind": "check",
       "target": "tests/native_delivery.py",
-      "establishes": "Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and a built Android APK exercise the selected adapters. This is not production/store acceptance."
+      "establishes": "Native static HTTP, an isolated Compose project, a temporary systemd service, HTTPS package publication with consumer install, and native-validated Android APK/AAB packages exercise the selected adapters. Invalid-operation regressions additionally prove that backup/migration never starts on known invalid input. This is not production/store acceptance."
     },
     {
       "id": "runtime.documents",
@@ -161,8 +161,8 @@
     {
       "id": "runtime.process",
       "kind": "test",
-      "target": "tests/test_core.py::test_process_failure_missing_timeout_and_output",
-      "establishes": "Actual subprocess failure, missing executable, bounded timeout and logs survive the shared runner. Native fixture SDK/version checks exercise installed tool selection."
+      "target": "tests/test_readiness.py::test_owned_descendant_is_gone_after_leader_exits",
+      "establishes": "Real SIGTERM-resistant descendants are terminated after timeout and cancellation even when their leader exits. Core cases also exercise startup failure, exit status and logs."
     },
     {
       "id": "runtime.profiles",
@@ -191,8 +191,8 @@
     {
       "id": "runtime.routing",
       "kind": "test",
-      "target": "tests/test_core.py::test_routing_before_allocation",
-      "establishes": "Known platform/architecture routing and refusal of an unconfirmed private paid-capable route. Actual account entitlements remain review."
+      "target": "tests/test_readiness.py::test_public_always_uses_standard_github_even_with_blacksmith_admission",
+      "establishes": "Public Linux/Windows/macOS refuse provider switching. Private admission/trust and malformed-policy cases run in the core suite; actual account entitlements remain review."
     },
     {
       "id": "runtime.target-lock",
@@ -202,6 +202,20 @@
     }
   ],
   "sources": [
+    {
+      "key": "android-apkanalyzer",
+      "title": "Android Developers: apkanalyzer",
+      "url": "https://developer.android.com/tools/apkanalyzer",
+      "supports": "The SDK can parse an actual APK binary manifest into XML.",
+      "limits": "A parsed manifest does not establish signing, application correctness or store acceptance."
+    },
+    {
+      "key": "android-bundletool",
+      "title": "Android Developers: bundletool",
+      "url": "https://developer.android.com/tools/bundletool",
+      "supports": "Native bundle validation and manifest inspection use the Android toolchain.",
+      "limits": "Toolchain availability must be established; structural validation does not certify signatures or stores."
+    },
     {
       "key": "archunit",
       "title": "ArchUnit",
@@ -466,11 +480,12 @@
       ],
       "criteria": "Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.",
       "since": "0.1.0",
+      "revised": "0.2.0",
       "condition": {
         "from": "item",
         "text": "A job selects an execution provider or runner."
       },
-      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux work uses standard free GitHub-hosted runners. Private Linux work\nuses the declared existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow.\nNon-Linux work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity\nonly under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
+      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
       "source": {
         "path": "spec/foundation.md",
         "line": 59
@@ -499,7 +514,7 @@
       "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 81
+        "line": 82
       }
     },
     {
@@ -526,7 +541,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 104
+        "line": 105
       }
     },
     {
@@ -913,7 +928,9 @@
       "strength": "MUST",
       "basis": "owner",
       "sources": [
-        "gha-secrets"
+        "gha-secrets",
+        "android-apkanalyzer",
+        "android-bundletool"
       ],
       "verification": "partial",
       "verified-by": [
@@ -954,7 +971,7 @@
       "statement": "Concurrent changes to the same delivery target MUST have one effective coordination owner. A unique\nattempt/deployment ID is not a target lock. Repository-local concurrency is not a cross-repository\nlock. An older attempt cannot overwrite a newer accepted target state, and superseding CI cancellation\nis not blindly applied to a running data migration. Read-only or unrelated jobs need not share the\nmutation lock. Native target/infrastructure primitives are preferred over a new scheduling service.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 66
+        "line": 68
       }
     },
     {
@@ -977,7 +994,7 @@
       "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user explicitly waived it for that scope. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 86
+        "line": 88
       }
     },
     {
@@ -1000,7 +1017,7 @@
       "statement": "Successful delivery MUST identify the intended target revision and demonstrate the relevant health\nor user scenario with available current diagnostics. A process start or absence of log lines alone\nis insufficient when the intended scenario fails. Active DAST, stress and destructive fixtures use\nauthorized suitable test targets, not live customer data by default. Failure remains visible to the\nowning GitHub task; no pipeline auto-closes a delivery parent merely at merge.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 105
+        "line": 107
       }
     },
     {

@@ -128,3 +128,13 @@ sources:
   url: https://dora.dev/capabilities/continuous-integration/
   supports: Fast and reliable integrated feedback supports delivery quality.
   limits: Team-level empirical guidance does not prescribe a fixed number of agents, jobs, reruns or approvals.
+- key: android-apkanalyzer
+  title: 'Android Developers: apkanalyzer'
+  url: https://developer.android.com/tools/apkanalyzer
+  supports: The SDK can parse an actual APK binary manifest into XML.
+  limits: A parsed manifest does not establish signing, application correctness or store acceptance.
+- key: android-bundletool
+  title: 'Android Developers: bundletool'
+  url: https://developer.android.com/tools/bundletool
+  supports: Native bundle validation and manifest inspection use the Android toolchain.
+  limits: Toolchain availability must be established; structural validation does not certify signatures or stores.

@@ -36,8 +36,9 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 # Admission and delivery
 
 Admission policy is trusted account configuration, never PR body labels or a remaining-balance guess.
-Linux visibility routing cannot fall back from private self-hosted to hosted/Blacksmith. Windows/macOS
-try a verified compatible Blacksmith no-overage route, then an equivalent admitted standard GitHub route.
+Public Linux, Windows and macOS always use compatible standard GitHub-hosted runners. Private Linux
+cannot fall back from self-hosted to hosted/Blacksmith. Private Windows/macOS try a verified compatible
+Blacksmith no-overage route, then an equivalent admitted standard GitHub route.
 An email alert is insufficient. A failing test is never rerun on another provider to obtain success.
 Use `admit` outputs in a dependent job's `runs-on: fromJSON(...)` before that job exists.
 
@@ -110,8 +111,9 @@ unavailable in results and limitations. HTTP 404 and other broken responses cann
 Target JSON rejects unknown or inapplicable fields. Pending recovery binds the same module/resource
 selectors, artifact and generation; correcting a health endpoint does not retarget a service/project.
 Compose uses `--no-deps` for precisely selected services and inspects their running immutable image
-references before acceptance or recovery. APK/AAB native manifests and IPA/XCArchive application
-metadata are inspected; signing remains explicitly unverified by this generic artifact adapter.
+references before acceptance or recovery. APK manifests are parsed by the selected SDK apkanalyzer. AAB structure and manifest are validated
+by the pinned bundletool selected through BUNDLETOOL_JAR. Missing native tools block delivery.
+IPA/XCArchive application metadata is inspected; signing remains explicitly unverified by this generic artifact adapter.
 Native signing checks and any store submission need their separately authorized SDK/account path.
 
 The bundled Rust fixture declares and executes Rust 1.99.0 as its minimum compiler and tests both its

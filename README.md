@@ -1,7 +1,7 @@
 # NDDev CI/CD Workflows
 
 STD-0004 combines a modular CI/CD contract with the `nddev-cicd` Python implementation.
-The normative edition and implementation are **0.1.0 draft**, pending owner acceptance.
+The normative edition and implementation are **0.2.0 draft**, pending owner acceptance.
 
 The [CI composite](.github/actions/ci/action.yml) executes selected native profiles from a small
 [caller contract](docs/usage.md). The [admission composite](.github/actions/admit/action.yml) resolves
@@ -14,7 +14,7 @@ Start with [usage](docs/usage.md), [native profiles](docs/profiles.md), [AGENTS.
 and the [normative descriptor](standard.yml). The normative source is [spec/](spec/).
 Source validation runs on PR updates; delivery is a separate integrated `dev`/`main` push operation.
 Public Linux uses standard hosted capacity. Private Linux uses caller-owned existing self-hosted jobs.
-Windows/macOS paid-capable routes remain disabled without a confirmed compatible no-overage guarantee.
+Public Windows/macOS also use standard GitHub-hosted runners. Private Windows/macOS require confirmed compatible no-overage admission.
 
 `uv run pytest` exercises the shared runtime invariants. Native fixtures and the library source workflow
 cover the 23 catalog families; `tests/run_native.py` drives language/tool fixtures while documentation

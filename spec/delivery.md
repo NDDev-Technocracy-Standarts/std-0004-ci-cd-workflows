@@ -53,6 +53,8 @@ criteria: Run an adapter against an authorized representative target; a generate
 since: 0.1.0
 sources:
 - gha-secrets
+- android-apkanalyzer
+- android-bundletool
 applies-when: The project selects a deployment adapter.
 ```
 
