@@ -17,9 +17,9 @@ mechanical coverage and do not replace semantic review.
 | [R-0004](../spec/foundation.md) | MUST | Visibility and platform select execution | condition (item): A job selects an execution provider or runner. | partial | `runtime.routing` |
 | [R-0005](../spec/foundation.md) | MUST | Execution remains within zero additional spend | condition (item): An invocation can consume provider or storage allowance. | review | None |
 | [R-0006](../spec/foundation.md) | MUST | Runner selection precedes affected execution | condition (item): The implementation schedules a job or chooses execution capacity. | partial | `runtime.routing` |
-| [R-0007](../spec/ci.md) | MUST | Pull requests own source validation | condition (item): The subject defines or invokes source-validation CI. | review | None |
-| [R-0008](../spec/ci.md) | MUST | Selected coverage includes affected dependents | condition (item): The subject determines applicable validation coverage. | partial | `runtime.impact` |
-| [R-0009](../spec/ci.md) | MUST | Passing means the expected work ran | condition (item): The subject summarizes or gates validation results. | partial | `runtime.reports` |
+| [R-0007](../spec/ci.md) | MUST | Short PR gates precede full main validation | condition (item): The subject defines or invokes source-validation CI. | review | None |
+| [R-0008](../spec/ci.md) | MUST | Selected coverage includes affected dependents | condition (item): The subject determines applicable validation coverage. | partial | `runtime.impact`, `runtime.consumer-contracts` |
+| [R-0009](../spec/ci.md) | MUST | Passing means the expected work ran | condition (item): The subject summarizes or gates validation results. | partial | `runtime.reports`, `runtime.consumer-contracts` |
 | [R-0010](../spec/ci.md) | MUST | Results identify their actual inputs | condition (item): The subject records, compares or reuses validation results. | partial | `runtime.inputs`, `runtime.gitlinks` |
 | [R-0011](../spec/ci.md) | MUST | Toolchains and language profiles are real | condition (item): A language or SDK profile is selected. | partial | `runtime.profiles`, `runtime.advanced` |
 | [R-0012](../spec/ci.md) | MUST | Quality gates have stable meanings | condition (item): The subject applies quality or security gates. | partial | `runtime.gates` |

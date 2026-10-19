@@ -1,12 +1,12 @@
 name: Deliver an integrated artifact
-description: Verify the native PR run and exact artifact lineage, serialize one existing target, then use its native module.
+description: Verify the native main run and exact artifact lineage, serialize one existing target, then use its native module.
 inputs:
   run-id:
-    description: Completed source PR run ID, not the CD run ID
+    description: Completed full main source run ID, not the CD run ID
     required: true
   source-workflow:
     description: Exact caller source workflow path
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   target-config:
     description: Existing trusted target-owner JSON path; credentials come from caller secrets
     required: true
@@ -19,10 +19,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      with:
-        version: '0.13.1'
-        enable-cache: 'false'
     - shell: bash
       env:
         NDDEV_ACTION_PATH: ${{ github.action_path }}
@@ -38,6 +34,7 @@ runs:
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        library_uv="$(bash "$library/scripts/library-uv.sh")"
         transport=()
         if [ -n "$NDDEV_TRANSPORT_CONFIG" ]; then
           transport=(--transport-config "$NDDEV_TRANSPORT_CONFIG")
@@ -45,6 +42,6 @@ runs:
         if [ -n "$NDDEV_REMOTE_ENVIRONMENT" ]; then
           transport+=(--remote-environment "$NDDEV_REMOTE_ENVIRONMENT")
         fi
-        uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd apply \
+        "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd apply \
           --config "$NDDEV_TARGET_CONFIG" --download "$RUNNER_TEMP/nddev-delivery-bundle" \
           --run-id "$NDDEV_SOURCE_RUN" --workflow "$NDDEV_SOURCE_WORKFLOW" "${transport[@]}"

@@ -7,17 +7,23 @@ strength: MUST
 basis: owner
 verification: partial
 verified-by: [runtime.lineage]
-criteria: Exercise late base changes, superseded PR results and malicious/unrelated artifact references.
+criteria: Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; retain explicit historical PR lineage checks.
 sources:
 - gha-events
 applies-when: The subject determines eligibility for deployment.
 ```
 
-Deployment MUST consume an authorized, integrated candidate whose applicable PR checks succeeded.
-The artifact is bound to the actual intended source/configuration, not selected by a mutable latest
-name or an unrelated successful run. A merge accepted by an API is not a finished deployment. If the
-final integrated source differs materially from the tested candidate, eligibility is established
-through the project's existing corresponding check path rather than assumed from tree/branch names.
+Production deployment MUST consume the exact integrated candidate whose applicable full main CI
+completed successfully. The short PR gate establishes merge eligibility, not production readiness.
+A trusted completion event or equivalent bounded native wait admits delivery only after that run;
+failed, cancelled, incomplete and known-superseded candidates do not start a target mutation.
+
+The artifact is bound to the actual source, configuration, workflow and run attempt. It is not
+selected by a mutable latest name or rebuilt after validation. Native admission checks actual
+repository, main revision, complete run result and tested tree before consuming the artifact.
+Existing callers explicitly adopting the historical PR-artifact contract retain its separately
+verified path; the new main baseline is not inferred from an old green PR badge. A merge accepted
+by an API remains distinct from deployment and target acceptance.
 
 ## R-0021 Artifact promotion preserves identity
 

@@ -13,7 +13,9 @@ remain pending until the target owner reconciles real state; a network failure c
 blind replay. SSH transfers the same tested implementation and bundle, with pinned host identity,
 into owned staging rather than installing a persistent management service.
 
-Native profile definitions own command defaults and required stages. Documentation feedback uses the
+Native profile definitions own command defaults, allowed non-applicability and required stages.
+The same impact closure serves per-invocation and job-level selection. Failure feedback owns only
+bounded native run metadata and deduplication; task/branch policy remains caller-owned. Documentation feedback uses the
 existing syntax, example, generation and link path; selected text rules report mechanical coverage
 without exposing source prose or certifying its meaning. [The consumer guide](../../docs/usage.md)
 explains caller configuration, and [local instructions](AGENTS.md) identify implementation checks.

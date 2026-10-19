@@ -1,6 +1,5 @@
 schema=1
 profiles=["security"]
 [commands.security]
-dependencies=["bash","-c","uv sync --locked && uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file .nddev-reports/runtime.txt && uv run pip-audit --disable-pip --no-deps --require-hashes --requirement .nddev-reports/runtime.txt"]
 sast=["uv","run","bandit","-q","app.py"]
 licenses=["uv","run","pip-licenses","--packages","PyYAML","--allow-only","MIT License"]

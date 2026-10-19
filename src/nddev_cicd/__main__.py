@@ -20,6 +20,28 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--root", type=Path, default=Path.cwd())
     run.add_argument("--contract", default=".github/nddev-ci.toml")
     run.add_argument("--output", type=Path, required=True)
+    impact = sub.add_parser("impact", help="Expose the same conservative plan before dependent jobs allocate")
+    impact.add_argument("--root", type=Path, default=Path.cwd())
+    impact.add_argument("--contract", default=".github/nddev-ci.toml")
+    impact.add_argument("--base")
+    impact.add_argument("--head")
+    feedback = sub.add_parser("feedback", help="Publish bounded metadata-only failure feedback")
+    feedback.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
+    feedback.add_argument("--workflows", required=True, help="JSON array of exact workflow paths")
+    feedback.add_argument("--creators", required=True, help="JSON array of allowed run creators")
+    feedback.add_argument(
+        "--conclusions", default='["failure","timed_out","action_required","startup_failure"]'
+    )
+    feedback.add_argument("--run-id", type=int)
+    feedback.add_argument("--task-issue", type=int)
+    document = sub.add_parser(
+        "documentation-check", help="Check local documentation without network or authoring prerequisites"
+    )
+    document.add_argument("--root", type=Path, default=Path.cwd())
+    document.add_argument("--contract", default=".github/nddev-ci.toml")
+    secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
+    secret.add_argument("--root", type=Path, default=Path.cwd())
+    secret.add_argument("--output", type=Path)
     route = sub.add_parser("route", help="Choose admitted capacity before the affected job is allocated")
     route.add_argument("--policy", type=Path, required=True)
     pack = sub.add_parser("pack", help="Package exact selected files with source identity")
@@ -27,7 +49,9 @@ def parser() -> argparse.ArgumentParser:
     pack.add_argument("--files", nargs="+", required=True)
     pack.add_argument("--result", type=Path, required=True)
     pack.add_argument("--archive", type=Path, required=True)
-    trust = sub.add_parser("eligible", help="Validate an exact successful PR run against its merged target")
+    trust = sub.add_parser(
+        "eligible", help="Validate an exact successful source run against its integrated target"
+    )
     trust.add_argument("--repository", required=True)
     trust.add_argument("--run-id", type=int, required=True)
     trust.add_argument("--revision", required=True)
@@ -51,7 +75,7 @@ def parser() -> argparse.ArgumentParser:
         "prepare-release", help="Prepare a native release candidate from an eligible integrated artifact"
     )
     release.add_argument("--run-id", type=int, required=True)
-    release.add_argument("--workflow", default=".github/workflows/ci.yml")
+    release.add_argument("--workflow", default=".github/workflows/main-ci.yml")
     release.add_argument("--download", type=Path, required=True)
     release.add_argument("--directory", type=Path, required=True)
     release.add_argument(
@@ -70,7 +94,7 @@ def parser() -> argparse.ArgumentParser:
         "oci-publish", help="Publish the exact eligible OCI archive to an existing registry"
     )
     publish.add_argument("--run-id", type=int, required=True)
-    publish.add_argument("--workflow", default=".github/workflows/ci.yml")
+    publish.add_argument("--workflow", default=".github/workflows/main-ci.yml")
     publish.add_argument("--download", type=Path, required=True)
     publish.add_argument("--image-file", default="dist/image.oci.tar")
     publish.add_argument("--metadata-file", default="dist/image.oci.json")
@@ -142,6 +166,48 @@ def main(argv=None) -> int:
                 )
             )
             return 0 if result["status"] == "success" else 1
+        if args.operation == "documentation-check":
+            from .documentation import check
+
+            root = args.root.resolve()
+            result = check(root, config.load(root, args.contract).get("documentation"))
+            print(json.dumps(result))
+            return 0
+        if args.operation == "secrets-check":
+            root = args.root.resolve()
+            output = (
+                args.output
+                or Path(os.environ.get("NDDEV_RESULT_DIR", str(root / ".nddev-reports"))) / "secret-scan"
+            )
+            result = ci.secrets_check(root, output.resolve())
+            print(json.dumps(result))
+            return 0 if result["status"] == "success" else 1
+        if args.operation == "impact":
+            root = args.root.resolve()
+            selected, plan = ci.selection(root, config.load(root, args.contract), args.base, args.head)
+            if plan is None:
+                raise Invalid("The impact entrypoint requires declared components")
+            result = {
+                "profiles": selected,
+                "selected": plan["selected_components"],
+                "not_applicable": plan["not_applicable"],
+                "base": plan["base"],
+            }
+            print(json.dumps(result))
+            return 0
+        if args.operation == "feedback":
+            from .feedback import publish
+
+            result = publish(
+                args.repository,
+                json.loads(args.workflows),
+                json.loads(args.creators),
+                run_id=args.run_id,
+                task_issue=args.task_issue,
+                conclusions=json.loads(args.conclusions),
+            )
+            print(json.dumps(result))
+            return 0
         if args.operation == "sarif-check":
             from .reports import sarif
 
@@ -217,15 +283,11 @@ def main(argv=None) -> int:
             from . import oci
             from .model import contained
 
-            if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") not in {
-                "refs/heads/dev",
-                "refs/heads/main",
-            }:
-                raise Invalid("OCI publication requires an authorized integrated dev/main push")
+            revision = github.authorized_revision(args.run_id, args.workflow)
             archive, manifest, expected = github.bundle(
                 os.environ.get("GITHUB_REPOSITORY", ""),
                 args.run_id,
-                os.environ.get("GITHUB_SHA", ""),
+                revision,
                 args.workflow,
                 args.download,
             )
@@ -242,31 +304,18 @@ def main(argv=None) -> int:
         elif args.operation == "prepare-release":
             from . import release
 
-            event, branch = os.environ.get("GITHUB_EVENT_NAME"), os.environ.get("GITHUB_REF")
-            if not (
-                (event == "push" and branch in {"refs/heads/dev", "refs/heads/main"})
-                or (event == "workflow_dispatch" and branch == "refs/heads/main")
-            ):
-                raise Invalid(
-                    "Release preparation requires an integrated dev/main push or explicit main dispatch"
-                )
+            revision = github.authorized_revision(args.run_id, args.workflow, allow_dispatch=True)
             archive, manifest, expected = github.bundle(
                 os.environ.get("GITHUB_REPOSITORY", ""),
                 args.run_id,
-                os.environ.get("GITHUB_SHA", ""),
+                revision,
                 args.workflow,
                 args.download,
             )
             result = release.prepare(archive, manifest, expected, args.directory, json.loads(args.files))
         else:
-            if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") not in {
-                "refs/heads/dev",
-                "refs/heads/main",
-            }:
-                raise Invalid(
-                    "CD CLI requires an authorized integrated dev/main push; PR events cannot apply"
-                )
-            repository, revision = os.environ.get("GITHUB_REPOSITORY", ""), os.environ.get("GITHUB_SHA", "")
+            revision = github.authorized_revision(args.run_id, args.workflow)
+            repository = os.environ.get("GITHUB_REPOSITORY", "")
             archive, manifest, expected = github.bundle(
                 repository, args.run_id, revision, args.workflow, args.download
             )

@@ -5,7 +5,7 @@ inputs:
     description: Exact successful integrated PR source run
     required: true
   source-workflow:
-    default: .github/workflows/ci.yml
+    default: .github/workflows/main-ci.yml
   files:
     description: JSON list of native artifact paths inside the verified source bundle
     default: '["dist/*.whl","dist/*.tar.gz"]'
@@ -22,10 +22,6 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      with:
-        version: '0.13.1'
-        enable-cache: 'false'
     - name: Prepare the native SPDX tool from its verified upstream archive
       shell: bash
       env:
@@ -33,6 +29,7 @@ runs:
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        library_uv="$(bash "$library/scripts/library-uv.sh")"
         "$library/scripts/prepare-release-tools.sh"
     - name: Bind the source and prepare exact native release contents
       id: prepare
@@ -49,8 +46,9 @@ runs:
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
+        library_uv="$(bash "$library/scripts/library-uv.sh")"
         directory="$RUNNER_TEMP/nddev-release-candidate"
-        uv run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd prepare-release \
+        "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd prepare-release \
           --run-id "$NDDEV_SOURCE_RUN" --workflow "$NDDEV_SOURCE_WORKFLOW" \
           --download "$RUNNER_TEMP/nddev-release-input" --directory "$directory" --files "$NDDEV_RELEASE_FILES"
         echo "directory=$directory" >> "$GITHUB_OUTPUT"

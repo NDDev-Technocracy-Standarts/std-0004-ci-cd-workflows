@@ -7,7 +7,7 @@ on:
         required: true
       source-workflow:
         type: string
-        default: .github/workflows/ci.yml
+        default: .github/workflows/main-ci.yml
       files:
         type: string
         default: '["dist/*.whl","dist/*.tar.gz"]'
@@ -19,7 +19,7 @@ on:
 permissions: {}
 jobs:
   candidate:
-    if: ${{ github.event.repository.private == false && ((github.event_name == 'push' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')) || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
+    if: ${{ github.event.repository.private == false && ((github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -33,7 +33,7 @@ jobs:
       artifact-name: ${{ steps.complete.outputs.name }}
     steps:
       - id: prepare
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@2cdb00442cee33a89cf1afb0d5ea0e7623b7ad53
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@2b9084079ae86dad27a1b27b801448ec7253194f
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:

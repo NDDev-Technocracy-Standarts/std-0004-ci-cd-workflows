@@ -1,23 +1,36 @@
 # Ci
 
-## R-0007 Pull requests own source validation
+## R-0007 Short PR gates precede full main validation
 
 ```item
 strength: MUST
 basis: owner
 verification: review
-criteria: Map triggers to the task/dev/main flow; push-only source validation and hidden schedules are
-  absent.
+criteria: Trace short PR eligibility, affected full main validation and completed-artifact delivery; duplicate full PR/dev paths and undeclared schedules are absent.
 sources:
 - gha-events
 applies-when: The subject defines or invokes source-validation CI.
 ```
 
-Source-validation CI MUST run for applicable pull-request candidates, including relevant updates,
-without a duplicate branch-push or scheduled full-CI path. Promotion PRs target the required dev/main
-composition. CD on accepted integration events is separate and may perform target verification.
-A manual retry or reproduction is tied to a specific authorized PR or failed attempt; it is not a
-hidden parallel periodic CI system. No unrelated runner is provisioned merely because a PR exists.
+Pull-request candidates MUST pass a short, finite integration gate before merge. The project owns
+its fast syntax, lint/type, relevant unit and critical secret checks; an empty or stale host check
+list is not eligibility. Promotion PRs retain the adopted branch and merge policy.
+
+Full source validation runs on integrated main pushes. It selects changed components and affected
+dependents using the actual validation contract; uncertain scope retains the full set or fails
+explicitly. Native builds, SDK/browser matrices, package consumption and target acceptance belong
+in this main path when applicable. The same exhaustive suite is not duplicated on every PR or dev
+push. Newer main candidates can supersede source-only work without cancelling a target mutation.
+
+GitHub does not build or deploy dev pushes under this baseline. An existing dev server may build
+and check dev through its own project-owned path. Absence of that server does not prevent normal
+promotion to main. Production readiness still requires successful full main validation.
+
+Declared narrow schedules for advisory refresh, owned registry reclamation or failure feedback
+retain an explicit purpose, owner, selected inputs and finite budget. They do not duplicate full
+source CI. A manual reproduction is tied to an authorized candidate or failed attempt. Branch and
+agent task policy remain owned by their adopted standards; an alternative CI phase model needs
+an explicit scoped owner decision.
 
 ## R-0008 Selected coverage includes affected dependents
 
@@ -25,7 +38,7 @@ hidden parallel periodic CI system. No unrelated runner is provisioned merely be
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.impact]
+verified-by: [runtime.impact, runtime.consumer-contracts]
 criteria: Exercise shared-input, rename, deleted-file and missing-base changes against real selected components.
 sources:
 - gha-events
@@ -37,7 +50,9 @@ components, shared locks, generated contracts and behavior-changing build config
 renames and unavailable comparison bases do not produce a false empty change set. An uncertain
 impact calculation conservatively retains required coverage or fails explicitly. Selected expensive
 checks use finite project-appropriate budgets and relevant PR conditions; required coverage is not
-moved to an unobserved future run solely to make a PR fast.
+moved to an unobserved future run solely to make a PR fast. Main impact comparison starts from a
+completed successful ancestor under the applicable main workflow, not from a failed, cancelled or
+still-pending push. Unverified changes remain in scope across superseding pushes.
 
 ## R-0009 Passing means the expected work ran
 
@@ -45,7 +60,7 @@ moved to an unobserved future run solely to make a PR fast.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.reports]
+verified-by: [runtime.reports, runtime.consumer-contracts]
 criteria: Inject a missing report, zero-test result and skipped required job; the aggregate cannot pass.
 applies-when: The subject summarizes or gates validation results.
 ```

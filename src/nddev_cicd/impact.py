@@ -3,10 +3,27 @@
 from __future__ import annotations
 
 import subprocess
+from fnmatch import fnmatchcase
+from functools import cache
 from graphlib import CycleError, TopologicalSorter
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
-from .model import Invalid
+from .model import Invalid, git_environment
+
+
+def matches(path: str, pattern: str) -> bool:
+    """Root-anchored POSIX globs: * stays in a segment; ** spans zero or more segments."""
+    parts, scopes = path.split("/"), pattern.split("/")
+
+    @cache
+    def visit(i: int, j: int) -> bool:
+        if j == len(scopes):
+            return i == len(parts)
+        if scopes[j] == "**":
+            return visit(i, j + 1) or (i < len(parts) and visit(i + 1, j))
+        return i < len(parts) and fnmatchcase(parts[i], scopes[j]) and visit(i + 1, j + 1)
+
+    return visit(0, 0)
 
 
 def affected(root: Path, base: str, head: str, components: dict, shared: list[str]) -> list[str]:
@@ -27,21 +44,20 @@ def affected(root: Path, base: str, head: str, components: dict, shared: list[st
         ["git", "-C", str(root), "diff", "--name-only", "--no-renames", "-z", base, head],
         check=False,
         capture_output=True,
+        env=git_environment(),
     )
     if result.returncode:
         return sorted(components)
     paths = [item.decode("utf-8") for item in result.stdout.split(b"\0") if item]
-    if any(PurePosixPath(path).match(pattern) for path in paths for pattern in shared):
+    if any(matches(path, pattern) for path in paths for pattern in shared):
         return sorted(components)
     selected = {
         name
         for name, value in components.items()
-        if any(PurePosixPath(path).match(pattern) for path in paths for pattern in value["paths"])
+        if any(matches(path, pattern) for path in paths for pattern in value["paths"])
     }
     if any(
-        not any(
-            PurePosixPath(path).match(pattern) for value in components.values() for pattern in value["paths"]
-        )
+        not any(matches(path, pattern) for value in components.values() for pattern in value["paths"])
         for path in paths
     ):
         return sorted(components)
