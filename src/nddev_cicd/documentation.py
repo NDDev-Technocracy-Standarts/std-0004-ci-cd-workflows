@@ -190,16 +190,28 @@ def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
         path = contained(root, relative, exists=True)
         text = path.read_text(encoding="utf-8")
         checked += 1
-        raw = _URL.sub("", text)
-        for name, pattern in (
-            ("release-value", _RELEASE_VALUE),
-            ("fingerprint", _FINGERPRINT),
-            ("transient-claim", _FRESHNESS),
-        ):
-            for match in pattern.finditer(raw):
-                line = raw.count("\n", 0, match.start()) + 1
-                findings.append(f"{relative}:{line}: {name}")
         for token in parser.parse(text):
+            if token.type not in {"inline", "html_block", "fence", "code_block"}:
+                continue
+            if token.type == "inline":
+                html = _AuthoredText()
+                html.feed(parser.renderer.renderInline(token.children or [], parser.options, {}))
+                identity_text = " ".join(html.text)
+            elif token.type == "html_block":
+                html = _AuthoredText()
+                html.feed(token.content)
+                identity_text = " ".join(html.text)
+            else:
+                identity_text = token.content
+            raw = _URL.sub("", identity_text)
+            line = token.map[0] + 1 if token.map else 1
+            for name, pattern in (
+                ("release-value", _RELEASE_VALUE),
+                ("fingerprint", _FINGERPRINT),
+                ("transient-claim", _FRESHNESS),
+            ):
+                if pattern.search(raw):
+                    findings.append(f"{relative}:{line}: {name}")
             if token.type not in {"inline", "html_block"}:
                 continue
             # Code operators and literal code retain their syntax; copied identity above covers all text.
@@ -272,3 +284,20 @@ def markdown_anchors(text: str) -> set[str]:
             if child.type == "html_inline":
                 html.feed(child.content)
     return anchors | html.anchors
+
+
+class _AuthoredText(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text: list[str] = []
+
+    def handle_data(self, data):
+        self.text.append(data)
+
+    def handle_comment(self, data):
+        self.text.append(data)
+
+    def handle_starttag(self, tag, attrs):
+        for key, value in attrs:
+            if value and key not in {"href", "src"}:
+                self.text.append(value)

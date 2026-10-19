@@ -95,3 +95,17 @@ def test_fenced_code_does_not_invent_a_document_link(repository):
     assert documentation.style_check(root, git(root, "ls-files", "-z").split("\0"), None) == {
         "status": "not-selected"
     }
+
+
+def test_native_relative_link_identity_is_not_copied_prose(repository):
+    root = repository(
+        {
+            "README.md": "# Project\n\n[Historical source](archive/release-1.2.3.md).\n",
+            "archive/release-1.2.3.md": "# Issued text\n\nRelease 1.2.3\n",
+        }
+    )
+    scope = {"authored": ["README.md"], "historical": ["archive/*.md"]}
+    assert documentation.check(root, {"style": scope})["style"]["status"] == "success"
+    (root / "README.md").write_text('# Project\n\n[Source](archive/release-1.2.3.md "Version 1.2.3").\n')
+    with pytest.raises(Invalid, match="release-value"):
+        documentation.check(root, {"style": scope})
