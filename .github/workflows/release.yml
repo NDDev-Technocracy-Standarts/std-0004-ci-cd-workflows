@@ -25,7 +25,6 @@ jobs:
     permissions:
       contents: read
       actions: read
-      pull-requests: read
       id-token: write
       attestations: write
     outputs:
