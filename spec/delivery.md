@@ -8,7 +8,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.lineage]
 criteria: Exercise late base changes, superseded PR results and malicious/unrelated artifact references.
-since: 0.1.0
 sources:
 - gha-events
 applies-when: The subject determines eligibility for deployment.
@@ -28,7 +27,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.artifact, runtime.release, runtime.oci]
 criteria: Trace artifact bytes from trusted build through download and target installation.
-since: 0.1.0
 sources:
 - slsa
 applies-when: A build artifact is produced, published or promoted.
@@ -50,7 +48,6 @@ verification: partial
 verified-by: [runtime.delivery, runtime.preflight, runtime.current, runtime.remote]
 criteria: Run an adapter against an authorized representative target; a generated plan is not an applied
   result.
-since: 0.1.0
 sources:
 - gha-secrets
 - android-apkanalyzer
@@ -73,7 +70,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.target-lock, runtime.remote]
 criteria: Test overlapping attempts to one target, separate targets, and stale attempts after newer delivery.
-since: 0.1.0
 sources:
 - gha-concurrency
 applies-when: The subject can mutate a shared delivery target.
@@ -93,7 +89,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.recovery]
 criteria: Cover failed health checks, interruption after migration and an incompatible previous artifact.
-since: 0.1.0
 applies-when: Delivery changes data or encounters partial execution or failure.
 ```
 
@@ -113,7 +108,6 @@ verification: partial
 verified-by: [runtime.health]
 criteria: Correlate target version, actual scenario, timing and logs, including a deliberately failed
   scenario.
-since: 0.1.0
 applies-when: The invocation claims a delivered result.
 ```
 

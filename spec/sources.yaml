@@ -137,4 +137,18 @@ sources:
   title: 'Android Developers: bundletool'
   url: https://developer.android.com/tools/bundletool
   supports: Native bundle validation and manifest inspection use the Android toolchain.
-  limits: Toolchain availability must be established; structural validation does not certify signatures or stores.
+  limits: Toolchain availability must be established; structural validation does not certify signatures
+    or stores.
+- key: archived-native-fixtures
+  title: Original native fixture source
+  url: https://github.com/NDDev-Technocracy-Archive/ci-workflows/tree/481fc9e5e8411106a1f6effcd9372784b0f3f245/tests/fixtures
+  supports: Original Python, Rust, Go, C++, Qt, Flutter, Node, Swift, R, SQL and Android fixtures adapted
+    under tests/native with original grants and notices.
+  limits: Original presence is not proof of executed native verification; current workflows select actual
+    tests.
+- key: archived-fuzz-fixtures
+  title: Original fuzz harness source
+  url: https://github.com/NDDev-Technocracy-Archive/ci-workflows-20261014/tree/4b53916e8a7b1c2dd220766b6dd4170a843f622e/tests/fixtures
+  supports: Original Rust fuzz target and lock under rust/fuzz and C++ harness under fuzzing/checksum_fuzzer.cpp;
+    adjacent native NOTICE files preserve their grants.
+  limits: The public library does not import the earlier policy or paid capability platform.

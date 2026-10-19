@@ -22,14 +22,14 @@ jobs:
     if: ${{ github.event_name == 'pull_request' && github.event.repository.visibility == 'public' }}
     runs-on: ubuntu-24.04
     outputs:
-      library-ref: '796863c8bc66a93034387cb05b518c6817c9761a'
+      library-ref: '257a830e487e7576dcd98ebccabec22846c70cd6'
       status: ${{ steps.native.outputs.status }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@796863c8bc66a93034387cb05b518c6817c9761a # 0.2.0
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@257a830e487e7576dcd98ebccabec22846c70cd6
         id: native
         with:
           contract: ${{ inputs.contract }}

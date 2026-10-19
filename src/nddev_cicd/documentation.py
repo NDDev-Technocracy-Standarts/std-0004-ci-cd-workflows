@@ -133,10 +133,12 @@ _RELEASE_VALUE = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][\w.-]+)?(?![\w.])
 _FINGERPRINT = re.compile(r"(?<![\w])[a-fA-F0-9]{40,64}(?![\w])")
 _URL = re.compile(r"(?:https?|ssh|git)://[^\s<>\"'\])]+")
 _FRESHNESS = re.compile(
-    r"\b(?:last[- ](?:reviewed|verified|updated)|reviewed[- ](?:at|on)|verified[- ](?:at|on)|"
-    r"all \d+ tests[^\n]*pass|latest build)\b",
+    r"\b(?:(?:last[- ](?:reviewed|verified|updated)|reviewed[- ](?:at|on)|verified[- ](?:at|on))"
+    r"\s*[:=]?\s*[`\"']?\d{4}-\d{2}-\d{2}|all \d+ tests[^\n]*pass|"
+    r"(?:on|in) the latest build)\b",
     re.IGNORECASE,
 )
+
 _EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf]")
 
 

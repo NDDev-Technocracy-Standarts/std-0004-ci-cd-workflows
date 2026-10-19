@@ -5,7 +5,6 @@
 ```item
 kind: principle
 basis: owner
-since: 0.1.0
 ```
 
 Deliver surgically precise, fully integrated, synchronized and internally consistent CI/CD.

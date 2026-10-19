@@ -109,3 +109,11 @@ def test_native_relative_link_identity_is_not_copied_prose(repository):
     (root / "README.md").write_text('# Project\n\n[Source](archive/release-1.2.3.md "Version 1.2.3").\n')
     with pytest.raises(Invalid, match="release-value"):
         documentation.check(root, {"style": scope})
+
+
+def test_style_guidance_can_name_freshness_terms_without_asserting_freshness(repository):
+    root = repository({"README.md": "# Writing\n\nA last-reviewed date does not establish truth.\n"})
+    assert documentation.check(root, {"style": {"authored": ["README.md"]}})["style"]["status"] == "success"
+    (root / "README.md").write_text("# Project\n\nLast reviewed: 2026-10-19\n")
+    with pytest.raises(Invalid, match="transient-claim"):
+        documentation.check(root, {"style": {"authored": ["README.md"]}})

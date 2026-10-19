@@ -8,7 +8,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.process]
 criteria: Test setup failure, wrong interpreter, command quoting and a partially prepared replacement.
-since: 0.1.0
 applies-when: A wrapper or dependent operation executes commands.
 ```
 
@@ -26,7 +25,6 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Compare required outputs and relevant queue/setup/execution costs before and after the optimization.
-since: 0.1.0
 sources:
 - dora-feedback
 applies-when: The subject changes execution efficiency or parallelism.
@@ -48,7 +46,6 @@ verification: partial
 verified-by: [runtime.cache]
 criteria: Check cache compatibility, simultaneous runners and pressure cleanup without losing active/recovery
   data.
-since: 0.1.0
 sources:
 - cargo-config
 - docker-cache
@@ -72,7 +69,6 @@ basis: owner
 verification: partial
 verified-by: [runtime.retention]
 criteria: Inspect actual exported contents, mode preservation, retention and failure diagnostics.
-since: 0.1.0
 sources:
 - gha-artifacts
 applies-when: The subject exports or retains run diagnostics or artifacts.

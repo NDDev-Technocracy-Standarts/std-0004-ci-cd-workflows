@@ -3,14 +3,14 @@
   "kind": "Corpus",
   "compiler": {
     "name": "nddev-std0000",
-    "version": "1.2.1"
+    "version": "1.3.0"
   },
   "standard": {
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.2.0",
-    "status": "published",
+    "version": "0.2.1",
+    "status": "draft",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
       "The selected CI/CD library modules and their authorized project invocations, including source validation, build artifacts, delivery and maintenance."
@@ -36,12 +36,12 @@
       {
         "type": "authored-under",
         "target": "std-0000",
-        "edition": "1.2.0"
+        "edition": "2.0.0"
       },
       {
         "type": "organized-by",
         "target": "std-0001",
-        "edition": "1.2.0"
+        "edition": "2.0.0"
       },
       {
         "type": "see-also",
@@ -60,31 +60,31 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "42960647d2c7cb7a7093a20601f4768ba9cc20c827a3a261d4c261b701ad33ce"
+      "sha256": "4e427e32075e1b3e91ee47b535db75dfd034a68d167e1ba9104583c7c836531c"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "25cada6a4d092a36a74fae5cc8b29e3bf05962570e75996eb3a53336d7a22838"
+      "sha256": "68ca51dddbe24fb083ebb178d31aa52fd20c0d81fb277d39897baae30f0d87ed"
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "8ccd7fd8f1978f5409a22d4f6465946bc22f760468ffbb39e5a85a7204ffd5ee"
+      "sha256": "674ff081879f8bd0637677549e57d327ee19401e1116043f51bdd5424bf22778"
     },
     {
       "path": "spec/intent.md",
-      "sha256": "e42fa503c7ba697fc1ad34151162f8afa76ae4f57ed7600ebecfa95742c1ecaf"
+      "sha256": "f945a0eca59d307a606bb62a348aa11b3cf770c2887261ccaf587aa6cb25917a"
     },
     {
       "path": "spec/maintenance.md",
-      "sha256": "861ba542672f45b2067439dbd022eb033e8cd749f9df56a48a9bc4188ae7f369"
+      "sha256": "c97cfea2764fd5941e3253421da2be7f960e63eaad942301ccf30c2402c75da4"
     },
     {
       "path": "spec/performance.md",
-      "sha256": "b0102895b360aa22f13daca9e5699a72e1834926553689ad03dd0067f30f2ebe"
+      "sha256": "adf66744b0fec2b2964b83519ee020905f630bc3079f9d75682789e6cba97aea"
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "1439709c382dc048d1085c39823042e6b39e6a5587f6452b237109261f783a23"
+      "sha256": "94dd88762fb5b65172142997e1de53db3822c8a3d534d826e4fd7f512346eb50"
     },
     {
       "path": "spec/verification.yaml",
@@ -92,11 +92,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "70828270b7124648838940407088a10da9c022841cfa4e1b06b13e1b40b12601"
+      "sha256": "d8515416037364c83eb3d4a2a95d5468b29e36e78cb4807f3c6d97dd7db32c54"
     }
   ],
   "listings": [],
-  "inputs-sha256": "75a2f81db0f8ef6cc78665b9d4ce30ca51c63af1b5b690acecacd9ee135f2fb8",
+  "inputs-sha256": "f754ff4b908f92b681d8831305a109b957d7e703cd2fe3357b4b3a8c0c61d3a2",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -257,6 +257,20 @@
       "url": "https://developer.android.com/tools/bundletool",
       "supports": "Native bundle validation and manifest inspection use the Android toolchain.",
       "limits": "Toolchain availability must be established; structural validation does not certify signatures or stores."
+    },
+    {
+      "key": "archived-fuzz-fixtures",
+      "title": "Original fuzz harness source",
+      "url": "https://github.com/NDDev-Technocracy-Archive/ci-workflows-20261014/tree/4b53916e8a7b1c2dd220766b6dd4170a843f622e/tests/fixtures",
+      "supports": "Original Rust fuzz target and lock under rust/fuzz and C++ harness under fuzzing/checksum_fuzzer.cpp; adjacent native NOTICE files preserve their grants.",
+      "limits": "The public library does not import the earlier policy or paid capability platform."
+    },
+    {
+      "key": "archived-native-fixtures",
+      "title": "Original native fixture source",
+      "url": "https://github.com/NDDev-Technocracy-Archive/ci-workflows/tree/481fc9e5e8411106a1f6effcd9372784b0f3f245/tests/fixtures",
+      "supports": "Original Python, Rust, Go, C++, Qt, Flutter, Node, Swift, R, SQL and Android fixtures adapted under tests/native with original grants and notices.",
+      "limits": "Original presence is not proof of executed native verification; current workflows select actual tests."
     },
     {
       "key": "archunit",
@@ -479,7 +493,7 @@
       "statement": "The public library MUST retain the selected AGPL-3.0-only terms and accurate notices for incorporated\nmaterial. SPDX declarations, package metadata and distributed files agree with the actual grant.\nPrivate source, proprietary corpora and third-party material are not silently relicensed or published.\nA repository's visibility alone neither selects a license nor grants redistribution rights.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 22
+        "line": 21
       }
     },
     {
@@ -502,7 +516,7 @@
       "statement": "Each delivered module MUST expose its purpose, supported inputs, platform requirements, results and\nlimits. Project manifests and lockfiles remain the source for project-specific dependencies and\ncommands. Adopted workflow/action references identify immutable compatible source; updates are normal\nreviewed changes, not a mutable main reference silently changing every consumer. Standard edition,\nimplementation version, runtime schema and consumer product version remain separate identities.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 39
+        "line": 37
       }
     },
     {
@@ -530,7 +544,7 @@
       "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 59
+        "line": 56
       }
     },
     {
@@ -556,7 +570,7 @@
       "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 82
+        "line": 77
       }
     },
     {
@@ -583,7 +597,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 105
+        "line": 99
       }
     },
     {
@@ -632,7 +646,7 @@
       "statement": "The run MUST identify its selected profiles and all affected obligations, including dependent\ncomponents, shared locks, generated contracts and behavior-changing build configuration. Deletions,\nrenames and unavailable comparison bases do not produce a false empty change set. An uncertain\nimpact calculation conservatively retains required coverage or fails explicitly. Selected expensive\nchecks use finite project-appropriate budgets and relevant PR conditions; required coverage is not\nmoved to an unobserved future run solely to make a PR fast.",
       "source": {
         "path": "spec/ci.md",
-        "line": 23
+        "line": 22
       }
     },
     {
@@ -655,7 +669,7 @@
       "statement": "An aggregate success MUST account for every expected result for this candidate. No tests discovered,\na missing report, an unsupported selected target, a tool startup failure and an unexpected skipped\njob are not passed checks. Non-applicability is distinguishable from inability to execute. Optional\nchecks are optional because the project contract says so, not because they failed. Success summaries\nname what actually ran rather than repeat requested versions or capabilities.",
       "source": {
         "path": "spec/ci.md",
-        "line": 44
+        "line": 42
       }
     },
     {
@@ -679,7 +693,7 @@
       "statement": "Reusable results MUST identify the source candidate and significant validation inputs sufficiently\nto prevent reuse for a different change. Head/base or tested merge context, workflow implementation,\nlocks, selected configuration and platform matter where they affect the result. Cache hits and a\nmatching branch name do not establish check success. Expired vulnerability data and time-dependent\nchecks retain their own freshness semantics. Identical input results may be reused without ritual\nrepetition; material changes require the corresponding affected check.",
       "source": {
         "path": "spec/ci.md",
-        "line": 62
+        "line": 59
       }
     },
     {
@@ -703,7 +717,7 @@
       "statement": "A language or SDK profile MUST execute its selected native build, analysis, test and packaging\noperations with compatible resolved toolchains. It verifies the interpreter/compiler that actually\nruns and honors project locks without silently rewriting them. Installed tools, caller commands and\nplatform-specific behavior are handled explicitly. The capability catalog differentiates native\nexecution, cross-compilation and unverified hardware; declaring a language in YAML is not support.",
       "source": {
         "path": "spec/ci.md",
-        "line": 82
+        "line": 78
       }
     },
     {
@@ -729,7 +743,7 @@
       "statement": "Required build, test, type, secret and selected security/architecture failures MUST affect the run\nresult. Severity and project thresholds are explicit; the library does not invent one universal\ncoverage percentage or suppress findings to obtain green. Secondary diagnostics retain a truthful\nproject-owned disposition. Retries are limited to established transient causes and never erase a\nreproducible assertion failure or silently convert flaky behavior into an unconditional pass.",
       "source": {
         "path": "spec/ci.md",
-        "line": 101
+        "line": 96
       }
     },
     {
@@ -757,7 +771,7 @@
       "statement": "A selected architecture check MUST evaluate declared component responsibilities and dependency\nconstraints using suitable language-native or established analysis tools. It does not impose a\nhexagonal folder skeleton on every script. Empty matched scopes cannot prove a declared boundary;\ndynamic/framework entrypoints are considered when evaluating unused code. The result reports the\nspecific dependency/layer/cycle constraints evaluated, not general architecture perfection.",
       "source": {
         "path": "spec/ci.md",
-        "line": 122
+        "line": 116
       }
     },
     {
@@ -783,7 +797,7 @@
       "statement": "Documentation checks MUST use canonical generation, executable examples and meaningful path/link\nvalidation where these apply. Prose is kept aligned by the primary agent in the same engineering\nchange; an automated link or schema pass does not establish its truth. This library introduces no\nmandatory prose digest, periodic attest ritual or automatic reviewer platform. An older adopted\nstandard's stronger claim rule is changed through an explicit compatible adoption process, not\nsilently disabled by this workflow. Artifact and provenance digests retain their separate purpose.",
       "source": {
         "path": "spec/ci.md",
-        "line": 145
+        "line": 138
       }
     },
     {
@@ -807,7 +821,7 @@
       "statement": "CI MUST separate untrusted source execution from deployment secrets, write authority and private\nhost state. Public fork PR code never gains access to the NDDev machine or deployment credentials.\nPrivileged event handlers do not execute candidate code, artifact scripts or attacker-supplied\ncommands before validating the actual trust boundary. Private repository visibility alone is not a\nproof that every fork or workflow change is trusted. Only required permissions and secrets reach a\njob; paid security functionality is not assumed from the fact that its CLI runs on a local machine.",
       "source": {
         "path": "spec/ci.md",
-        "line": 166
+        "line": 158
       }
     },
     {
@@ -853,7 +867,7 @@
       "statement": "Optimization MUST preserve selected behaviors and trust boundaries. The implementation reduces\nqueue/setup duplication and the actual critical path, rather than maximize job count. Related small\nchecks may share a prepared job; independently useful heavy work may be parallelized within actual\nCPU, memory and I/O limits. Shards have traceable inputs and aggregate completeness. New runner\nfeatures are used only where the deployed runner and tools support them. No benchmark speedup is\nclaimed from one warm sample or from removed coverage.",
       "source": {
         "path": "spec/performance.md",
-        "line": 22
+        "line": 21
       }
     },
     {
@@ -883,7 +897,7 @@
       "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.",
       "source": {
         "path": "spec/performance.md",
-        "line": 42
+        "line": 40
       }
     },
     {
@@ -909,7 +923,7 @@
       "statement": "Run diagnostics and artifacts MUST have an identified use, appropriate retention and safe contents.\nGitHub logs/summaries serve small feedback; large artifacts are not duplicated merely to create a\nreport. Permissions, executable bits and hidden inputs needed by an actual package are preserved by\nits packaging method. Credentials and private customer data never enter a public artifact, SBOM,\ncache or log. A cancelled run's useful diagnostics remain identifiable without retaining its entire\nworkspace indefinitely.",
       "source": {
         "path": "spec/performance.md",
-        "line": 67
+        "line": 64
       }
     },
     {
@@ -963,7 +977,7 @@
       "statement": "A supplied release artifact MUST identify its source, build inputs and digest. The same verified\nartifact is promoted between compatible environments where possible, with environment configuration\nkept separate. Necessary environment-specific rebuilds create a new artifact identity and receive\napplicable build validation, not a copied success label. Provenance/attestation claims reflect the\nactual build and provider guarantees; a checksum alone neither authenticates an artifact nor grants\nSLSA level certification.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 23
+        "line": 22
       }
     },
     {
@@ -994,7 +1008,7 @@
       "statement": "A delivered CD module MUST invoke the project's actual configured deployment path and observe its\noutcome. First-party adapters remain modular and cover their documented target types without forcing\none universal plan/approval platform. Repository secrets provide required credentials through\nsupported host features; private GitHub Free is not assumed to have organization secrets or\nEnvironments. Source-only projects and mobile artifacts without store credentials have their real\ncompletion boundary; a fictitious production service is not required.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 44
+        "line": 42
       }
     },
     {
@@ -1021,7 +1035,7 @@
       "statement": "Concurrent changes to the same delivery target MUST have one effective coordination owner. A unique\nattempt/deployment ID is not a target lock. Repository-local concurrency is not a cross-repository\nlock. An older attempt cannot overwrite a newer accepted target state, and superseding CI cancellation\nis not blindly applied to a running data migration. Read-only or unrelated jobs need not share the\nmutation lock. Native target/infrastructure primitives are preferred over a new scheduling service.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 68
+        "line": 65
       }
     },
     {
@@ -1044,7 +1058,7 @@
       "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user explicitly waived it for that scope. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 88
+        "line": 84
       }
     },
     {
@@ -1067,7 +1081,7 @@
       "statement": "Successful delivery MUST identify the intended target revision and demonstrate the relevant health\nor user scenario with available current diagnostics. A process start or absence of log lines alone\nis insufficient when the intended scenario fails. Active DAST, stress and destructive fixtures use\nauthorized suitable test targets, not live customer data by default. Failure remains visible to the\nowning GitHub task; no pipeline auto-closes a delivery parent merely at merge.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 107
+        "line": 102
       }
     },
     {
@@ -1107,7 +1121,7 @@
       "statement": "The implementation MUST distinguish implemented, verified, unsupported and unavailable capabilities.\nA profile's success is supported by executed native fixtures and actual caller behavior appropriate\nto its claims, not only parsed YAML or a command-recording double. A declared pilot\ncovers its real adopters; language/CD fixtures cover additional selected modules without fabricated\nbusiness deployments. Unexecuted platform or hardware scenarios remain explicitly unverified.",
       "source": {
         "path": "spec/maintenance.md",
-        "line": 20
+        "line": 19
       }
     },
     {
@@ -1127,7 +1141,7 @@
       "statement": "Adoption MUST preserve existing consumers and issued identities until an explicit transition replaces\nthem. Each rollout has an explicit project and infrastructure scope; successful catalog registration or\na pilot does not authorize a fleet-wide migration. Obsolete task-created workflows, settings, dead code and duplicated instructions\nare removed after the replacement works. Valid unrelated backlog and historical evidence remain.\nThe task finishes after the agreed implementation, pilot and integration; new audit services, quotas\nof reruns and fleet-wide migrations are not added to manufacture certainty.",
       "source": {
         "path": "spec/maintenance.md",
-        "line": 37
+        "line": 35
       }
     }
   ]
