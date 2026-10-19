@@ -29,7 +29,7 @@ timeout=30
 
 [extras.secrets]
 purpose="Protect the public source boundary with a native full-history secret scan."
-command=["gitleaks","git","--redact","--no-banner"]
+command=["@library","secrets-check"]
 timeout=120
 
 [package]

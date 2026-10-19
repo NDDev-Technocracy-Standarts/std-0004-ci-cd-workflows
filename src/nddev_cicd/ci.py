@@ -21,6 +21,7 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
     if isinstance(command, list) and command and command[0] == "@library":
         if len(command) < 2 or command[1] not in {
             "package-check",
+            "secrets-check",
             "workflow-check",
             "oci-build",
             "advanced-fuzz",
@@ -203,13 +204,8 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
                     reports.fresh(root, report)
-                if (
-                    profile_id == "security"
-                    and stage == "secrets"
-                    and command == default
-                    and git(root, "rev-parse", "--is-shallow-repository") != "false"
-                ):
-                    raise Invalid("Secret history scan requires a full checkout (fetch-depth: 0)")
+                if profile_id == "security" and stage == "secrets" and command == default:
+                    require_secret_history(root)
                 if profile_id == "documentation" and stage == "external-links":
                     native_report = contract.get("documentation", {}).get("external_link_report")
                     if native_report:
@@ -229,10 +225,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     and command == default
                     and entry["status"] == "success"
                 ):
-                    counts = re.findall(r"(\d+) commits? scanned", Path(entry["log"]).read_text())
-                    if not counts or sum(map(int, counts)) <= 0:
-                        raise Invalid("Secret history scanner established no examined commits")
-                    entry["commits_scanned"] = sum(map(int, counts))
+                    verify_secret_scan(entry)
                 if (
                     entry["status"] == "success"
                     and stage in definition.get("empty_output", [])
@@ -504,3 +497,31 @@ def diagnostics(result: dict, contract: dict) -> None:
         print(f"::{marker}::")
         print("::endgroup::", flush=True)
         entry["diagnostics_published"] = True
+
+
+def secrets_check(root: Path, output: Path) -> dict:
+    """Run the same default history scanner with explicit completeness for a short gate."""
+    require_secret_history(root)
+    command = config.catalog()["security"]["stages"]["secrets"]
+    result = {"name": "security.secrets", **run(command, root, output / "gitleaks.log", timeout=120)}
+    try:
+        verify_secret_scan(result)
+    except Invalid as error:
+        result.update(status="failure", detail=str(error))
+    diagnostics({"results": [result]}, {})
+    atomic_json(output / "result.json", result)
+    return result
+
+
+def require_secret_history(root: Path) -> None:
+    if git(root, "rev-parse", "--is-shallow-repository") != "false":
+        raise Invalid("Secret history scan requires a full checkout (fetch-depth: 0)")
+
+
+def verify_secret_scan(entry: dict) -> None:
+    if entry["status"] != "success":
+        return
+    counts = re.findall(r"(\d+) commits? scanned", Path(entry["log"]).read_text())
+    if not counts or sum(map(int, counts)) <= 0:
+        raise Invalid("Secret history scanner established no examined commits")
+    entry["commits_scanned"] = sum(map(int, counts))

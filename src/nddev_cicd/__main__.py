@@ -34,6 +34,9 @@ def parser() -> argparse.ArgumentParser:
     )
     feedback.add_argument("--run-id", type=int)
     feedback.add_argument("--task-issue", type=int)
+    secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
+    secret.add_argument("--root", type=Path, default=Path.cwd())
+    secret.add_argument("--output", type=Path)
     route = sub.add_parser("route", help="Choose admitted capacity before the affected job is allocated")
     route.add_argument("--policy", type=Path, required=True)
     pack = sub.add_parser("pack", help="Package exact selected files with source identity")
@@ -157,6 +160,15 @@ def main(argv=None) -> int:
                     }
                 )
             )
+            return 0 if result["status"] == "success" else 1
+        if args.operation == "secrets-check":
+            root = args.root.resolve()
+            output = (
+                args.output
+                or Path(os.environ.get("NDDEV_RESULT_DIR", str(root / ".nddev-reports"))) / "secret-scan"
+            )
+            result = ci.secrets_check(root, output.resolve())
+            print(json.dumps(result))
             return 0 if result["status"] == "success" else 1
         if args.operation == "impact":
             root = args.root.resolve()

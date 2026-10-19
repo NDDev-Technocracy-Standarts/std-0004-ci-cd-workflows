@@ -35,4 +35,4 @@ jobs:
           uv run --locked python -c 'from pathlib import Path; from nddev_cicd import config,documentation; documentation.check(Path.cwd(),config.load(Path.cwd()).get("documentation"))'
           actionlint
           uv run --locked zizmor --offline --no-progress .github
-          gitleaks git --redact --no-banner
+          uv run --locked python -m nddev_cicd secrets-check --output "$RUNNER_TEMP/pr-secrets"
