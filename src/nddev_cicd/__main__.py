@@ -180,8 +180,17 @@ def main(argv=None) -> int:
                 or Path(os.environ.get("NDDEV_RESULT_DIR", str(root / ".nddev-reports"))) / "secret-scan"
             )
             result = ci.secrets_check(root, output.resolve())
-            print(json.dumps(result))
-            return 0 if result["status"] == "success" else 1
+            successful = result["status"] == "success"
+            print(
+                json.dumps(
+                    {
+                        "status": "success" if successful else "failure",
+                        "report": str(output / "result.json"),
+                        "commits_scanned": int(result.get("commits_scanned", 0)),
+                    }
+                )
+            )
+            return 0 if successful else 1
         if args.operation == "impact":
             root = args.root.resolve()
             selected, plan = ci.selection(root, config.load(root, args.contract), args.base, args.head)
