@@ -21,10 +21,14 @@ BUILDKIT = "moby/buildkit@sha256:98cc6a3fc46220d00f8224ae483f3274fc874e9be8d7dd1
 def native(arguments: list[str], root: Path, name: str) -> str:
     with tempfile.TemporaryDirectory(prefix="nddev-oci-log-") as directory:
         path = Path(directory) / "native.log"
-        result = run(arguments, root, path, timeout=900)
+        errors = Path(directory) / "stderr.log"
+        result = run(arguments, root, path, timeout=900, stderr_log=errors)
         output = path.read_text()
         if result["status"] != "success":
-            raise Invalid(f"Native OCI {name} failed (exit {result['exit_code']}): " + output[-2000:])
+            raise Invalid(
+                f"Native OCI {name} failed (exit {result['exit_code']}): "
+                + (output + errors.read_text())[-2000:]
+            )
         return output
 
 

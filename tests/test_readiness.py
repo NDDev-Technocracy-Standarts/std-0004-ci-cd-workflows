@@ -176,3 +176,21 @@ def test_native_sarif_missing_failed_analysis_and_blocking_findings(tmp_path):
     report.write_text(json.dumps(document))
     with pytest.raises(Invalid):
         sarif(tmp_path)
+
+
+def test_native_structured_output_is_not_mixed_with_tool_diagnostics(tmp_path):
+    from nddev_cicd.process import run
+
+    output, diagnostics = tmp_path / "result.json", tmp_path / "diagnostics.log"
+    result = run(
+        [
+            sys.executable,
+            "-c",
+            "import json,sys; print(json.dumps({'value':42})); print('SDK bootstrap progress',file=sys.stderr)",
+        ],
+        tmp_path,
+        output,
+        stderr_log=diagnostics,
+    )
+    assert result["status"] == "success" and json.loads(output.read_text()) == {"value": 42}
+    assert diagnostics.read_text().strip() == "SDK bootstrap progress"
