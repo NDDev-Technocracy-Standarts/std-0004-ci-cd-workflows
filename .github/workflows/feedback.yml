@@ -1,4 +1,5 @@
 name: native-failure-feedback
+# zizmor: ignore[dangerous-triggers] -- Trusted pinned metadata-only publisher; no candidate checkout, artifact reads or code execution.
 on:
   workflow_run:
     workflows: [source-ci, integrated-delivery-smoke]
@@ -18,7 +19,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      # zizmor: ignore[dangerous-triggers] -- A reviewed pinned action reads metadata only; candidate code is never checked out or executed.
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@4d3147eb007afe4f110339463ba9f66b618b2272
         env:
           GITHUB_TOKEN: ${{ github.token }}

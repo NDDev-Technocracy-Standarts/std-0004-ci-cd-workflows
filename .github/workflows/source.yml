@@ -5,6 +5,9 @@ on:
       contract:
         type: string
         default: .github/nddev-ci.toml
+      uv:
+        type: string
+        default: '0.13.1'
       python:
         type: string
         default: '3.13'
@@ -30,6 +33,11 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: ${{ inputs.uv }}
+          python-version: ${{ inputs.python }}
+          enable-cache: 'false'
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@4d3147eb007afe4f110339463ba9f66b618b2272
         id: native
         with:
