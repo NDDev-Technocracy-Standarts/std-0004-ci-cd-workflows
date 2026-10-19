@@ -19,18 +19,14 @@ assert set(jobs) == {
 }
 required = {"source", "impact-plan", "online-refs"}
 if os.environ["NDDEV_RUNTIME_SELECTED"] == "true":
-    required.update(
-        {
-            "contract-actions",
-            "admission",
-            "windows",
-            "macos",
-            "delivery",
-            "advanced-native",
-            "public-security",
-        }
-    )
+    required.update({"contract-actions", "delivery", "public-security"})
     assert os.environ["NDDEV_PUBLIC_SECURITY_STATUS"] == "success"
+if os.environ["NDDEV_WINDOWS_SELECTED"] == "true":
+    required.update({"admission", "windows"})
+if os.environ["NDDEV_APPLE_SELECTED"] == "true":
+    required.update({"admission", "macos"})
+if os.environ["NDDEV_ADVANCED_SELECTED"] == "true":
+    required.add("advanced-native")
 if os.environ["NDDEV_NATIVE_SELECTED"] == "true":
     required.add("native")
 for name, job in jobs.items():

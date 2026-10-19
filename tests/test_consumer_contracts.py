@@ -459,3 +459,23 @@ def test_main_fixture_scope_is_the_native_driver_inventory():
     native = runpy.run_path(str(root / "tests/run_native.py"))["SOURCES"]
     scope = tomllib.loads((root / ".github/impact.toml").read_text())["impact"]["components"]
     assert {name.removeprefix("fixture-") for name in scope if name.startswith("fixture-")} == set(native)
+
+
+def test_main_job_scope_keeps_native_platforms_and_dependents():
+    import runpy
+    import tomllib
+
+    root = Path(__file__).resolve().parent.parent
+    module = runpy.run_path(str(root / "scripts/plan-main-jobs.py"))
+    scope = tomllib.loads((root / ".github/impact.toml").read_text())["impact"]["components"]
+    apple = module["plan"](["fixture-swift"], scope)
+    assert apple["apple"] and not apple["windows"] and not apple["native"]
+    python = module["plan"](["fixture-python"], scope)
+    assert python["windows"] and python["native"] and not python["apple"]
+    all_jobs = module["plan"](list(scope), scope)
+    assert all_jobs["advanced"] and "swift" not in all_jobs["matrix"]["profile"]
+    for name, component in scope.items():
+        if name.startswith("fixture-"):
+            assert "runtime" in component["depends_on"]
+            manifest = root / "tests/native" / name.removeprefix("fixture-") / ".github/nddev-ci.toml"
+            assert component["profiles"] == tomllib.loads(manifest.read_text())["profiles"]

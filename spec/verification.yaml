@@ -101,4 +101,4 @@ entries:
 - id: runtime.consumer-contracts
   kind: check
   target: tests/test_consumer_contracts.py
-  establishes: Native process/Git regressions cover requirements-only command selection, explicit non-applicability, manager lock resolution, named manifests, bounded diagnostics, YAML merge handling, isolated outputs and owned cleanup. Mocked API cases cover feedback marker/attempt and pagination contracts; they do not establish live publication.
+  establishes: Native process/Git regressions cover requirements-only command selection, explicit non-applicability, manager lock resolution, named manifests, bounded diagnostics, YAML merge handling, isolated outputs and owned cleanup. Main scope cases retain affected native platform cells and advanced dependents. Mocked API cases cover feedback marker/attempt and pagination contracts; they do not establish live publication.
