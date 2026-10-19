@@ -233,7 +233,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@de3be69a3cc97cd7a7652778e944c8fb803111ba # 0.2.0 draft
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@0a14a44245cd04e70e88dd8bc82455fa943c3307 # 0.2.0 draft
     with:
       languages: python,actions
   gate:
