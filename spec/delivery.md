@@ -47,7 +47,7 @@ SLSA level certification.
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.delivery, runtime.preflight, runtime.remote]
+verified-by: [runtime.delivery, runtime.preflight, runtime.current, runtime.remote]
 criteria: Run an adapter against an authorized representative target; a generated plan is not an applied
   result.
 since: 0.1.0

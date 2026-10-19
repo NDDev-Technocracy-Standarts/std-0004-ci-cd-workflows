@@ -1,7 +1,7 @@
 # NDDev CI/CD Workflows
 
 STD-0004 combines a modular CI/CD contract with the `nddev-cicd` Python implementation.
-The normative edition and implementation are **0.2.0 draft**, pending owner acceptance.
+The published normative edition and implementation are **0.2.0**.
 
 The [CI composite](.github/actions/ci/action.yml) executes selected native profiles from a small
 [caller contract](docs/usage.md). The [admission composite](.github/actions/admit/action.yml) resolves
