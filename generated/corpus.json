@@ -10,7 +10,7 @@
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
     "version": "0.2.0",
-    "status": "draft",
+    "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
       "The selected CI/CD library modules and their authorized project invocations, including source validation, build artifacts, delivery and maintenance."
@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "e96c67e5e3326d7ac3a7666464ad7ed302a07b9d137901b8aeacfa88a7199eb6"
+      "sha256": "25cada6a4d092a36a74fae5cc8b29e3bf05962570e75996eb3a53336d7a22838"
     },
     {
       "path": "spec/foundation.md",
@@ -88,15 +88,15 @@
     },
     {
       "path": "spec/verification.yaml",
-      "sha256": "69be2c0e7a02ad41b64f08408940b61a1625865dcc1afa2777b5f2a698b08738"
+      "sha256": "0baaa6c3ef0252cfa5a9e6353b4d0c3519220b6ea8cd1086f0ce43f1ba7660ef"
     },
     {
       "path": "standard.yml",
-      "sha256": "04712b25aa10f8484281c2910794dba19f3392ca3ef1978e87d3642bf64adf43"
+      "sha256": "70828270b7124648838940407088a10da9c022841cfa4e1b06b13e1b40b12601"
     }
   ],
   "listings": [],
-  "inputs-sha256": "7ce91f641f25fa7401ae4281a916a02d1449aa2df21193a36ff0c5df03b5b5cd",
+  "inputs-sha256": "75a2f81db0f8ef6cc78665b9d4ce30ca51c63af1b5b690acecacd9ee135f2fb8",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -121,6 +121,12 @@
       "kind": "test",
       "target": "tests/test_core.py::test_cache_ownership_actual_lock_and_budget",
       "establishes": "Owned native lock/reclamation scenarios preserve foreign and active data; native Rust fixtures measure target/sccache reuse with bounded stores. Host capacity remains an owner observation."
+    },
+    {
+      "id": "runtime.current",
+      "kind": "test",
+      "target": "tests/test_readiness.py::test_unowned_current_is_rejected_before_backup_migration_or_release",
+      "establishes": "Existing current files/directories are refused before backup, migration, release or pending-state creation and their bytes remain intact. The core static delivery scenario also exercises a successful subsequent activation through the owned current symlink."
     },
     {
       "id": "runtime.delivery",
@@ -976,6 +982,7 @@
       "verified-by": [
         "runtime.delivery",
         "runtime.preflight",
+        "runtime.current",
         "runtime.remote"
       ],
       "criteria": "Run an adapter against an authorized representative target; a generated plan is not an applied result.",
