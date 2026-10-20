@@ -225,6 +225,29 @@ tag and returns `repository@sha256:...`; mutable channel aliases remain an indep
 target operation. Caller secrets supply an explicit private registry auth file; optional native CA
 material does not disable TLS verification. No registry/account/storage purchase is performed.
 
+## Selected native coverage
+
+Coverage budgets belong to the project. Selecting a source profile does not impose a universal
+percentage or require an external reporting account. An explicit gate binds fresh reports to the
+profile that produces them, for example:
+
+```toml
+[coverage.application]
+profile="python"
+path=".nddev-reports/coverage.xml"
+format="cobertura"
+minimum_percent=80
+minimum_branch_percent=70
+```
+
+These percentages are illustrative project choices. Native Cobertura XML, LCOV, coverage.py JSON
+and Go coverprofiles are supported. The primary metric is lines except for Go's native statement
+coverage. A selected branch threshold requires measured branches; it cannot silently pass a report
+without branch data. Empty, stale, malformed or escaping reports fail. Original reports are retained
+with the source result on both threshold success and failure, independently from executed-test counts.
+Projects may publish those native files through their existing separately selected reporting service.
+No Codecov/Coveralls account, token or service is required by this contract.
+
 ## Ready bounded advanced operations
 
 Source-only shared helpers are available through both the CLI and native project stage/extra commands.

@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, git_inputs, reports
+from . import config, documentation, git_inputs, quality, reports
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -131,6 +131,15 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
     result["identity"]["locks"] = config.locks(root, contract)
     commands = contract.get("commands", {})
+    coverage = {
+        name: spec for name, spec in contract.get("coverage", {}).items() if spec["profile"] in selected
+    }
+    stale_coverage = {}
+    for name, spec in coverage.items():
+        try:
+            reports.fresh(root, spec)
+        except (Invalid, ValueError, OSError) as error:
+            stale_coverage[name] = str(error)
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
     if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
         raise Invalid("Credentials are not project contract values")
@@ -310,6 +319,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         extra_result = {"name": "extra." + name, **item}
         result["results"].append(extra_result)
         diagnostics({"results": [extra_result]}, contract)
+    for name, spec in coverage.items():
+        check = "coverage." + name
+        result["expected"].append(check)
+        try:
+            if name in stale_coverage:
+                raise Invalid(stale_coverage[name])
+            entry = quality.coverage(root, spec, output / "native-reports" / check)
+        except (Invalid, ValueError, OSError) as error:
+            entry = {"status": "failure", "detail": str(error)}
+        result["results"].append({"name": check, **entry})
     result["expected"].append("inputs.lock-integrity")
     try:
         current_locks = config.locks(root, contract)

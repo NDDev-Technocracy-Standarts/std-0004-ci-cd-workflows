@@ -18,6 +18,7 @@ from nddev_cicd.ci import execute
 from nddev_cicd.config import load
 from nddev_cicd.package_check import check as consumer_check
 from nddev_cicd.process import run
+from nddev_cicd.quality import coverage as coverage_check
 
 SOURCES = {
     "python": "src/ciwf_fixture/__init__.py",
@@ -108,6 +109,12 @@ def exercise(name: str, output: Path) -> dict:
         if positive["status"] != "success":
             raise RuntimeError(f"Native {name} fixture failed: {positive.get('failed')}; logs: {output}")
         if name == "python":
+            measured = next(item for item in positive["results"] if item["name"] == "coverage.application")
+            if not measured.get("retained_reports") or not 50 <= measured["percent"] < 100:
+                raise RuntimeError("Native coverage must retain actual partial source measurements")
+            spec = {**load(root)["coverage"]["application"], "minimum_percent": 100}
+            if coverage_check(root, spec, output / "coverage-negative")["status"] != "failure":
+                raise RuntimeError("A native measured coverage regression must remain blocking")
             executable = (
                 "'" + sys.executable.replace("'", "''") + "'"
                 if os.name == "nt"
@@ -141,14 +148,15 @@ def exercise(name: str, output: Path) -> dict:
         if name == "flutter":
             source = root / SOURCES[name]
             original = source.read_text()
-            changed = original.replace("void main() {", "void main(){", 1)
+            changed = original.replace("class FixtureApp extends", "class FixtureApp  extends", 1)
             if changed == original:
                 raise RuntimeError("The formatter fixture did not alter Dart formatting")
             source.write_text(changed)
             formatting = execute(root, load(root), output / "format-negative")
             if (
                 "dart-flutter.format" not in formatting.get("failed", [])
-                or next(i for i in formatting["results"] if i["name"] == "dart-flutter.test")["status"] != "success"
+                or next(i for i in formatting["results"] if i["name"] == "dart-flutter.test")["status"]
+                != "success"
             ):
                 raise RuntimeError("Dart formatting drift must fail independently of passing Flutter tests")
             source.write_text(original)

@@ -32,6 +32,7 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "not_applicable",
         "diagnostics",
         "security",
+        "coverage",
     }
     if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
@@ -53,6 +54,9 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
     }:
         raise Invalid("Unsupported Rust cache setting; native feature/MSRV commands belong in stages/extras")
     definitions = catalog()
+    from .quality import coverage_settings
+
+    coverage_settings(config.get("coverage", {}), definitions)
     for profile, commands in config.get("commands", {}).items():
         if (
             profile not in definitions
