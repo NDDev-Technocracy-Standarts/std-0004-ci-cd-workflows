@@ -10,6 +10,7 @@ import ssl
 import subprocess
 import tarfile
 import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -20,7 +21,8 @@ import pytest
 )
 @pytest.mark.parametrize("installer", ["file", "archive", "uv"])
 @pytest.mark.parametrize("corrupt", [False, True])
-def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, corrupt):
+@pytest.mark.parametrize("failure_mode", ["status", "timeout"])
+def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, corrupt, failure_mode):
     certificate, key = tmp_path / "cert.pem", tmp_path / "key.pem"
     subprocess.run(
         [
@@ -59,6 +61,14 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             requests.append(self.path)
+            if len(requests) == 1 and failure_mode == "timeout":
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload[:1])
+                self.wfile.flush()
+                time.sleep(2)
+                return
             self.send_response(503 if len(requests) == 1 else 200)
             self.send_header("Content-Length", str(0 if len(requests) == 1 else len(payload)))
             self.end_headers()
@@ -85,6 +95,10 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     else:
         source = (scripts / "prepare-linux-tools.sh").read_text().split("capabilities=", 1)[0]
         source += f"install_{installer} '{url}' '{checksum}' fixture\n"
+    # Preserve the production retry/per-attempt ratio while exercising a real timeout quickly.
+    source = source.replace("--max-time 120", "--max-time 1")
+    source = source.replace("--retry-max-time 120", "--retry-max-time 1")
+    source = source.replace("--retry-max-time 480", "--retry-max-time 4")
     script = tmp_path / "bootstrap.sh"
     script.write_text(source)
     env = dict(os.environ, RUNNER_TEMP=str(tmp_path), CURL_CA_BUNDLE=str(certificate))

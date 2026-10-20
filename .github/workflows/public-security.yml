@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows
-          ref: 9220c270ed95da155fe9cf5da9dc253db8e98019
+          ref: fab7210ccb977736eb210dfc00ffd3de08251624
           path: .nddev-shared-security
           persist-credentials: false
       - if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}

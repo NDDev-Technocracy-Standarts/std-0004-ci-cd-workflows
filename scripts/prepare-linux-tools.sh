@@ -16,7 +16,7 @@ install_archive() {
     (cd "$tools" && sha256sum --check --status "$binary.sha256"); then
     return
   fi
-  curl --retry 3 --retry-max-time 120 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$archive"
+  curl --retry 3 --retry-max-time 480 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$archive"
   printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --status
   member="$(tar -tzf "$archive" | awk -F/ -v binary="$binary" '$NF == binary { print }')"
   [[ -n "$member" && "$member" != *$'\n'* ]]
@@ -32,7 +32,7 @@ install_file() {
   if [[ -f "$tools/$binary" ]] && printf '%s  %s\n' "$expected" "$tools/$binary" | sha256sum --check --status; then
     return
   fi
-  curl --retry 3 --retry-max-time 120 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$tools/$binary.new"
+  curl --retry 3 --retry-max-time 480 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$url" --output "$tools/$binary.new"
   printf '%s  %s\n' "$expected" "$tools/$binary.new" | sha256sum --check --status
   chmod 755 "$tools/$binary.new"
   mv "$tools/$binary.new" "$tools/$binary"
@@ -76,7 +76,7 @@ if [[ "$capability" == shell ]]; then
   install_archive 'https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz' \
     'b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6' shellcheck
   archive="$tools/bats.tar.gz"
-  curl --retry 3 --retry-max-time 120 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' \
+  curl --retry 3 --retry-max-time 480 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' \
     'https://codeload.github.com/bats-core/bats-core/tar.gz/eb7f42f8d608ac693d7a4b67474f6714ea68cfc5' --output "$archive"
   printf '%s  %s\n' '845574549f4c9777bf02fcdf307f1bf347d40c66920fb6b47dcc8fdfa065ac39' "$archive" | sha256sum --check --status
   mkdir -p "$tools/bats-sdk"
