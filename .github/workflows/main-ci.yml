@@ -163,6 +163,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      base: ${{ steps.impact.outputs.base }}
       native: ${{ steps.matrix.outputs.native }}
       runtime: ${{ steps.matrix.outputs.runtime }}
       windows: ${{ steps.matrix.outputs.windows }}
@@ -364,6 +365,7 @@ jobs:
     uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@08b9c01001511d26155b6fc3b9e5a6b5720fb5c2
     with:
       languages: python,actions
+      comparison-base: ${{ fromJSON(needs.impact-plan.outputs.base) || '' }}
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.runtime == 'true' }}
   online-refs:

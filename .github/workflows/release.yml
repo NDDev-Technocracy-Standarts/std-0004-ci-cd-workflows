@@ -61,8 +61,9 @@ jobs:
           NDDEV_SBOM_ATTESTATION: ${{ steps.sbom.outputs.bundle-path }}
         run: |
           set -euo pipefail
-          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_PROVENANCE"
-          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_SBOM_ATTESTATION" --predicate-type https://spdx.dev/Document/v2.3
+          signer=NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/release.yml
+          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --signer-workflow "$signer" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_PROVENANCE"
+          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --signer-workflow "$signer" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_SBOM_ATTESTATION" --predicate-type https://spdx.dev/Document/v2.3
           publication="$RUNNER_TEMP/nddev-publication"
           mkdir "$publication"
           cp "$NDDEV_CANDIDATE" "$publication/candidate.tar.gz"

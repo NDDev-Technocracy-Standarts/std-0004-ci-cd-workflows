@@ -15,6 +15,14 @@ on:
       allow-licenses:
         type: string
         default: ''
+      comparison-base:
+        description: Accepted main ancestor selected by the caller impact plan
+        type: string
+        default: ''
+      baseline-workflow:
+        description: Main validation workflow used when no comparison base is supplied
+        type: string
+        default: .github/workflows/main-ci.yml
     outputs:
       status:
         description: Success only after the applicable public source analysis completed
@@ -76,14 +84,32 @@ jobs:
           NDDEV_SARIF_MINIMUM: ${{ inputs.fail-on-severity }}
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-security-runtime
         run: uv run --project .nddev-shared-security --locked --no-dev --python 3.13 python -m nddev_cicd sarif-check --directory "$RUNNER_TEMP/nddev-codeql-sarif" --minimum "$NDDEV_SARIF_MINIMUM"
-      - name: Review the actual PR dependency and license changes
+      - name: Resolve complete source comparison boundaries
+        id: comparison
+        if: ${{ !cancelled() }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NDDEV_COMPARISON_BASE: ${{ inputs.comparison-base }}
+          NDDEV_BASELINE_WORKFLOW: ${{ inputs.baseline-workflow }}
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-security-runtime
+        run: |
+          uv run --project .nddev-shared-security --locked --no-dev --python 3.13 python -c '
+          import os
+          from pathlib import Path
+          from nddev_cicd.github import dependency_review_refs
+          refs = dependency_review_refs(Path.cwd(), os.environ["NDDEV_COMPARISON_BASE"] or None, os.environ["NDDEV_BASELINE_WORKFLOW"])
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              for key, value in refs.items():
+                  print(key + "=" + value, file=output)
+          '
+      - name: Review the actual dependency and license changes
         if: ${{ !cancelled() }}
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: ${{ inputs.fail-on-severity }}
           allow-licenses: ${{ inputs.allow-licenses }}
           comment-summary-in-pr: never
-          base-ref: ${{ github.event.before }}
-          head-ref: ${{ github.sha }}
+          base-ref: ${{ steps.comparison.outputs.base }}
+          head-ref: ${{ steps.comparison.outputs.head }}
       - id: complete
         run: echo status=success >> "$GITHUB_OUTPUT"
