@@ -509,6 +509,7 @@ jobs:
     - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@48cf244b81b6a0017aa6a2a4764adf628c7557b1
       with:
         phase: build
+        project-directory: tests/native/clusterfuzz
         sanitizer: ${{ matrix.sanitizer }}
         seconds: '5'
     - name: Seed the controlled native defect after the mandatory build check
@@ -527,6 +528,7 @@ jobs:
       uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@48cf244b81b6a0017aa6a2a4764adf628c7557b1
       with:
         phase: run
+        project-directory: tests/native/clusterfuzz
         sanitizer: ${{ matrix.sanitizer }}
         seconds: '5'
     - name: Require actual native failure and retained reproducing input and stack

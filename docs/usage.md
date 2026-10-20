@@ -336,14 +336,15 @@ through the caller's ordinary artifact policy.
 
 The optional [ClusterFuzzLite composite](../.github/actions/clusterfuzz/action.yml) builds native
 C/C++ fuzz targets and runs a bounded batch with an explicit `seconds` budget. The caller supplies
-its real root `.clusterfuzzlite` Dockerfile, build script and project configuration. The upstream
-GitHub SDK clones the exact caller revision and builds that root integration. It requires a public
+its real `.clusterfuzzlite` Dockerfile, build script and project configuration in `project-directory`.
+The digest-pinned upstream SDK uses its native standalone mode against that checked-out source,
+without cloning a second revision or requiring a root configuration. It requires a public
 repository and a disposable GitHub-hosted Linux job: upstream SDK disk cleanup is unsuitable for
 a persistent private Docker host. Build validation is mandatory, broken-target allowance is zero,
 and dry-run is disabled. Split `phase: build` and `phase: run` only to prepare native corpora between
 validated build and execution in the same job. No storage repository or schedule is selected.
-The SDK retains reproducing crashes and stacks as GitHub artifacts; a finding or unavailable SDK
-fails. This wrapper pins upstream action source; upstream SDK container tags remain vendor-owned.
+The composite retains the SDK's reproducing inputs and stacks as GitHub artifacts; a finding or
+unavailable SDK fails. Native SDK images are pinned by digest. Persistent SDK storage is disabled.
 Use the existing direct libFuzzer/Cargo helper when that SDK execution model is unsuitable.
 
 Before recursive source checks, native gitlink validation rejects stale, dirty, unavailable or
