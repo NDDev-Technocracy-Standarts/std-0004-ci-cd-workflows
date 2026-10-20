@@ -32,6 +32,8 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "not_applicable",
         "diagnostics",
         "security",
+        "coverage",
+        "compiler_cache",
     }
     if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
@@ -52,7 +54,16 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "cache_ttl_seconds",
     }:
         raise Invalid("Unsupported Rust cache setting; native feature/MSRV commands belong in stages/extras")
+    if set(config.get("compiler_cache", {})) - {
+        "cache_budget_bytes",
+        "cache_min_free_bytes",
+        "cache_ttl_seconds",
+    }:
+        raise Invalid("Unsupported native C/C++ compiler cache setting")
     definitions = catalog()
+    from .quality import coverage_settings
+
+    coverage_settings(config.get("coverage", {}), definitions)
     for profile, commands in config.get("commands", {}).items():
         if (
             profile not in definitions
@@ -79,8 +90,10 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         or not 0 <= diagnostics.get("tail_lines", 200) <= 1000
     ):
         raise Invalid("Diagnostic tail_lines must be an integer in 0..1000")
-    if set(config.get("security", {})) - {"python", "licenses"}:
+    if set(config.get("security", {})) - {"python", "licenses", "engine", "rules", "paths"}:
         raise Invalid("Unsupported native security setting")
+    if config.get("security", {}).get("engine", "bandit") not in {"bandit", "semgrep"}:
+        raise Invalid("Select an implemented native SAST engine")
     config["_path"] = relative
     return config
 

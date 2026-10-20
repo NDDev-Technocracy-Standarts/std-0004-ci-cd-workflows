@@ -350,6 +350,13 @@
         "flutter",
         "--version"
       ],
+      "format": [
+        "dart",
+        "format",
+        "--output=none",
+        "--set-exit-if-changed",
+        "."
+      ],
       "lint": [
         "flutter",
         "analyze",

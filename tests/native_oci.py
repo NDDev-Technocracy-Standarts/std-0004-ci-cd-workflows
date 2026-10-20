@@ -1,6 +1,7 @@
 """Native Buildx/OCI publication, TLS and immutable digest acceptance with an actual running image."""
 
 import json
+import re
 import shutil
 import subprocess
 import time
@@ -13,6 +14,45 @@ import pytest
 
 from nddev_cicd import oci
 from nddev_cicd.model import Invalid, git
+
+
+def test_actual_owned_layer_cache_reuse_and_native_build_argument(repository):
+    root = repository(
+        {
+            "README.md": "# Owned BuildKit cache fixture\n",
+            ".gitignore": "dist/\n.cache/\n..cache.nddev-cache.lock\n",
+            ".dockerignore": "dist\n.cache\n",
+            "index.html": "native cache fixture",
+        }
+    )
+    dockerfile = Path(__file__).parent / "native/container/Dockerfile"
+    (root / "Dockerfile").write_text(
+        dockerfile.read_text()
+        + '\nARG FIXTURE_MODE=default\nLABEL org.nddev.fixture-mode="${FIXTURE_MODE}"\n'
+    )
+    git(root, "add", "Dockerfile")
+    git(root, "commit", "-qm", "native cache/build-argument fixture")
+    cold = oci.build(
+        root,
+        "dist/cold.oci.tar",
+        build_args=["FIXTURE_MODE=verified"],
+        cache_to=["type=local,dest=.cache,mode=max"],
+        cache_budget_bytes=256 * 1024**2,
+    )
+    assert oci.inspect(Path(cold["archive"]))["Labels"]["org.nddev.fixture-mode"] == "verified"
+    warm = oci.build(
+        root,
+        "dist/warm.oci.tar",
+        build_args=["FIXTURE_MODE=verified"],
+        cache_from=["type=local,src=.cache"],
+        cache_to=["type=local,dest=.cache,mode=max"],
+        cache_budget_bytes=256 * 1024**2,
+    )
+    log = Path(warm["archive"]).with_suffix(".build.log").read_text()
+    copied = re.search(r"(?m)^(#\d+) \[[^\n]+\] COPY index.html", log)
+    assert copied and re.search(r"(?m)^" + re.escape(copied[1]) + r" CACHED$", log), log
+    assert warm["local_cache_bytes"] > 0
+    assert warm["build_arguments_sha256"] == cold["build_arguments_sha256"]
 
 
 def test_native_oci_archive_publish_digest_and_invalid_build(repository, tmp_path):

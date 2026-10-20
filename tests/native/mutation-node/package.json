@@ -1,0 +1,9 @@
+{
+  "name": "nddev-native-mutation-node",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {"test": "node --test test/*.test.js"},
+  "devDependencies": {"@stryker-mutator/core": "10.0.0"}
+}

@@ -126,6 +126,9 @@ jobs:
     - name: Prepare versioned Qt with its runtime dependency
       if: ${{ matrix.profile == 'qt' }}
       run: scripts/prepare-qt.sh
+    - name: Prepare the verified native compiler cache
+      if: ${{ matrix.profile == 'cpp' || matrix.profile == 'qt' }}
+      run: scripts/prepare-linux-tools.sh compiler
     - name: Execute native fixture and reject invalid source
       env:
         NDDEV_NATIVE_PROFILE: ${{ matrix.profile }}

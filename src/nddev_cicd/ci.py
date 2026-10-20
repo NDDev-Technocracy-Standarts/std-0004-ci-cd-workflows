@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, git_inputs, reports
+from . import config, documentation, git_inputs, quality, reports, security
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -131,12 +131,31 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     result["identity"]["contract_sha256"] = digest(contained(root, contract["_path"], exists=True))
     result["identity"]["locks"] = config.locks(root, contract)
     commands = contract.get("commands", {})
+    coverage = {
+        name: spec for name, spec in contract.get("coverage", {}).items() if spec["profile"] in selected
+    }
+    stale_coverage = {}
+    for name, spec in coverage.items():
+        try:
+            reports.fresh(root, spec)
+        except (Invalid, ValueError, OSError) as error:
+            stale_coverage[name] = str(error)
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
-    if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
-        raise Invalid("Credentials are not project contract values")
+    if any(key == "GH_TOKEN" or key.startswith(("GITHUB_", "ACTIONS_", "RUNNER_")) for key in env):
+        raise Invalid("Native runner context and credentials are not project contract values")
     if "ruby" in selected:
         env["BUNDLE_FROZEN"] = "true"
     env["NDDEV_RESULT_DIR"] = str(output.resolve())
+    if contract.get("security", {}).get("engine") == "semgrep":
+        env.update(
+            {
+                "SEMGREP_APP_TOKEN": "",
+                "SEMGREP_SEND_METRICS": "off",
+                "SEMGREP_ENABLE_VERSION_CHECK": "0",
+                "SEMGREP_SETTINGS_FILE": str(output.resolve() / "semgrep-settings.yml"),
+                "OTEL_SDK_DISABLED": "true",
+            }
+        )
     env["NDDEV_TESTED_REVISION"] = result["identity"]["tested_revision"]
     env["NDDEV_TESTED_TREE"] = result["identity"]["tested_tree"]
     for tool, specification in contract.get("tools", {}).items():
@@ -204,6 +223,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     entry.update(status="success", scopes=scopes)
                     continue
                 command = commands.get(profile_id, {}).get(stage, default)
+                semgrep = (
+                    command == ["@library", "security-sast"]
+                    and contract.get("security", {}).get("engine") == "semgrep"
+                )
                 command = native_command(command, root, contract, output / name)
                 if command is None:
                     raise Invalid(f"Selected {name} requires a native project command")
@@ -224,6 +247,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         output / f"{name}.log",
                         timeout=contract.get("timeouts", {}).get(profile_id, 900),
                         env=env,
+                        stderr_log=output / f"{name}.stderr.log" if semgrep else None,
                     )
                 )
                 if (
@@ -252,6 +276,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     setup_failed = True
                 if entry["status"] == "success" and stage == definition.get("test_stage", "test"):
                     entry["tests_executed"] = reports.tests(root, report, Path(entry["log"]))
+                if entry["status"] == "success" and semgrep:
+                    entry["sast_targets"] = security.verify_semgrep(
+                        root, contract["security"], Path(entry["log"])
+                    )
                 if (
                     entry["status"] == "success"
                     and profile_id == "rust"
@@ -294,11 +322,24 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                 output / f"extra-{name}.log",
                 timeout=extra.get("timeout", 600),
                 env=env,
+                stderr_log=output / f"extra-{name}.stderr.log"
+                if extra["command"] == ["@library", "security-sast"]
+                and contract.get("security", {}).get("engine") == "semgrep"
+                else None,
             )
         if item["status"] == "success" and extra.get("report"):
             try:
                 item["tests_executed"] = reports.tests(root, extra["report"], Path(item["log"]))
             except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
+                item.update(status="failure", detail=str(error))
+        if (
+            item["status"] == "success"
+            and extra["command"] == ["@library", "security-sast"]
+            and contract.get("security", {}).get("engine") == "semgrep"
+        ):
+            try:
+                item["sast_targets"] = security.verify_semgrep(root, contract["security"], Path(item["log"]))
+            except (Invalid, ValueError, OSError) as error:
                 item.update(status="failure", detail=str(error))
         if extra.get("report", {}).get("path"):
             try:
@@ -310,6 +351,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         extra_result = {"name": "extra." + name, **item}
         result["results"].append(extra_result)
         diagnostics({"results": [extra_result]}, contract)
+    for name, spec in coverage.items():
+        check = "coverage." + name
+        result["expected"].append(check)
+        try:
+            if name in stale_coverage:
+                raise Invalid(stale_coverage[name])
+            entry = quality.coverage(root, spec, output / "native-reports" / check)
+        except (Invalid, ValueError, OSError) as error:
+            entry = {"status": "failure", "detail": str(error)}
+        result["results"].append({"name": check, **entry})
     result["expected"].append("inputs.lock-integrity")
     try:
         current_locks = config.locks(root, contract)
@@ -362,6 +413,45 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
 def execute(root: Path, contract: dict, output: Path) -> dict:
     contract = copy.deepcopy(contract)
     output.mkdir(parents=True, exist_ok=False)
+    if "compiler_cache" not in contract or not {"c-cpp", "qt"} & set(selection(root, contract)[0]):
+        return _execute_with_rust_cache(root, contract, output)
+    from .cache import compiler
+
+    with compiler(
+        root, contract["compiler_cache"], contract.get("environment", {}), contract["_path"]
+    ) as compiler_environment:
+        contract.setdefault("environment", {}).update(compiler_environment)
+        result = _execute_with_rust_cache(root, contract, output)
+        statistics = run(
+            ["ccache", "--print-stats"],
+            root,
+            output / "ccache-statistics.log",
+            timeout=30,
+            env={**contract["environment"]},
+        )
+        if statistics["status"] == "success":
+            try:
+                counts = {
+                    key: int(value)
+                    for key, value in (
+                        line.split("\t") for line in Path(statistics["log"]).read_text().splitlines()
+                    )
+                }
+                if not {"cache_miss", "direct_cache_hit", "preprocessed_cache_hit"} <= counts.keys() or any(
+                    value < 0 for value in counts.values()
+                ):
+                    raise Invalid("Ccache did not provide complete nonnegative native statistics")
+                statistics["counters"] = counts
+            except (Invalid, ValueError) as error:
+                statistics.update(status="failure", detail=str(error))
+        result["expected"].append("cache.ccache-statistics")
+        result["results"].append({"name": "cache.ccache-statistics", **statistics})
+        result.update(reports.aggregate(result["expected"], result["results"]))
+        atomic_json(output / "result.json", result)
+        return result
+
+
+def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
     cache_root = os.environ.get("NDDEV_CACHE_ROOT")
     if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)

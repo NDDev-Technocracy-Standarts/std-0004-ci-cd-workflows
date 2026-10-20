@@ -39,7 +39,10 @@ def retain(root: Path, specification: dict, directory: Path) -> list[str]:
     for report in sorted(root.glob(pattern)):
         if report.is_symlink() or not report.resolve().is_relative_to(root.resolve()):
             raise Invalid("Native report escapes the caller checkout")
-        if not report.is_file() or report.suffix.lower() not in {".xml", ".json", ".trx"}:
+        suffixes = {".xml", ".json", ".trx"}
+        if specification.get("kind") == "coverage":
+            suffixes |= {".info", ".lcov", ".cover"}
+        if not report.is_file() or report.suffix.lower() not in suffixes:
             raise Invalid("Retain only native XML/JSON/TRX reports")
         if report.stat().st_size > 16 * 1024 * 1024:
             raise Invalid("Native report exceeds the bounded retention size")

@@ -19,7 +19,16 @@ def project(repository, name):
         Path(__file__).parent / "native" / name,
         root,
         dirs_exist_ok=True,
-        ignore=shutil.ignore_patterns("target", ".venv", "__pycache__", ".pytest_cache"),
+        ignore=shutil.ignore_patterns(
+            "target",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            "node_modules",
+            "mutants",
+            ".stryker-tmp",
+            "reports",
+        ),
     )
     git(root, "add", ".")
     git(root, "commit", "-qm", "actual native fixture")
