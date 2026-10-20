@@ -14,8 +14,10 @@ architecture, documentation and deployment capabilities available; each project 
 applicable set for its actual responsibilities. There are no speculative frameworks, duplicate
 pipelines or knowingly unfinished work hidden behind green summaries.
 
-The existing LSP, project tests, PR CI, deployment and relevant target logs form the normal feedback
-loop. Optimize queue time, setup, compilation, cache transfer and redundant execution while preserving
-required behavior. The agent acts autonomously, returns to pending CI/CD and finishes the result.
+The existing LSP, project tests, short PR gates, full main validation and relevant target logs form
+the normal feedback loop. Optimize queue time, setup, compilation, cache transfer and redundant
+execution while preserving required behavior. The agent acts autonomously, returns to pending CI/CD
+and finishes the result.
 It does not buy capacity, reopen decisions already settled by the owner or add review machinery
-merely to appear thorough. Source validation runs on PRs; post-merge delivery is a separate path.
+merely to appear thorough. Short PR gates establish merge eligibility; full validation runs on
+integrated main before eligible artifact delivery.

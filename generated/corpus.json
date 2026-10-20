@@ -72,7 +72,7 @@
     },
     {
       "path": "spec/intent.md",
-      "sha256": "f945a0eca59d307a606bb62a348aa11b3cf770c2887261ccaf587aa6cb25917a"
+      "sha256": "139bc7c8d663cc55b3106ec7a5f254f958a8396f4ab72139a6c9a6b353a7842e"
     },
     {
       "path": "spec/maintenance.md",
@@ -92,11 +92,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "e200d5d883443c7626bf8b3ec931de2ab9a23d8b1ac8cd0e2e6f92b8156fd09f"
+      "sha256": "47c97c0ba1854e994f4491acf981de12cd22f7ce5b59e6a9a1d70dc2528fde57"
     }
   ],
   "listings": [],
-  "inputs-sha256": "6ff3f8ad3eb3f607b141aab0d6682e53496e4af2a9099cd2f7f1cc0080f95355",
+  "inputs-sha256": "ef69b648037db6ec7f00a9186ea0ab64de4bab1773c34667821fd0b672aa437d",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -449,6 +449,7 @@
       "status": "active",
       "basis": "owner",
       "since": "0.1.0",
+      "revised": "0.3.1",
       "condition": {
         "from": "standard",
         "text": null,
@@ -456,7 +457,7 @@
           "The selected CI/CD library modules and their authorized project invocations, including source validation, build artifacts, delivery and maintenance."
         ]
       },
-      "statement": "Deliver surgically precise, fully integrated, synchronized and internally consistent CI/CD.\nCode stays modular, structured, hierarchical and clean. Prefer less code through genuine reuse,\nnot fewer checks disguised as optimization. The library makes a broad set of language, security,\narchitecture, documentation and deployment capabilities available; each project invokes the full\napplicable set for its actual responsibilities. There are no speculative frameworks, duplicate\npipelines or knowingly unfinished work hidden behind green summaries.\n\nThe existing LSP, project tests, PR CI, deployment and relevant target logs form the normal feedback\nloop. Optimize queue time, setup, compilation, cache transfer and redundant execution while preserving\nrequired behavior. The agent acts autonomously, returns to pending CI/CD and finishes the result.\nIt does not buy capacity, reopen decisions already settled by the owner or add review machinery\nmerely to appear thorough. Source validation runs on PRs; post-merge delivery is a separate path.",
+      "statement": "Deliver surgically precise, fully integrated, synchronized and internally consistent CI/CD.\nCode stays modular, structured, hierarchical and clean. Prefer less code through genuine reuse,\nnot fewer checks disguised as optimization. The library makes a broad set of language, security,\narchitecture, documentation and deployment capabilities available; each project invokes the full\napplicable set for its actual responsibilities. There are no speculative frameworks, duplicate\npipelines or knowingly unfinished work hidden behind green summaries.\n\nThe existing LSP, project tests, short PR gates, full main validation and relevant target logs form\nthe normal feedback loop. Optimize queue time, setup, compilation, cache transfer and redundant\nexecution while preserving required behavior. The agent acts autonomously, returns to pending CI/CD\nand finishes the result.\nIt does not buy capacity, reopen decisions already settled by the owner or add review machinery\nmerely to appear thorough. Short PR gates establish merge eligibility; full validation runs on\nintegrated main before eligible artifact delivery.",
       "source": {
         "path": "spec/intent.md",
         "line": 3
