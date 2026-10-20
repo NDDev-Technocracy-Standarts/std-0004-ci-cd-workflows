@@ -88,6 +88,20 @@ completing the record. Registry/mobile recovery additionally requires a native `
 Automatic file rollback is allowed only when explicitly compatible and no data migration occurred;
 service/data recovery is still verified. No production target is invented by the source-only pilots.
 
+# Prepared runner inputs
+
+An existing trusted POSIX runner owner may supply `NDDEV_ARTIFACT_CACHE`, an absolute,
+administrator-owned read-only upstream archive store. Its `sha256/` entries are named by the exact
+upstream digest the pinned callee requests. The callee copies and checks bytes before its existing
+job-local extraction. Missing prepared bytes retain ordinary verified download behavior; an unsafe
+store or corrupt entry fails explicitly. Public callers need neither this store nor private tools.
+
+`NDDEV_UV_CACHE_ROOT` optionally selects an owner-admitted persistent native uv package cache.
+The owner supplies its isolated writable location, permissions, disk reserve and reclamation policy.
+Without it, each callee retains the existing job-local cache. This cache changes no selected lock,
+interpreter, per-job environment or implementation identity. A cache hit is not readiness or a passed
+check. Keep shared immutable SDK inputs separate from mutable project and package-manager state.
+
 # Packages and owned caches
 
 The Python consumer accepts a contained package.directory (default dist) and optional explicit
