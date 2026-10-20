@@ -18,7 +18,7 @@ if [[ "$target" == *windows* ]]; then temporary_root="$(cygpath -u "$RUNNER_TEMP
 stage="$(mktemp -d "$temporary_root/nddev-library-uv.XXXXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 archive="$stage/uv.$extension"
-curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+curl --retry 3 --retry-max-time 120 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
   "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
 if [[ "$target" == *apple* ]]; then
   observed="$(shasum -a 256 "$archive" | awk '{print $1}')"

@@ -15,6 +15,9 @@ applies-when: The subject defines or invokes source-validation CI.
 Pull-request candidates MUST pass a short, finite integration gate before merge. The project owns
 its fast syntax, lint/type, relevant unit and critical secret checks; an empty or stale host check
 list is not eligibility. Promotion PRs retain the adopted branch and merge policy.
+Eligibility evidence binds that workflow path, PR event, repository, current head,
+target and relevant base or tested merge context to its latest run attempt. A same-named
+main check is not premerge evidence.
 
 Full source validation runs on integrated main pushes. It selects changed components and affected
 dependents using the actual validation contract; uncertain scope retains the full set or fails

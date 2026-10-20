@@ -25,7 +25,7 @@ jobs:
         version: 0.13.1
         python-version: '3.13'
         enable-cache: 'false'
-    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@acb440cb613bf88286b2da65ddff334c4cb89056
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@eacce0a89f9fd96e490692bfeac54e3569d95d4c
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -175,7 +175,7 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
     - id: impact
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/impact@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/impact@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         contract: .github/impact.toml
       env:
@@ -216,14 +216,14 @@ jobs:
     - name: Capture the caller's executable
       run: command -v uv > "$RUNNER_TEMP/caller-uv-path"
     - id: positive
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         working-directory: tests/native/action-contract
         result-key: contract-${{ runner.os }}-positive
         upload: failure
     - id: negative
       continue-on-error: true
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         working-directory: tests/native/action-contract
         contract: .github/failure.toml
@@ -231,7 +231,7 @@ jobs:
         upload: failure
         retention-days: '1'
     - id: never
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         working-directory: tests/native/action-contract
         result-key: contract-${{ runner.os }}-never
@@ -258,11 +258,11 @@ jobs:
       macos: ${{ steps.macos.outputs.runner }}
     steps:
     - id: windows
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
     - id: macos
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@acb440cb613bf88286b2da65ddff334c4cb89056
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@eacce0a89f9fd96e490692bfeac54e3569d95d4c
       with:
         policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
     needs: impact-plan
@@ -362,7 +362,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@6619d9c5a6cead52bdb97fd549aba12f7ab52cdb
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@b1df0b3a69d6c0013bc7f5cf8170d871eb82779b
     with:
       languages: python,actions
       comparison-base: ${{ fromJSON(needs.impact-plan.outputs.base) || '' }}

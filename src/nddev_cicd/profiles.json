@@ -813,8 +813,14 @@
         "--recursive",
         "."
       ],
-      "sast": null,
-      "licenses": null
+      "sast": [
+        "@library",
+        "security-sast"
+      ],
+      "licenses": [
+        "@library",
+        "security-licenses"
+      ]
     }
   },
   "architecture": {
