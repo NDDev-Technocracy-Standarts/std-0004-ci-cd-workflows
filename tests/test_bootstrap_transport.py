@@ -20,8 +20,10 @@ import pytest
     platform.system() != "Linux" or not shutil.which("openssl"), reason="Native Linux bootstrap"
 )
 @pytest.mark.parametrize("installer", ["file", "archive", "uv"])
-@pytest.mark.parametrize("corrupt", [False, True])
-@pytest.mark.parametrize("failure_mode", ["status", "timeout"])
+@pytest.mark.parametrize(
+    ("failure_mode", "corrupt"),
+    [("status", False), ("status", True), ("timeout", False), ("timeout", True), ("permanent", False)],
+)
 def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, corrupt, failure_mode):
     certificate, key = tmp_path / "cert.pem", tmp_path / "key.pem"
     subprocess.run(
@@ -57,11 +59,18 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
         payload = content.getvalue()
     checksum = "0" * 64 if corrupt else hashlib.sha256(payload).hexdigest()
     requests = []
+    completed = []
+    first_origin = []
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             requests.append(self.path)
-            if len(requests) == 1 and failure_mode == "timeout":
+            if failure_mode == "permanent":
+                self.send_response(404)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if failure_mode == "timeout" and self.path == "/stalled":
                 self.send_response(200)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
@@ -69,10 +78,12 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
                 self.wfile.flush()
                 time.sleep(2)
                 return
-            self.send_response(503 if len(requests) == 1 else 200)
-            self.send_header("Content-Length", str(0 if len(requests) == 1 else len(payload)))
+            unavailable = failure_mode == "status" and len(requests) == 1
+            self.send_response(503 if unavailable else 200)
+            self.send_header("Content-Length", str(0 if unavailable else len(payload)))
             self.end_headers()
-            if len(requests) > 1:
+            if not unavailable:
+                completed.append(self.path)
                 self.wfile.write(payload)
 
         def log_message(self, *args):
@@ -86,6 +97,30 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     url = f"https://localhost:{server.server_port}/fixture"
+    origin = None
+    origin_thread = None
+    if failure_mode == "timeout":
+
+        class Origin(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def do_GET(self):
+                if not first_origin:
+                    first_origin.append(self.client_address)
+                target = "stalled" if self.client_address == first_origin[0] else "complete"
+                self.send_response(302)
+                self.send_header("Location", f"https://localhost:{server.server_port}/{target}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+            def log_message(self, *args):
+                pass
+
+        origin = http.server.ThreadingHTTPServer(("localhost", 0), Origin)
+        origin.socket = context.wrap_socket(origin.socket, server_side=True)
+        origin_thread = threading.Thread(target=origin.serve_forever, daemon=True)
+        origin_thread.start()
+        url = f"https://localhost:{origin.server_port}/fixture"
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     if installer == "uv":
         source = (scripts / "library-uv.sh").read_text()
@@ -99,6 +134,8 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     source = source.replace("--max-time 120", "--max-time 1")
     source = source.replace("--retry-max-time 120", "--retry-max-time 1")
     source = source.replace("--retry-max-time 480", "--retry-max-time 4")
+    source = source.replace("limit=120", "limit=1")
+    source = source.replace("SECONDS + 480", "SECONDS + 4")
     script = tmp_path / "bootstrap.sh"
     script.write_text(source)
     env = dict(os.environ, RUNNER_TEMP=str(tmp_path), CURL_CA_BUNDLE=str(certificate))
@@ -107,13 +144,21 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
             ["bash", str(script)], env=env, capture_output=True, text=True, timeout=30, check=False
         )
     finally:
+        if origin is not None:
+            origin.shutdown()
+            origin.server_close()
+            assert origin_thread is not None
+            origin_thread.join(timeout=5)
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
-    assert len(requests) == 2
-    assert (result.returncode != 0) is corrupt, result.stdout + result.stderr
-    if installer == "uv" and not corrupt:
+    assert len(requests) == (1 if failure_mode == "permanent" else 2)
+    assert len(completed) == (0 if failure_mode == "permanent" else 1)
+    assert (result.returncode != 0) is (corrupt or failure_mode == "permanent"), result.stdout + result.stderr
+    if installer == "uv" and not corrupt and failure_mode != "permanent":
         # The successful installer deliberately hands its job-owned directory to the caller.
         shutil.rmtree(Path(result.stdout.strip()).parent)
     elif installer != "uv":
-        assert (tmp_path / "nddev-native-tools/fixture").exists() is not corrupt
+        assert (tmp_path / "nddev-native-tools/fixture").exists() is (
+            not corrupt and failure_mode != "permanent"
+        )
