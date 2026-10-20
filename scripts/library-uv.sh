@@ -15,10 +15,29 @@ binary=uv
 if [[ "$target" == *windows* ]]; then extension=zip; binary=uv.exe; fi
 temporary_root="$RUNNER_TEMP"
 if [[ "$target" == *windows* ]]; then temporary_root="$(cygpath -u "$RUNNER_TEMP")"; fi
+# A full timeout must discard both origin and CDN connection caches before retrying.
+# curl retains ownership of transient HTTP classification; digest checks stay below.
+download() {
+  local attempt status=28 deadline=$((SECONDS + 480)) remaining limit
+  for attempt in 0 1 2 3; do
+    remaining=$((deadline - SECONDS))
+    if (( remaining <= 0 )); then return "$status"; fi
+    limit=120
+    if (( remaining < limit )); then limit="$remaining"; fi
+    if curl --retry 3 --retry-max-time "$limit" --connect-timeout 20 --max-time "$limit" \
+      --fail --silent --show-error --location --proto '=https' --tlsv1.2 "$@"; then
+      return 0
+    else
+      status=$?
+    fi
+    if [[ "$status" != 28 || "$attempt" == 3 ]]; then return "$status"; fi
+  done
+  return "$status"
+}
 stage="$(mktemp -d "$temporary_root/nddev-library-uv.XXXXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 archive="$stage/uv.$extension"
-curl --retry 3 --retry-max-time 480 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+download \
   "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
 if [[ "$target" == *apple* ]]; then
   observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
