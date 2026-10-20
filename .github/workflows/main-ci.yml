@@ -548,7 +548,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@7eed281dc0413af30db2d73526a2c24edf037607
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@5eb6d87d66b69a4a9d89f498d909614a5cd5e391
     with:
       languages: python,actions
       comparison-base: ${{ fromJSON(needs.impact-plan.outputs.base) || '' }}
