@@ -386,6 +386,13 @@ Native findings, scanner errors or a source scope missing from the native scanne
 The original JSON and separate diagnostic stream remain in the source result. Selecting this helper
 does not select the full security profile or authorize a license policy.
 
+Spelling and unused-dependency checks remain explicit project extras. The `quality` tool capability
+provides `typos` and `cargo machete`; `rust` also provides the latter. Select actual tracked text or
+native Cargo manifests, for example `command=["typos","README.md","src"]` or
+`command=["cargo","machete","--with-metadata"]`. Project dictionaries and intentional dependency
+exemptions belong in those tools' native configuration. Findings fail the selected operation;
+these tools do not establish prose quality or replace dependency vulnerability checks.
+
 Tracked locks at every depth are bound to the result and checked again after execution. Native
 ecosystem names include JavaScript managers, Gradle and Swift. `[inputs] locks = ["config/tool.lock"]`
 adds a project-specific tracked input; a selector matching nothing fails.

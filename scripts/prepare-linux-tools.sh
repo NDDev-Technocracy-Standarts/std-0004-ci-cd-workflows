@@ -69,12 +69,20 @@ install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-
 install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
   'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
 for capability in $unique; do
+if [[ "$capability" == rust || "$capability" == quality ]]; then
+  install_archive 'https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-unknown-linux-musl.tar.gz' \
+    '48200087f54c55aabcd4db4af1e25742b49846c02a1b1bfa134711945b35b2e9' cargo-machete
+fi
 if [[ "$capability" == compiler ]]; then
   install_archive 'https://github.com/ccache/ccache/releases/download/v4.14.2/ccache-4.14.2-linux-x86_64-musl-static.tar.gz' \
     'd540ba01f160addbd3dd5e18eda9bd34005591b095c09ac8ae9d0a1b655e7ef5' ccache
   "$tools/ccache" --version
 fi
 if [[ "$capability" == quality ]]; then
+  install_archive 'https://github.com/crate-ci/typos/releases/download/v1.51.1/typos-v1.51.1-x86_64-unknown-linux-musl.tar.gz' \
+    '93c301fd4120ff076e2cc2a6d6a61cab4a4bdb81899287c0938b452e56d1f454' typos
+  "$tools/typos" --version
+  "$tools/cargo-machete" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
   UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="$tools/quality-downloads" \

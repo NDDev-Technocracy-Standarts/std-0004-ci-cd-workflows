@@ -9,6 +9,7 @@ from native_advanced import project
 
 from nddev_cicd import advanced, ci, config
 from nddev_cicd.model import git
+from nddev_cicd.process import run
 
 
 def test_actual_offline_semgrep_rejects_javascript_and_python_findings(repository, tmp_path, monkeypatch):
@@ -96,3 +97,38 @@ def test_actual_stryker_requires_native_completed_mutants(repository, tmp_path):
     git(root, "commit", "-qm", "controlled native project threshold")
     stricter = advanced.mutation(root, tmp_path / "native-threshold", engine="stryker", maximum_missed=100)
     assert stricter["status"] == "failure" and stricter["exit_code"] == 1
+
+
+def test_actual_spelling_tool_rejects_a_controlled_typo(repository, tmp_path):
+    root = repository({"README.md": "The algorithm returns one byte.\n"})
+    assert run(["typos", "README.md"], root, tmp_path / "positive.log")["status"] == "success"
+    (root / "README.md").write_text("The algorthm returns one byte.\n")
+    assert run(["typos", "README.md"], root, tmp_path / "negative.log")["status"] == "failure"
+    assert "algorthm" in (tmp_path / "negative.log").read_text()
+
+
+def test_actual_machete_detects_an_unused_local_dependency(repository, tmp_path):
+    root = repository(
+        {
+            "Cargo.toml": '[package]\nname="native-dependency-fixture"\nversion="0.1.0"\nedition="2021"\nlicense="AGPL-3.0-only"\n[dependencies]\nnative-used={path="used"}\n',
+            "src/lib.rs": "pub fn value() -> u8 { native_used::value() }\n",
+            "used/Cargo.toml": '[package]\nname="native-used"\nversion="0.1.0"\nedition="2021"\nlicense="AGPL-3.0-only"\n',
+            "used/src/lib.rs": "pub fn value() -> u8 { 1 }\n",
+        }
+    )
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=root, check=True, capture_output=True)
+    assert (
+        run(["cargo", "machete", "--with-metadata"], root, tmp_path / "positive.log")["status"] == "success"
+    )
+    (root / "unused/src").mkdir(parents=True)
+    (root / "unused/Cargo.toml").write_text(
+        '[package]\nname="native-unused"\nversion="0.1.0"\nedition="2021"\nlicense="AGPL-3.0-only"\n'
+    )
+    (root / "unused/src/lib.rs").write_text("pub fn value() -> u8 { 2 }\n")
+    with (root / "Cargo.toml").open("a") as stream:
+        stream.write('native-unused={path="unused"}\n')
+    subprocess.run(["cargo", "generate-lockfile", "--offline"], cwd=root, check=True, capture_output=True)
+    assert (
+        run(["cargo", "machete", "--with-metadata"], root, tmp_path / "negative.log")["status"] == "failure"
+    )
+    assert "native-unused" in (tmp_path / "negative.log").read_text()
