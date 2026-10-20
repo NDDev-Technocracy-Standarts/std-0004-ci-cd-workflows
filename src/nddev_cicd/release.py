@@ -1,4 +1,4 @@
-"""Prepare release candidates from verified PR artifacts, with native SBOM and exact payload closure."""
+"""Prepare release candidates from verified source artifacts, with native SBOM and exact payload closure."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def finalize(directory: Path) -> Path:
             or digest(file) != item["sha256"]
             or file.stat().st_mode & 0o777 != item["mode"]
         ):
-            raise Invalid("Release payload bytes/modes differ from the checked PR artifact")
+            raise Invalid("Release payload bytes/modes differ from the verified source artifact")
     files = [*(directory / "payload").iterdir(), directory / "release.json", directory / "sbom.spdx.json"]
     sums = "".join(digest(p) + "  " + p.relative_to(directory).as_posix() + "\n" for p in sorted(files))
     (directory / "SHA256SUMS").write_text(sums)

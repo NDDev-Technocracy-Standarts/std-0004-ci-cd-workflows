@@ -150,10 +150,6 @@ Inside GitHub Actions, the admission CLI checks the actual caller event/reposito
 refuses a mismatched policy before emitting runner labels. Fork context cannot assert trusted private
 capacity. Public reusable workflow ownership never supplies a private caller's billing entitlement.
 
-A private caller's planning/source job must restrict execution to its verified trusted actors before
-allocation. A caller-owned `trusted_actors` list can bind admission to `GITHUB_ACTOR`; an omitted
-provider association cannot silently establish trust. Fork source is always refused for private hosts.
-
 ## Existing remote targets over SSH
 
 Set the delivery composite's optional `transport-config` input to a caller-owned JSON file:
@@ -173,9 +169,10 @@ existing SSH user needs access to that target and its selected service/registry.
 an interpreter satisfying the [package runtime requirements](../pyproject.toml) and compatible PyYAML; the adapter installs no system packages,
 service or deployment daemon. Its selected module's native tools must already be available.
 
-The CLI downloads and verifies the exact eligible PR attempt before SSH transfer. It transfers the
-artifact, bindings and the same licensed implementation into an owned temporary remote directory,
-then the target rechecks bytes/modes and performs preflight, locking, mutations and health locally.
+The CLI downloads and verifies the artifact from the exact eligible successful main run and attempt
+before SSH transfer. It transfers the artifact, bindings and the same licensed implementation into
+an owned temporary remote directory, then the target rechecks bytes/modes and performs preflight,
+locking, mutations and health locally.
 The receipt must match the tested artifact, revision and target generation. Concurrent callers use
 the lock in the same remote target directory. A network failure is not permission to replay an
 uncertain migration; reconcile the target's durable record and use the existing recovery contract.
