@@ -8,7 +8,7 @@ scopes = ["src/nddev_cicd"]
 dependencies = ["uv", "run", "lint-imports"]
 
 [commands.documentation]
-external-links = ["lychee", "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
+external-links = ["lychee", "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "SECURITY.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
 generate = ["uv", "run", "python", "-m", "nddev_cicd", "reference", "--check"]
 examples = ["uv", "run", "python", "-m", "doctest", "docs/examples.md"]
 
@@ -44,7 +44,7 @@ timeout=900
 exclude=["archive/"]
 
 [documentation.style]
-authored=["README.md","AGENTS.md","docs/usage.md","docs/examples.md","docs/origins.md","spec/*.md",".agents/*.md","src/*/README.md","src/*/AGENTS.md","tests/native/flutter/README.md"]
+authored=["README.md","SECURITY.md","AGENTS.md","docs/usage.md","docs/examples.md","docs/origins.md","spec/*.md",".agents/*.md","src/*/README.md","src/*/AGENTS.md","tests/native/flutter/README.md"]
 generated=["generated/*.md","docs/profiles.md","archive/README.md"]
 historical=["archive/*/*.md"]
 
