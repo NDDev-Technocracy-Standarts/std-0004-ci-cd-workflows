@@ -172,6 +172,10 @@ jobs:
       windows: ${{ steps.matrix.outputs.windows }}
       apple: ${{ steps.matrix.outputs.apple }}
       advanced: ${{ steps.matrix.outputs.advanced }}
+      quality: ${{ steps.matrix.outputs.quality }}
+      benchmark: ${{ steps.matrix.outputs.benchmark }}
+      assessment: ${{ steps.matrix.outputs.assessment }}
+      clusterfuzz: ${{ steps.matrix.outputs.clusterfuzz }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -360,6 +364,185 @@ jobs:
       run: uv run --locked pytest -q tests/native_advanced.py --junitxml="$RUNNER_TEMP/advanced.xml"
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.advanced == 'true' }}
+  native-quality:
+    needs: impact-plan
+    if: ${{ needs.impact-plan.outputs.quality == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+      with:
+        version: 0.13.1
+        python-version: '3.13'
+        enable-cache: 'false'
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      with:
+        node-version: 24.22.0
+        package-manager-cache: false
+    - name: Prepare isolated native quality and vulnerability tools
+      run: scripts/prepare-linux-tools.sh quality security
+    - name: Reject real source, mutation, spelling and unused-dependency findings
+      run: uv run --locked pytest -q tests/native_quality.py --basetemp="$RUNNER_TEMP/native-quality" --junitxml="$RUNNER_TEMP/native-quality.xml"
+    - name: Scan the library and its owned SDK locks without a license policy
+      run: osv-scanner scan source --lockfile=uv.lock --lockfile=.github/native-tools/uv.lock --lockfile=tests/native/mutation-node/package-lock.json --format=json --all-packages --output-file="$RUNNER_TEMP/owned-dependencies.json"
+    - name: Retain native outcomes, original reports and dependency feedback
+      if: ${{ !cancelled() }}
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: native-quality-${{ github.run_attempt }}
+        path: |
+          ${{ runner.temp }}/native-quality
+          ${{ runner.temp }}/native-quality.xml
+          ${{ runner.temp }}/owned-dependencies.json
+        if-no-files-found: error
+        retention-days: 3
+  native-benchmark:
+    needs: impact-plan
+    if: ${{ needs.impact-plan.outputs.benchmark == 'true' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+      with:
+        version: 0.13.1
+        python-version: '3.13'
+        enable-cache: 'false'
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.27.3'
+        cache: false
+    - name: Measure the actual unchanged earlier Go implementation
+      run: uv run --locked python tests/benchmark_driver.py prepare "$RUNNER_TEMP/native-benchmark"
+    - id: record
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+      with:
+        tool: go
+        mode: record
+        measurement-file: ${{ runner.temp }}/native-benchmark/before.txt
+        maximum-ratio: '2'
+    - name: Select that measured implementation as the controlled SDK baseline
+      env:
+        NDDEV_HISTORY: ${{ steps.record.outputs.history }}
+      run: uv run --locked python tests/benchmark_driver.py baseline "$RUNNER_TEMP/native-benchmark" "$NDDEV_HISTORY"
+    - name: Measure the actual positive candidate
+      run: uv run --locked python tests/benchmark_driver.py positive "$RUNNER_TEMP/native-benchmark"
+    - id: positive
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+      with:
+        tool: go
+        measurement-file: ${{ runner.temp }}/native-benchmark/positive.txt
+        history-file: ${{ runner.temp }}/native-benchmark/accepted.json
+        maximum-ratio: '2'
+    - name: Measure an actual controlled performance regression
+      run: uv run --locked python tests/benchmark_driver.py negative "$RUNNER_TEMP/native-benchmark"
+    - id: negative
+      continue-on-error: true
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+      with:
+        tool: go
+        measurement-file: ${{ runner.temp }}/native-benchmark/negative.txt
+        history-file: ${{ runner.temp }}/native-benchmark/accepted.json
+        maximum-ratio: '2'
+    - name: Require native regression failure and preserve the accepted baseline
+      env:
+        NEGATIVE_OUTCOME: ${{ steps.negative.outcome }}
+        NEGATIVE_HISTORY: ${{ steps.negative.outputs.history }}
+        POSITIVE_HISTORY: ${{ steps.positive.outputs.history }}
+      run: uv run --locked python tests/benchmark_driver.py verify "$RUNNER_TEMP/native-benchmark"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: ${{ !cancelled() }}
+      with:
+        name: native-benchmark-${{ runner.os }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/native-benchmark
+        if-no-files-found: error
+        retention-days: 3
+  native-assessment:
+    needs: impact-plan
+    if: ${{ needs.impact-plan.outputs.assessment == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/scorecard@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: ${{ !cancelled() }}
+      with:
+        name: native-assessment-${{ github.run_attempt }}
+        path: .nddev-reports/scorecard.json
+        if-no-files-found: error
+        retention-days: 3
+  native-clusterfuzz:
+    needs: impact-plan
+    if: ${{ needs.impact-plan.outputs.clusterfuzz == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - variant: positive
+          sanitizer: address
+        - variant: negative
+          sanitizer: undefined
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+      with:
+        project-directory: tests/native/clusterfuzz
+        phase: build
+        sanitizer: ${{ matrix.sanitizer }}
+        seconds: '5'
+    - name: Seed the controlled native defect after the mandatory build check
+      if: ${{ matrix.variant == 'negative' }}
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        from zipfile import ZipFile
+        output = Path('build-out/native_parser_seed_corpus.zip')
+        assert output.parent.is_dir()
+        with ZipFile(output, 'w') as archive:
+            archive.writestr('controlled-input', b'NDDev controlled ClusterFuzzLite negative acceptance seed')
+        PY
+    - id: fuzz
+      continue-on-error: ${{ matrix.variant == 'negative' }}
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@f4b1d4b71986a65b77bf04693898afda2ea2eb01
+      with:
+        project-directory: tests/native/clusterfuzz
+        phase: run
+        sanitizer: ${{ matrix.sanitizer }}
+        seconds: '5'
+    - name: Require actual native failure and retained reproducing input and stack
+      if: ${{ matrix.variant == 'negative' }}
+      env:
+        NDDEV_NATIVE_OUTCOME: ${{ steps.fuzz.outcome }}
+      run: |
+        test "$NDDEV_NATIVE_OUTCOME" = failure
+        python3 - <<'PY'
+        from pathlib import Path
+        summaries = list(Path('out/artifacts/native_parser/undefined').glob('*.summary'))
+        assert summaries and all(path.stat().st_size for path in summaries)
+        assert all(path.with_suffix('').is_file() for path in summaries)
+        PY
   public-security:
     permissions:
       contents: read
@@ -401,6 +584,10 @@ jobs:
     - advanced-native
     - public-security
     - online-refs
+    - native-quality
+    - native-benchmark
+    - native-assessment
+    - native-clusterfuzz
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 2
@@ -416,4 +603,8 @@ jobs:
         NDDEV_WINDOWS_SELECTED: ${{ needs.impact-plan.outputs.windows }}
         NDDEV_APPLE_SELECTED: ${{ needs.impact-plan.outputs.apple }}
         NDDEV_ADVANCED_SELECTED: ${{ needs.impact-plan.outputs.advanced }}
+        NDDEV_QUALITY_SELECTED: ${{ needs.impact-plan.outputs.quality }}
+        NDDEV_BENCHMARK_SELECTED: ${{ needs.impact-plan.outputs.benchmark }}
+        NDDEV_ASSESSMENT_SELECTED: ${{ needs.impact-plan.outputs.assessment }}
+        NDDEV_CLUSTERFUZZ_SELECTED: ${{ needs.impact-plan.outputs.clusterfuzz }}
       run: python3 scripts/check-main-jobs.py

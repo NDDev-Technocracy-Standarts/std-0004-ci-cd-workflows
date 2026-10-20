@@ -316,6 +316,35 @@ mutations. Native logs, diffs and outcomes remain available for diagnosis.
 case/tool/machine/interpreter identities and positive native measurements, then applies the explicit
 regression ratio. These capabilities add no universal coverage percentage, schedule or production load.
 
+The optional [benchmark composite](../.github/actions/benchmark/action.yml) uses the pinned native
+github-action-benchmark SDK for Cargo, Go, Benchmark.js, pytest and Google Benchmark formats.
+Supply `measurement-file`, `tool` and an explicit `maximum-ratio`. `mode: record` collects an initial
+native history; `compare` requires its accepted `history-file` from a different source revision and
+the same measured cases and units. Select comparable hardware, toolchain and measurement conditions
+in the project workflow. This SDK does not establish machine equivalence. The accepted history is
+copied before execution; only a successful nonempty comparison emits the next `history` output.
+Caller artifact retention owns that file. There are no Pages writes, comments, external tokens or
+silent replacement of a missing baseline. The stricter paired pytest helper remains available.
+
+The optional [Scorecard composite](../.github/actions/scorecard/action.yml) collects the caller's
+native source-host assessment on Linux with Docker. It publishes no external results and uses only
+the provider token. The default is advisory: unavailable checks remain explicitly unavailable.
+An optional `required-scores` JSON object, such as `{"Pinned-Dependencies":8}`, enforces the project's
+chosen check scores. An empty assessment fails. Scores describe upstream repository heuristics;
+they do not certify application security or qualify a deployment. Retain its original `report`
+through the caller's ordinary artifact policy.
+
+The optional [ClusterFuzzLite composite](../.github/actions/clusterfuzz/action.yml) builds native
+C/C++ fuzz targets and runs a bounded batch with an explicit `seconds` budget. The caller supplies
+its real `.clusterfuzzlite` Dockerfile, build script and project configuration. It requires a public
+repository and a disposable GitHub-hosted Linux job: upstream SDK disk cleanup is unsuitable for
+a persistent private Docker host. Build validation is mandatory, broken-target allowance is zero,
+and dry-run is disabled. Split `phase: build` and `phase: run` only to prepare native corpora between
+validated build and execution in the same job. No storage repository or schedule is selected.
+The SDK retains reproducing crashes and stacks as GitHub artifacts; a finding or unavailable SDK
+fails. This wrapper pins upstream action source; upstream SDK container tags remain vendor-owned.
+Use the existing direct libFuzzer/Cargo helper when that SDK execution model is unsuitable.
+
 Before recursive source checks, native gitlink validation rejects stale, dirty, unavailable or
 symlinked submodule worktrees. Callers initialize each required checkout using their existing scoped
 credentials; the library does not delete stale worktrees or fetch arbitrary submodules automatically.
@@ -419,7 +448,8 @@ its own bootstrap uses an absolute verified executable outside caller PATH.
 
 The Linux `tools` action accepts a space/comma-separated capability list, for example
 `capability: security shell container`. Workflow tools include actionlint, lychee and zizmor;
-security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain, shell adds Bats and ShellCheck. The native script validates
+security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain; quality adds isolated
+Semgrep/mutmut plus typos and cargo-machete; compiler adds ccache; shell adds Bats and ShellCheck. The native script validates
 capabilities and verified owned binaries before reuse. SDKs and system libraries such as libmagic
 belong to the runner owner or an explicit job-local caller setup. A caller setup verifies downloaded
 packages against its trusted native package metadata and supplies only that job's library paths;
