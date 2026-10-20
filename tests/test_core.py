@@ -583,7 +583,10 @@ def test_trusted_actor_policy_does_not_depend_on_an_optional_webhook_association
         json.dumps(
             {
                 "repository": {"full_name": "fixture/private", "visibility": "private"},
-                "pull_request": {"head": {"repo": {"full_name": "fixture/private"}}},
+                "pull_request": {
+                    "head": {"repo": {"full_name": "fixture/private"}},
+                    "user": {"login": "fixture-owner"},
+                },
             }
         )
     )
@@ -599,6 +602,8 @@ def test_trusted_actor_policy_does_not_depend_on_an_optional_webhook_association
         "trusted_actors": ["fixture-owner"],
     }
     assert routing.select(**routing.caller_policy(policy))["provider"] == "self-hosted"
-    monkeypatch.setenv("GITHUB_ACTOR", "untrusted-bot")
+    data = json.loads(event.read_text())
+    data["pull_request"]["user"]["login"] = "untrusted-bot"
+    event.write_text(json.dumps(data))
     with pytest.raises(Unavailable):
         routing.select(**routing.caller_policy(policy))

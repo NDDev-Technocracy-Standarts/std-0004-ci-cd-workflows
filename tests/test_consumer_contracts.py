@@ -302,12 +302,18 @@ def test_feedback_deduplicates_closed_markers_and_distinguishes_attempts(monkeyp
         "status": "completed",
         "conclusion": "failure",
         "created_at": "2026-10-19T00:00:00Z",
+        "event": "push",
+        "head_branch": "main",
     }
     issues, writes = [], []
 
     def get(path):
+        if path.endswith("/jobs?per_page=100&page=1"):
+            return {"jobs": [{"name": "native security", "conclusion": "failure"}]}
         if "/actions/runs/" in path:
             return run_data
+        if path == "repos/example/project":
+            return {"default_branch": "main"}
         return issues
 
     def write(path, body):

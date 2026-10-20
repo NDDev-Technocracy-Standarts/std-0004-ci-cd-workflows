@@ -24,7 +24,7 @@ Generated from the executed runtime catalog; not a native-fixture verification c
 | `workflows` | lint, security, contracts | Native defaults |
 | `container` | lint, build, test, scan, sbom | build, test, scan, sbom |
 | `infrastructure` | format, validate, security, generate | format, validate, security, generate |
-| `security` | secrets, dependencies, sast, licenses | sast, licenses |
+| `security` | secrets, dependencies, sast, licenses | Native defaults |
 | `architecture` | scope, dependencies | dependencies |
 | `advanced-testing` | bounded-operation, result | bounded-operation, result |
 | `web` | setup, toolchain, browser, format, html, css, test, build | Native defaults |

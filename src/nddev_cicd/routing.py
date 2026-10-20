@@ -42,7 +42,7 @@ def caller_policy(policy: dict) -> dict:
         head = event["pull_request"].get("head", {}).get("repo") or {}
         association = event["pull_request"].get("author_association")
         actor_is_trusted = (
-            (os.environ.get("GITHUB_ACTOR") in actors)
+            (event["pull_request"].get("user", {}).get("login") in actors)
             if actors is not None
             else association in {"OWNER", "MEMBER", "COLLABORATOR"}
         )
@@ -98,7 +98,18 @@ def select(
             raise Invalid(
                 "Private labels must include the verified Linux and selected architecture capabilities"
             )
-        return {"provider": "self-hosted", "runner": labels, "basis": "existing-private-capacity"}
+        return {
+            "provider": "self-hosted",
+            "runner": labels,
+            "basis": "existing-private-capacity",
+            "availability": "not-checked",
+            "limitations": [
+                (
+                    "Label validation does not query online runners, repository access or queue capacity; "
+                    "the caller must establish availability through its native runner inventory."
+                )
+            ],
+        }
     for provider in ("blacksmith", "github"):
         policy = choices.get(provider, {})
         if type(policy.get("enabled", False)) is not bool:

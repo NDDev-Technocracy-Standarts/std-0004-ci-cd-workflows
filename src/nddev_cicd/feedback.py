@@ -6,11 +6,12 @@ import json
 import re
 import urllib.parse
 import urllib.request
+from datetime import UTC, datetime, timedelta
 
 from . import github
 from .model import Invalid
 
-CONCLUSIONS = {"failure", "timed_out", "cancelled", "action_required", "startup_failure"}
+CONCLUSIONS = {"failure", "timed_out", "cancelled", "action_required", "startup_failure", "stale"}
 
 
 def write(path: str, payload: dict) -> dict:
@@ -42,6 +43,10 @@ def publish(
     run_id: int | None = None,
     conclusions: list[str] | None = None,
     task_issue: int | None = None,
+    events: list[str] | None = None,
+    branches: list[str] | None = None,
+    since: str | None = None,
+    page_budget: int = 50,
 ) -> dict:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise Invalid("Select an exact caller repository")
@@ -57,31 +62,90 @@ def publish(
         or any(not re.fullmatch(r"[A-Za-z0-9_-]+(?:\[bot\])?", p) for p in creators)
     ):
         raise Invalid("Feedback requires an explicit creator allowlist")
-    conclusions = conclusions or ["failure", "timed_out", "action_required", "startup_failure"]
-    if not conclusions or set(conclusions) - CONCLUSIONS:
+    conclusions = (
+        conclusions
+        if conclusions is not None
+        else ["failure", "timed_out", "action_required", "startup_failure", "stale"]
+    )
+    if (
+        not isinstance(conclusions, list)
+        or not conclusions
+        or any(not isinstance(x, str) or x not in CONCLUSIONS for x in conclusions)
+    ):
         raise Invalid("Feedback only publishes selected non-success conclusions")
     if run_id is not None and (type(run_id) is not int or run_id < 1):
         raise Invalid("Feedback run ID must be positive")
     if task_issue is not None and (type(task_issue) is not int or task_issue < 1):
         raise Invalid("Feedback task Issue must be positive")
+    events = events if events is not None else ["push", "schedule", "workflow_dispatch"]
+    if (
+        not isinstance(events, list)
+        or not events
+        or any(not isinstance(x, str) for x in events)
+        or set(events) - {"push", "schedule", "workflow_dispatch", "workflow_run", "pull_request"}
+    ):
+        raise Invalid("Feedback requires a bounded event allowlist")
+    if type(page_budget) is not int or not 1 <= page_budget <= 100:
+        raise Invalid("Feedback run pagination budget must be in 1..100")
     prefix = f"repos/{repository}"
+    if branches is None:
+        branches = [github.get(prefix).get("default_branch")]
+    if (
+        not isinstance(branches, list)
+        or not branches
+        or len(branches) > 4
+        or any(not isinstance(branch, str) or not branch or len(branch) > 255 for branch in branches)
+    ):
+        raise Invalid("Feedback requires bounded exact branch names")
     if run_id is not None:
         candidates = [github.get(f"{prefix}/actions/runs/{run_id}")]
     else:
+        now = datetime.now(UTC)
+        since = since or (now - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            lower = datetime.strptime(since, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        except ValueError as error:
+            raise Invalid("Feedback since must be a native UTC timestamp") from error
+        if not now - timedelta(days=30) <= lower <= now:
+            raise Invalid("Feedback reconciliation must select a window within the past 30 days")
         candidates = []
-        for workflow in workflows:
+        remaining = page_budget
+        for workflow in dict.fromkeys(workflows):
             key = urllib.parse.quote(workflow.rsplit("/", 1)[1], safe="")
-            candidates.extend(
-                github.get(f"{prefix}/actions/workflows/{key}/runs?status=completed&per_page=20")[
-                    "workflow_runs"
-                ]
-            )
+            for branch in dict.fromkeys(branches):
+                for event in dict.fromkeys(events):
+                    query = urllib.parse.urlencode(
+                        {
+                            "status": "completed",
+                            "event": event,
+                            "branch": branch,
+                            "created": ">=" + since,
+                        }
+                    )
+                    page = 1
+                    while True:
+                        if remaining == 0:
+                            raise Invalid("Feedback run pagination budget exhausted before publication")
+                        remaining -= 1
+                        response = github.get(
+                            f"{prefix}/actions/workflows/{key}/runs?{query}&per_page=100&page={page}"
+                        )
+                        batch = response.get("workflow_runs") if isinstance(response, dict) else None
+                        if not isinstance(batch, list) or any(not isinstance(item, dict) for item in batch):
+                            raise Invalid("Unexpected paginated feedback runs")
+                        candidates.extend(batch)
+                        if len(batch) < 100:
+                            break
+                        page += 1
+        candidates = list({(item["id"], item["run_attempt"]): item for item in candidates}.values())
     actions = []
     for run in candidates:
         if (
             run.get("repository", {}).get("full_name") != repository
             or run.get("path") not in workflows
             or run.get("actor", {}).get("login") not in creators
+            or run.get("event") not in events
+            or run.get("head_branch") not in branches
             or run.get("status") != "completed"
             or run.get("conclusion") not in conclusions
         ):
@@ -94,9 +158,23 @@ def publish(
         created = run.get("created_at", "")
         if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", created):
             raise Invalid("Native run creation time is absent")
+        jobs = github.records(f"{prefix}/actions/runs/{number}/attempts/{attempt}/jobs", "jobs")
+        failed_jobs = [job for job in jobs if job.get("conclusion") in CONCLUSIONS]
+        names = (
+            "\n".join(
+                "- "
+                + str(job.get("name", "unnamed job"))[:200].replace("`", "'").replace("\n", " ")
+                + " ("
+                + str(job["conclusion"])
+                + ")"
+                for job in failed_jobs
+            )
+            or "No failing job metadata is exposed by the native API."
+        )
         body = (
             f"{marker}\nNative workflow `{run['path']}` concluded `{run['conclusion']}`.\n\n"
             f"[Inspect the exact run attempt](https://github.com/{repository}/actions/runs/{number}/attempts/{attempt}).\n\n"
+            f"Failed jobs (metadata only):\n{names}\n\n"
             "The owning agent must inspect the native diagnostics and resolve or record the failure. "
             "This publisher reads metadata only and does not execute candidate code or download artifacts.\n"
         )

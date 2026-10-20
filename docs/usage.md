@@ -44,6 +44,12 @@ cannot fall back from self-hosted to hosted/Blacksmith. Private Windows/macOS tr
 Blacksmith no-overage route, then an equivalent admitted standard GitHub route.
 An email alert is insufficient. A failing test is never rerun on another provider to obtain success.
 Use `admit` outputs in a dependent job's `runs-on: fromJSON(...)` before that job exists.
+For a private same-repository PR, `trusted_actors` selects the actual PR author's login, never
+its rerunner. Include `dependabot[bot]` explicitly when approved; forks remain refused even for an
+allowlisted author. Without this list, owner/member/collaborator association is required.
+Private label selection reports `availability: not-checked`: it does not observe online runners,
+repository access, busy runners or queue delay. Establish these from the existing native runner
+inventory before dispatch; a valid label list alone does not establish runner availability.
 
 Delivery follows completion of full main CI, using read-scoped Actions access. A trusted
 `workflow_run` caller first invokes `eligible` with the source run ID, exact workflow and main
@@ -51,6 +57,11 @@ revision before checking out delivery code or preparing a target. It admits only
 successful same-repository main run that still identifies current main. Pass that run and a trusted
 existing target JSON to `deliver`. Build and delivery use the same library SHA. The runtime verifies
 the exact attempt, source tree and artifact bytes again before mutation; it does not rebuild them.
+A project-owned server may build the payload, provided full main validation checks that exact
+immutable payload or OCI digest and binds it to its native run/attempt before promotion. Source CI
+for the same commit alone cannot validate a separately built binary. The built-in `deliver` path
+expects the native verified source bundle; another server path must retain equivalent artifact
+checks in its existing project workflow rather than claim that this adapter imported the artifact.
 The historical PR-artifact integration mode remains available only through its explicit source
 workflow selection for older adoptions.
 
@@ -266,7 +277,9 @@ establish factual correctness or semantic completeness. See this repository's
 ## Explicit native shapes and diagnostics
 
 Impact paths use root-anchored POSIX globs: `*` stays within one path segment and `**` spans zero or
-more segments. Root locks are shared inputs. Fetch the comparison base explicitly or use
+more segments. Exact native root lock names are shared inputs. A covered nested lock follows its component and
+affected dependents; an uncovered path remains conservative. A source name containing `lock` is not
+a shared lock. Explicit shared globs still take precedence. Fetch the comparison base explicitly or use
 `fetch-depth: 0`; unavailable bases select every component. The `impact` composite exposes `selected`,
 `not-applicable`, `profiles` and `base` as JSON. A dependent job can use
 `if: contains(fromJSON(needs.impact.outputs.selected), 'backend')` before SDK/sidecar setup.
@@ -275,6 +288,23 @@ The security profile's default history scan requires `fetch-depth: 0` and a posi
 commit count. A shallow checkout or a scanner that examined no commits fails. Machine Git output
 ignores inherited global/system/config-injection settings and disables colour. Caller overrides of
 security commands own their actual coverage and native finding thresholds.
+
+Private Linux has a free Python route through the `tools` action's `security` capability. It
+provisions checksum-verified Gitleaks/OSV and lock-resolved Bandit in job-owned storage. The security
+profile defaults use these native tools with an explicit project policy, without CodeQL access:
+
+```toml
+[security]
+python = ["src/**/*.py"]
+licenses = ["MIT", "Apache-2.0"]
+```
+
+`python` scopes must each match tracked source. Bandit findings fail SAST; OSV checks lock-derived
+dependencies and the caller's SPDX license allowlist. The sample licenses are illustrative, not a
+legal grant or a universal allowlist. Missing scopes, missing policy, unavailable tools and scanner
+errors fail. Other languages retain explicit free language-native `commands.security.sast` checks;
+the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
+services. This route needs no paid GitHub security service and cannot waive required security stages.
 
 Tracked locks at every depth are bound to the result and checked again after execution. Native
 ecosystem names include JavaScript managers, Gradle and Swift. `[inputs] locks = ["config/tool.lock"]`
@@ -302,7 +332,7 @@ its own bootstrap uses an absolute verified executable outside caller PATH.
 
 The Linux `tools` action accepts a space/comma-separated capability list, for example
 `capability: security shell container`. Workflow tools include actionlint, lychee and zizmor;
-security adds Gitleaks and OSV-Scanner, shell adds Bats and ShellCheck. The native script validates
+security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain, shell adds Bats and ShellCheck. The native script validates
 capabilities and verified owned binaries before reuse. SDKs and system libraries such as libmagic
 belong to the runner owner or an explicit job-local caller setup. A caller setup verifies downloaded
 packages against its trusted native package metadata and supplies only that job's library paths;
@@ -333,7 +363,13 @@ The `feedback` composite accepts exact workflow paths and a creator allowlist, p
 `issues: write`. An optional `task-issue` receives deduplicated comments; otherwise one failure Issue
 is created for each run attempt. Closed markers are reused and reruns have distinct attempt markers.
 Markers are accepted only from the workflow bot or explicitly allowed actors. Missing pagination
-coverage fails before publication. All publishers in a repository share one concurrency group with
+coverage fails before publication. Reconciliation defaults to the native default branch and push, schedule and workflow_dispatch events
+within seven days. `events` and `branches` explicitly select other cases, including PRs or a
+workflow_run delivery handler; both filters also apply to an explicit run ID. `since` selects a UTC
+lower bound within thirty days. `page-budget` bounds run-list API requests across all workflows,
+branches and events; exhausted coverage fails before writing. Failed job names come from the exact
+attempt's bounded native job metadata; `stale` is a supported failure conclusion.
+All publishers in a repository share one concurrency group with
 `cancel-in-progress: false`, so simultaneous event and reconciliation calls serialize.
 
 A trusted `workflow_run` caller invokes the pinned action without checking out the failed candidate,
@@ -353,7 +389,19 @@ pair. The online zizmor job complements offline source analysis with read-only m
 The short PR gate uses finite syntax, lint/type, relevant unit and critical secret checks. Full main
 CI owns native builds, SDK/browser cells, package consumption, selected security and target readiness.
 Each repository keeps its real commands in the existing workflow/contract, without a second gate
-inventory. GitHub dev pushes perform neither full CI nor CD. An existing dev server builds dev
+inventory. The convention is one stable `gate` aggregate in the existing PR workflow. It accounts
+for every applicable premerge obligation and fails unexpected missing or skipped work. A native
+main check with the same job name does not satisfy this phase.
+
+`nddev-cicd eligible --phase pr --repository OWNER/REPO --workflow .github/workflows/ci.yml
+--run-id RUN --revision HEAD --pull-request NUMBER --target dev` reads that existing aggregate.
+It requires the exact PR event, current head, target/base, latest run and successful latest attempt;
+pending, cancelled, missing, superseded or non-success evidence is refused. `--aggregate` supports
+an existing different aggregate name without copying its check inventory. The result is read-only
+evidence, not an atomic base lock: reconcile candidate and material base changes immediately before
+an ordinary guarded merge under the adopted branch policy.
+
+GitHub dev pushes perform neither full CI nor CD. An existing dev server builds dev
 locally; repositories without one can still promote normally. A parent task remains open until its
 applicable main validation and target acceptance finish.
 

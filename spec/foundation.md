@@ -117,3 +117,8 @@ silent ubuntu-latest defaults. The caller owns its runner/job when cross-organiz
 workflow access is insufficient; it may call a public composite implementation. Workflow source
 selection and execution context cannot be controlled by untrusted payload fields. A declared runner
 name is not evidence of its actual OS, architecture, toolchain or account entitlement.
+
+The routing helper validates configured labels and trust but does not query the native runner
+inventory, job access or live queue. Its private self-hosted result reports this limitation
+explicitly. Actual availability remains a caller-owned prerequisite established through the
+existing runner inventory; label selection alone does not verify R-0006.

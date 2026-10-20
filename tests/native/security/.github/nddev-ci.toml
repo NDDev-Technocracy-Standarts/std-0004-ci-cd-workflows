@@ -1,5 +1,5 @@
 schema=1
 profiles=["security"]
-[commands.security]
-sast=["uv","run","bandit","-q","app.py"]
-licenses=["uv","run","pip-licenses","--packages","PyYAML","--allow-only","MIT License"]
+[security]
+python=["app.py"]
+licenses=["MIT"]
