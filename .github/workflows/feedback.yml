@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@87fba41ce3ecaaae2426c75d92ff6e97d5828605
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@acb440cb613bf88286b2da65ddff334c4cb89056
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
