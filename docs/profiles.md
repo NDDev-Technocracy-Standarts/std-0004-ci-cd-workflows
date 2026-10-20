@@ -10,7 +10,7 @@ Generated from the executed runtime catalog; not a native-fixture verification c
 | `typescript-javascript` | setup, toolchain, format, lint, type, test, build, package | Native defaults |
 | `c-cpp` | configure, format, lint, build, test, package | format, lint |
 | `qt` | toolchain, configure, build, test, package | Native defaults |
-| `dart-flutter` | setup, toolchain, lint, test, generate, build | generate, build |
+| `dart-flutter` | setup, toolchain, format, lint, test, generate, build | generate, build |
 | `jvm` | toolchain, dependencies, lint, test, build | dependencies, lint |
 | `android-kotlin` | toolchain, dependencies, lint, test, build | Native defaults |
 | `dotnet` | toolchain, setup, format, build, test, package | Native defaults |

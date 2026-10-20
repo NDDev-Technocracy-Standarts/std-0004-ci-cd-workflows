@@ -219,7 +219,7 @@ currently Linux x64; cross-platform builds still need the corresponding project 
 The builder exposes no deployment/registry credentials to source PR code.
 
 Retain both `dist/image.oci.tar` and `dist/image.oci.json` in the source artifact. `oci-publish` then
-downloads the exact integrated PR bundle and copies the archive through pinned native Skopeo without
+downloads the exact eligible full-main bundle and copies the archive through pinned native Skopeo without
 rebuilding. Native inspection must confirm the same registry digest. It publishes a content-addressed
 tag and returns `repository@sha256:...`; mutable channel aliases remain an independently coordinated
 target operation. Caller secrets supply an explicit private registry auth file; optional native CA

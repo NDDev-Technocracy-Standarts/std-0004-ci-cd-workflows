@@ -138,6 +138,20 @@ def exercise(name: str, output: Path) -> dict:
             ):
                 raise RuntimeError("Native formatting drift must fail independently of passing Go tests")
             source.write_text(original)
+        if name == "flutter":
+            source = root / SOURCES[name]
+            original = source.read_text()
+            changed = original.replace("void main() {", "void main(){", 1)
+            if changed == original:
+                raise RuntimeError("The formatter fixture did not alter Dart formatting")
+            source.write_text(changed)
+            formatting = execute(root, load(root), output / "format-negative")
+            if (
+                "dart-flutter.format" not in formatting.get("failed", [])
+                or next(i for i in formatting["results"] if i["name"] == "dart-flutter.test")["status"] != "success"
+            ):
+                raise RuntimeError("Dart formatting drift must fail independently of passing Flutter tests")
+            source.write_text(original)
         # A genuine source syntax error must reach the real compiler/test path and remain a failed aggregate.
         source = root / SOURCES[name]
         if name == "security":
