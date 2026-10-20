@@ -336,7 +336,8 @@ through the caller's ordinary artifact policy.
 
 The optional [ClusterFuzzLite composite](../.github/actions/clusterfuzz/action.yml) builds native
 C/C++ fuzz targets and runs a bounded batch with an explicit `seconds` budget. The caller supplies
-its real `.clusterfuzzlite` Dockerfile, build script and project configuration. It requires a public
+its real root `.clusterfuzzlite` Dockerfile, build script and project configuration. The upstream
+GitHub SDK clones the exact caller revision and builds that root integration. It requires a public
 repository and a disposable GitHub-hosted Linux job: upstream SDK disk cleanup is unsuitable for
 a persistent private Docker host. Build validation is mandatory, broken-target allowance is zero,
 and dry-run is disabled. Split `phase: build` and `phase: run` only to prepare native corpora between

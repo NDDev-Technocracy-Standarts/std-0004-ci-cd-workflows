@@ -1,9 +1,6 @@
 name: Bounded native ClusterFuzzLite
 description: Build and batch-fuzz a project on an ephemeral public GitHub Linux executor
 inputs:
-  project-directory:
-    description: Caller directory containing the native .clusterfuzzlite build integration
-    default: .
   phase:
     description: all, build or run; split phases allow native corpus preparation after build validation
     default: all
@@ -20,7 +17,6 @@ runs:
       shell: bash
       env:
         NDDEV_PUBLIC: ${{ github.event.repository.private == false }}
-        NDDEV_PROJECT: ${{ inputs.project-directory }}
         NDDEV_PHASE: ${{ inputs.phase }}
         NDDEV_SANITIZER: ${{ inputs.sanitizer }}
         NDDEV_SECONDS: ${{ inputs.seconds }}
@@ -33,9 +29,7 @@ runs:
         import os
         from pathlib import Path
         root = Path(os.environ['GITHUB_WORKSPACE']).resolve()
-        project = root / os.environ['NDDEV_PROJECT']
-        assert project.resolve().is_relative_to(root)
-        assert all((project / '.clusterfuzzlite' / name).is_file() for name in ('Dockerfile', 'build.sh', 'project.yaml'))
+        assert all((root / '.clusterfuzzlite' / name).is_file() for name in ('Dockerfile', 'build.sh', 'project.yaml'))
         assert os.environ['NDDEV_PHASE'] in {'all', 'build', 'run'}
         assert os.environ['NDDEV_SANITIZER'] in {'address', 'undefined', 'memory'}
         assert os.environ['NDDEV_SECONDS'].isdigit() and 1 <= int(os.environ['NDDEV_SECONDS']) <= 600
@@ -47,7 +41,7 @@ runs:
       uses: google/clusterfuzzlite/actions/build_fuzzers@52ecc61cb587ee99c26825a112a21abf19c7448c
       with:
         language: c++
-        project-src-path: ${{ github.workspace }}/${{ inputs.project-directory }}
+        project-src-path: .
         sanitizer: ${{ inputs.sanitizer }}
         github-token: ${{ github.token }}
         dry-run: false

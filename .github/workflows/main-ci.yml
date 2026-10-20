@@ -508,7 +508,6 @@ jobs:
         fetch-depth: 0
     - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@02968cce4ce8cba3494b69579bc4a96001a5e402
       with:
-        project-directory: tests/native/clusterfuzz
         phase: build
         sanitizer: ${{ matrix.sanitizer }}
         seconds: '5'
@@ -527,7 +526,6 @@ jobs:
       continue-on-error: ${{ matrix.variant == 'negative' }}
       uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@02968cce4ce8cba3494b69579bc4a96001a5e402
       with:
-        project-directory: tests/native/clusterfuzz
         phase: run
         sanitizer: ${{ matrix.sanitizer }}
         seconds: '5'

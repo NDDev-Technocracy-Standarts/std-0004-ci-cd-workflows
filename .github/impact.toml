@@ -154,6 +154,6 @@ profiles=["security"]
 depends_on=["runtime"]
 
 [impact.components.native-clusterfuzz]
-paths=["tests/native/clusterfuzz/**"]
+paths=["tests/native/clusterfuzz/**",".clusterfuzzlite/**"]
 profiles=["advanced-testing"]
 depends_on=["runtime"]
