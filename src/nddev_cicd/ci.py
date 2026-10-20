@@ -413,6 +413,45 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
 def execute(root: Path, contract: dict, output: Path) -> dict:
     contract = copy.deepcopy(contract)
     output.mkdir(parents=True, exist_ok=False)
+    if "compiler_cache" not in contract or not {"c-cpp", "qt"} & set(selection(root, contract)[0]):
+        return _execute_with_rust_cache(root, contract, output)
+    from .cache import compiler
+
+    with compiler(
+        root, contract["compiler_cache"], contract.get("environment", {}), contract["_path"]
+    ) as compiler_environment:
+        contract.setdefault("environment", {}).update(compiler_environment)
+        result = _execute_with_rust_cache(root, contract, output)
+        statistics = run(
+            ["ccache", "--print-stats"],
+            root,
+            output / "ccache-statistics.log",
+            timeout=30,
+            env={**contract["environment"]},
+        )
+        if statistics["status"] == "success":
+            try:
+                counts = {
+                    key: int(value)
+                    for key, value in (
+                        line.split("\t") for line in Path(statistics["log"]).read_text().splitlines()
+                    )
+                }
+                if not {"cache_miss", "direct_cache_hit", "preprocessed_cache_hit"} <= counts.keys() or any(
+                    value < 0 for value in counts.values()
+                ):
+                    raise Invalid("Ccache did not provide complete nonnegative native statistics")
+                statistics["counters"] = counts
+            except (Invalid, ValueError) as error:
+                statistics.update(status="failure", detail=str(error))
+        result["expected"].append("cache.ccache-statistics")
+        result["results"].append({"name": "cache.ccache-statistics", **statistics})
+        result.update(reports.aggregate(result["expected"], result["results"]))
+        atomic_json(output / "result.json", result)
+        return result
+
+
+def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
     cache_root = os.environ.get("NDDEV_CACHE_ROOT")
     if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)

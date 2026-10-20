@@ -54,6 +54,13 @@ def exercise(name: str, output: Path) -> dict:
         raise ValueError(f"No integrated native fixture for {name}")
     with tempfile.TemporaryDirectory(prefix=f"nddev-native-{name}-") as directory, ExitStack() as cleanup:
         root = Path(directory) / "caller"
+        if name in {"cpp", "qt"} and not os.environ.get("NDDEV_CCACHE_ROOT"):
+            previous_cache = os.environ.get("NDDEV_CCACHE_ROOT")
+            os.environ["NDDEV_CCACHE_ROOT"] = str(Path(directory) / "compiler-cache")
+            if previous_cache is None:
+                cleanup.callback(os.environ.pop, "NDDEV_CCACHE_ROOT", None)
+            else:
+                cleanup.callback(os.environ.__setitem__, "NDDEV_CCACHE_ROOT", previous_cache)
         standard_ignores = shutil.ignore_patterns(
             ".venv",
             "node_modules",
@@ -108,6 +115,23 @@ def exercise(name: str, output: Path) -> dict:
         positive = execute(root, load(root), output / "positive")
         if positive["status"] != "success":
             raise RuntimeError(f"Native {name} fixture failed: {positive.get('failed')}; logs: {output}")
+        if name in {"cpp", "qt"}:
+            cold = next(
+                item["counters"] for item in positive["results"] if item["name"] == "cache.ccache-statistics"
+            )
+            (root / SOURCES[name]).touch()
+            warm = execute(root, load(root), output / "cache-warm")
+            if warm["status"] != "success":
+                raise RuntimeError("Native cached compilation did not pass its actual source checks")
+            hits = next(
+                item["counters"] for item in warm["results"] if item["name"] == "cache.ccache-statistics"
+            )
+            if (
+                cold["cache_miss"] < 1
+                or hits["direct_cache_hit"] + hits["preprocessed_cache_hit"]
+                <= cold["direct_cache_hit"] + cold["preprocessed_cache_hit"]
+            ):
+                raise RuntimeError("Actual native compiler requests must produce a measured cache hit")
         if name == "python":
             measured = next(item for item in positive["results"] if item["name"] == "coverage.application")
             if not measured.get("retained_reports") or not 50 <= measured["percent"] < 100:

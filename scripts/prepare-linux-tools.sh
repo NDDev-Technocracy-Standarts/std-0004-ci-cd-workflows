@@ -59,7 +59,7 @@ install_file() {
 capabilities="${*//,/ }"
 unique=''
 for capability in $capabilities; do
-  case "$capability" in rust|security|quality|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
+  case "$capability" in rust|security|quality|compiler|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
   case " $unique " in *" $capability "*) ;; *) unique+=" $capability" ;; esac
 done
 install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz' \
@@ -69,6 +69,11 @@ install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-
 install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
   'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
 for capability in $unique; do
+if [[ "$capability" == compiler ]]; then
+  install_archive 'https://github.com/ccache/ccache/releases/download/v4.14.2/ccache-4.14.2-linux-x86_64-musl-static.tar.gz' \
+    'd540ba01f160addbd3dd5e18eda9bd34005591b095c09ac8ae9d0a1b655e7ef5' ccache
+  "$tools/ccache" --version
+fi
 if [[ "$capability" == quality ]]; then
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"

@@ -110,6 +110,17 @@ A failed stop protects the namespace for owner reconciliation. Windows uses the 
 this local sccache mode currently requires Unix sockets. No shared-host prune or routine cargo clean
 is used. Native feature/MSRV/cross-target checks are selected native stage/extra commands.
 
+C/C++ and Qt projects can select an independent `compiler_cache` table with the same explicit
+`cache_budget_bytes`, `cache_min_free_bytes` and `cache_ttl_seconds` fields. The job owner supplies
+a dedicated absolute `NDDEV_CCACHE_ROOT`, separately from Cargo storage. The Linux tools action's
+`compiler` capability provisions the verified native ccache binary without host package changes.
+CMake C/C++ launcher variables select that binary; conflicting existing launchers fail rather than
+being overwritten. Native compiler-content keys and bounded owner namespaces preserve relevant
+toolchain, platform, configuration and trust context. The source result retains actual native
+hit/miss counters. A counter is evidence of cache behavior, not a promised speedup. Inactive cache
+reclamation follows the selected budget/reserve/TTL; published and rollback artifacts stay outside
+compiler storage. Projects with other native build systems retain their explicit launcher commands.
+
 A caller-owned monorepo job can select an existing contained working-directory; the callee package
 continues to resolve from its own action path. Private admission labels include self-hosted, Linux
 and the selected actual architecture. A requested architecture cannot be inferred from a prose host name.

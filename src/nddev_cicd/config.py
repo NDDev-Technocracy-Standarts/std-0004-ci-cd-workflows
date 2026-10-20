@@ -33,6 +33,7 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "diagnostics",
         "security",
         "coverage",
+        "compiler_cache",
     }
     if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
@@ -53,6 +54,12 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "cache_ttl_seconds",
     }:
         raise Invalid("Unsupported Rust cache setting; native feature/MSRV commands belong in stages/extras")
+    if set(config.get("compiler_cache", {})) - {
+        "cache_budget_bytes",
+        "cache_min_free_bytes",
+        "cache_ttl_seconds",
+    }:
+        raise Invalid("Unsupported native C/C++ compiler cache setting")
     definitions = catalog()
     from .quality import coverage_settings
 
