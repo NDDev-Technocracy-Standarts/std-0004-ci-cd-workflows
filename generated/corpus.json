@@ -10,7 +10,7 @@
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
     "version": "0.3.1",
-    "status": "draft",
+    "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
       "The selected CI/CD library modules and their authorized project invocations, including source validation, build artifacts, delivery and maintenance."
@@ -92,11 +92,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "47c97c0ba1854e994f4491acf981de12cd22f7ce5b59e6a9a1d70dc2528fde57"
+      "sha256": "a610a14d1796137dd7460c0547a7823d1d1dad208d0d3698c7e2cb183278464c"
     }
   ],
   "listings": [],
-  "inputs-sha256": "ef69b648037db6ec7f00a9186ea0ab64de4bab1773c34667821fd0b672aa437d",
+  "inputs-sha256": "d9243ad800f7af1cd902f61097953ef630d6e9d1844d335c50d2156c478e06d8",
   "verification": [
     {
       "id": "runtime.advanced",
