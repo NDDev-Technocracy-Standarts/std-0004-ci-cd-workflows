@@ -11,6 +11,52 @@ from nddev_cicd import ci, config, documentation, feedback, impact, reports
 from nddev_cicd.model import Invalid, git
 from nddev_cicd.process import run
 
+
+@pytest.mark.parametrize("skipped,executed", [(2, 0), (1, 1), (0, 2), (0, 0)])
+def test_unittest_counts_actual_execution(tmp_path, skipped, executed):
+    cases = ["import unittest", "class Cases(unittest.TestCase):", " pass"]
+    for index in range(skipped):
+        cases += [" @unittest.skip('not applicable')", f" def test_skipped_{index}(self): pass"]
+    for index in range(executed):
+        cases += [f" def test_executed_{index}(self): self.assertEqual(2 + 2, 4)"]
+    (tmp_path / "cases.py").write_text("\n".join(cases) + "\n")
+    result = subprocess.run(
+        [sys.executable, "-m", "unittest", "-v", "cases"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    log = tmp_path / "unittest.log"
+    log.write_text(result.stdout + result.stderr)
+    if executed:
+        assert result.returncode == 0
+        assert reports.tests(tmp_path, {"kind": "unittest"}, log) == executed
+    else:
+        with pytest.raises(Invalid):
+            reports.tests(tmp_path, {"kind": "unittest"}, log)
+
+
+def test_dependency_review_uses_both_pr_source_refs(repository, tmp_path, monkeypatch):
+    from nddev_cicd import github
+
+    root = repository({"requirements.txt": "demo==1"})
+    base = git(root, "rev-parse", "HEAD")
+    (root / "requirements.txt").write_text("demo==2")
+    git(root, "commit", "-am", "dependency candidate")
+    head = git(root, "rev-parse", "HEAD")
+    (root / "README.md").write_text("synthetic merge context")
+    git(root, "add", "README.md")
+    git(root, "commit", "-m", "merge context")
+    event = tmp_path / "event.json"
+    event.write_text(
+        json.dumps({"before": "c" * 40, "pull_request": {"base": {"sha": base}, "head": {"sha": head}}})
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request")
+    monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+    assert github.dependency_review_refs(root) == {"base": base, "head": head}
+
+
 DOC_COMMANDS = """schema=1
 profiles=["documentation"]
 [commands.documentation]
@@ -369,9 +415,13 @@ def test_main_impact_keeps_changes_from_unverified_pushes(repository, monkeypatc
     }
     _, plan = ci.selection(root, contract)
     assert plan["base"] == accepted and plan["selected_components"] == ["docs", "runtime"]
+    assert github.dependency_review_refs(root) == {"base": accepted, "head": git(root, "rev-parse", "HEAD")}
+    assert "runtime/app.py" in git(root, "diff", "--name-only", accepted, "HEAD")
     monkeypatch.setattr(github, "get", lambda path: {"workflow_runs": []})
     _, plan = ci.selection(root, contract)
     assert plan["base"] is None and plan["selected_components"] == ["docs", "runtime"]
+    with pytest.raises(Invalid, match="accepted main baseline"):
+        github.dependency_review_refs(root)
 
 
 def test_main_artifact_eligibility_rejects_obsolete_revision_and_other_tree(monkeypatch):

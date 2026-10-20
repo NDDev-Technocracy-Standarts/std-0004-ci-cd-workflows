@@ -248,3 +248,23 @@ def successful_main_base(root: Path, workflow: str) -> str | None:
     except (OSError, ValueError, KeyError, TypeError):
         # Unavailable metadata keeps all obligations; it is never an empty change set.
         return None
+
+
+def dependency_review_refs(
+    root: Path, base: str | None = None, workflow: str = ".github/workflows/main-ci.yml"
+) -> dict:
+    """Review PR source refs or every main change since an accepted ancestor."""
+    from .model import git, source_identity
+
+    source = source_identity(root)
+    if source["event"] == "pull_request":
+        base, head = source["base"], source["head"]
+    elif source["event"] == "push" and os.environ.get("GITHUB_REF") == "refs/heads/main":
+        base, head = base or successful_main_base(root, workflow), source["tested_revision"]
+        if base:
+            git(root, "merge-base", "--is-ancestor", base, head)
+    else:
+        raise Invalid("Dependency review requires a PR or main push")
+    if not all(isinstance(ref, str) and re.fullmatch(r"[0-9a-f]{40}", ref) for ref in (base, head)):
+        raise Invalid("Dependency review requires exact source refs and an accepted main baseline")
+    return {"base": base, "head": head}

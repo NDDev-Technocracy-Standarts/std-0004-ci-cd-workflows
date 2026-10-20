@@ -98,9 +98,18 @@ def tests(root: Path, specification: dict, log: Path) -> int:
     elif kind == "cargo":
         count = sum(int(n) for n in re.findall(r"test result: ok\. (\d+) passed", output))
     elif kind == "unittest":
-        count = sum(int(n) for n in re.findall(r"Ran (\d+) tests?", output))
-        if not re.search(r"\bOK\b", output):
+        summaries = re.findall(
+            r"(?m)^Ran (\d+) tests? in [^\r\n]+\r?\n(?:\r?\n)*OK(?: \(([^)\r\n]*)\))?[ \t]*$",
+            output,
+        )
+        if not summaries:
             raise Invalid("Native unittest did not report OK")
+        count = 0
+        for total, details in summaries:
+            skipped = sum(int(n) for n in re.findall(r"\bskipped=(\d+)", details))
+            if skipped > int(total):
+                raise Invalid("Native unittest skipped count exceeds its test count")
+            count += int(total) - skipped
     elif kind == "native":
         # Project-owned documented regex for a tool lacking JUnit; no default invented success.
         regex = specification.get("positive_pattern")
