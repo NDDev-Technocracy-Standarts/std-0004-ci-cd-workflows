@@ -38,7 +38,9 @@ def test_cache_paths_and_credentials_cannot_override_the_native_boundary(tmp_pat
         oci.build_options(tmp_path, [], [cache], [])
 
 
-def test_type_key_order_cannot_bypass_local_export_ownership(tmp_path):
+def test_type_key_order_cannot_bypass_local_export_ownership(tmp_path, monkeypatch):
+    # This checks local ownership; dedicated PR fixtures check provider write authority.
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     flags = oci.build_options(tmp_path, [], [], ["dest=cache,type=local"])
     assert oci.local_exports(flags) == [tmp_path / "cache"]
     (tmp_path / "cache").mkdir()
