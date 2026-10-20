@@ -54,6 +54,9 @@ jobs:
       uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
       with:
         bun-version: 1.4.3
+    - name: Use only the image's signed Ubuntu sources for native R system dependencies
+      if: ${{ matrix.profile == 'r' }}
+      run: scripts/prepare-native-apt.sh
     - name: Select the R SDK declared by the native lockfile
       if: ${{ matrix.profile == 'r' }}
       uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05
@@ -350,6 +353,8 @@ jobs:
       with:
         toolchain: nightly-2026-10-19
         components: rust-src
+    - name: Use only the image's signed Ubuntu sources for native compiler dependencies
+      run: scripts/prepare-native-apt.sh
     - name: Select a compatible native Clang and libFuzzer runtime
       run: 'sudo apt-get update
 
