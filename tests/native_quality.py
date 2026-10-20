@@ -2,9 +2,13 @@
 
 import json
 import os
+import subprocess
 import sys
 
-from nddev_cicd import ci, config
+from native_advanced import project
+
+from nddev_cicd import advanced, ci, config
+from nddev_cicd.model import git
 
 
 def test_actual_offline_semgrep_rejects_javascript_and_python_findings(repository, tmp_path, monkeypatch):
@@ -48,3 +52,47 @@ timeout=120
     assert "extra.sast" in negative["failed"]
     findings = json.loads((tmp_path / "negative/extra-sast.log").read_text())["results"]
     assert {x["path"] for x in findings} == {"source.py", "source.js"}
+
+
+def test_actual_mutmut_requires_caught_mutants_and_rejects_weakened_tests(repository, tmp_path):
+    root = project(repository, "mutation-python")
+    original = (root / "src/example.py").read_bytes()
+    positive = advanced.mutation(root, tmp_path / "positive", engine="mutmut")
+    assert positive["status"] == "success" and positive["caught"] > 0 and positive["missed"] == 0
+    assert (root / "src/example.py").read_bytes() == original and not (root / "mutants").exists()
+    (root / "tests/test_example.py").write_text(
+        "from example import add_one\n\ndef test_actual_addition():\n    assert add_one(2) is not None\n"
+    )
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "controlled weak mutation test")
+    negative = advanced.mutation(root, tmp_path / "negative", engine="mutmut")
+    assert negative["status"] == "failure" and negative["missed"] > 0
+    assert (tmp_path / "negative/mutants/mutmut-cicd-stats.json").is_file()
+
+
+def test_actual_stryker_requires_native_completed_mutants(repository, tmp_path):
+    root = project(repository, "mutation-node")
+    subprocess.run(
+        ["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund"],
+        cwd=root,
+        check=True,
+        capture_output=True,
+    )
+    original = (root / "src/add.js").read_bytes()
+    positive = advanced.mutation(root, tmp_path / "positive", engine="stryker")
+    assert positive["status"] == "success" and positive["caught"] > 0 and positive["missed"] == 0
+    assert (root / "src/add.js").read_bytes() == original
+    (root / "test/add.test.js").write_text(
+        "import { test } from 'node:test';\nimport assert from 'node:assert/strict';\nimport { addOne } from '../src/add.js';\ntest('weak property',()=>assert.equal(typeof addOne(2),'number'));\n"
+    )
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "controlled weak JavaScript mutation test")
+    negative = advanced.mutation(root, tmp_path / "negative", engine="stryker")
+    assert negative["status"] == "failure" and negative["missed"] > 0
+    assert (tmp_path / "negative/stryker-report.json").is_file()
+    settings = root / "stryker.config.mjs"
+    settings.write_text(settings.read_text().replace("break: null", "break: 100"))
+    git(root, "add", ".")
+    git(root, "commit", "-qm", "controlled native project threshold")
+    stricter = advanced.mutation(root, tmp_path / "native-threshold", engine="stryker", maximum_missed=100)
+    assert stricter["status"] == "failure" and stricter["exit_code"] == 1

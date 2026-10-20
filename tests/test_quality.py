@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from nddev_cicd import ci, config, quality
+from nddev_cicd import advanced, ci, config, quality
 from nddev_cicd.model import Invalid
 
 
@@ -150,3 +150,14 @@ def test_branch_coverage_requires_actual_native_branches(tmp_path):
             },
             tmp_path / "out",
         )
+
+
+def test_native_mutation_never_adopts_or_deletes_an_existing_workspace(tmp_path):
+    source = tmp_path / "project"
+    previous = source / "mutants"
+    previous.mkdir(parents=True)
+    (previous / "user-result.json").write_text("preserved")
+    with pytest.raises(Invalid):
+        advanced.mutation(source, tmp_path / "new-output", engine="mutmut")
+    assert (previous / "user-result.json").read_text() == "preserved"
+    assert [p.name for p in previous.iterdir()] == ["user-result.json"]

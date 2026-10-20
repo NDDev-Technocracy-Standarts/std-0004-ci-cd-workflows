@@ -298,9 +298,21 @@ fuzzing. Rust uses a pinned installed nightly's actual rustc/cargo paths and a p
 libFuzzer consumes a caller-built native executable. The native LLVM build stage owns its compiler
 identity. SDK absence, zero native executions and changed locks fail.
 
-`advanced-mutation` runs native cargo-mutants, requires a successful unmutated baseline and complete
-nonempty native outcomes, and applies the project's explicit missed-mutant budget. It retains native
-logs/diffs/results. `benchmark-compare` reads actual paired pytest-benchmark JSON, requires matching
+`advanced-mutation` defaults to cargo-mutants and also accepts `--engine mutmut` or `--engine stryker`.
+It requires a successful unmutated baseline and complete nonempty native outcomes, and applies the
+project's explicit missed-mutant budget. Mutmut requires a POSIX fork-capable executor; its existing
+workspace is never deleted or adopted. Only state created by this invocation is moved into retained
+diagnostics. Stryker uses the project's installed dependency lock and native public SDK, forces
+copy-based mutation and full measurements, disables dashboard reporters, and retains original native
+outcomes and JSON reports. Native project breaking thresholds still apply. Missing, interrupted,
+timed-out or incomplete results fail; zero actual mutations cannot pass. Other engine settings belong
+to their native project configuration; `--timeout` remains the Cargo per-mutant setting.
+
+The existing process budget reaps a nested SDK before an outer cancellation kills its intermediate
+library process. Cancellation remains a failed operation and does not authorize a retry of target
+mutations. Native logs, diffs and outcomes remain available for diagnosis.
+
+`benchmark-compare` reads actual paired pytest-benchmark JSON, requires matching
 case/tool/machine/interpreter identities and positive native measurements, then applies the explicit
 regression ratio. These capabilities add no universal coverage percentage, schedule or production load.
 
