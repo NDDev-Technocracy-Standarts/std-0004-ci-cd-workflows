@@ -13,7 +13,7 @@ from pathlib import Path
 from .model import Invalid, git_environment
 
 
-def terminate(child: subprocess.Popen, stream) -> None:
+def terminate(child: subprocess.Popen, stream, *, grace_seconds: int = 5) -> None:
     """Reap this operation's leader and kill its remaining group, even after the leader exits."""
     if os.name == "nt":
         subprocess.run(
@@ -31,7 +31,7 @@ def terminate(child: subprocess.Popen, stream) -> None:
     except ProcessLookupError:
         pass
     try:
-        child.wait(timeout=5)
+        child.wait(timeout=grace_seconds)
     except subprocess.TimeoutExpired:
         pass
     finally:
@@ -106,7 +106,9 @@ def run(
                 status = "success" if code == 0 else "failure"
             except (subprocess.TimeoutExpired, KeyboardInterrupt) as error:
                 detail = "cancelled" if isinstance(error, KeyboardInterrupt) else "timeout"
-                terminate(child, stream)
+                # Cancellation can come from an outer library deadline. Reap our SDK group
+                # before that caller's own grace window kills this intermediate process.
+                terminate(child, stream, grace_seconds=1 if isinstance(error, KeyboardInterrupt) else 5)
                 code = child.returncode
             finally:
                 if previous_handler is not None:

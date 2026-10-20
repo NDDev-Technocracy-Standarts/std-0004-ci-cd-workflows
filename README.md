@@ -37,6 +37,9 @@ returns bounded native run feedback to an owning Issue without executing candida
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to
 native command definitions. Optional public security, release preparation, OCI and bounded advanced
 operations use the same implementation and explicit applicability.
+The [optional native quality modules](docs/usage.md#ready-bounded-advanced-operations) add mutation,
+benchmark, source-host assessment and disposable-executor fuzzing feedback without selecting them
+for existing consumers.
 
 ## Check and maintain
 

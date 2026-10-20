@@ -59,7 +59,7 @@ install_file() {
 capabilities="${*//,/ }"
 unique=''
 for capability in $capabilities; do
-  case "$capability" in rust|security|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
+  case "$capability" in rust|security|quality|compiler|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
   case " $unique " in *" $capability "*) ;; *) unique+=" $capability" ;; esac
 done
 install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz' \
@@ -69,6 +69,28 @@ install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-
 install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
   'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
 for capability in $unique; do
+if [[ "$capability" == rust || "$capability" == quality ]]; then
+  install_archive 'https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-unknown-linux-musl.tar.gz' \
+    '48200087f54c55aabcd4db4af1e25742b49846c02a1b1bfa134711945b35b2e9' cargo-machete
+fi
+if [[ "$capability" == compiler ]]; then
+  install_archive 'https://github.com/ccache/ccache/releases/download/v4.14.2/ccache-4.14.2-linux-x86_64-musl-static.tar.gz' \
+    'd540ba01f160addbd3dd5e18eda9bd34005591b095c09ac8ae9d0a1b655e7ef5' ccache
+  "$tools/ccache" --version
+fi
+if [[ "$capability" == quality ]]; then
+  install_archive 'https://github.com/crate-ci/typos/releases/download/v1.51.1/typos-v1.51.1-x86_64-unknown-linux-musl.tar.gz' \
+    '93c301fd4120ff076e2cc2a6d6a61cab4a4bdb81899287c0938b452e56d1f454' typos
+  "$tools/typos" --version
+  "$tools/cargo-machete" --version
+  library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  library_uv="$(bash "$library/scripts/library-uv.sh")"
+  UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="$tools/quality-downloads" \
+    "$library_uv" sync --locked --group quality --project "$library/.github/native-tools" --python 3.13
+  SEMGREP_APP_TOKEN='' SEMGREP_SEND_METRICS=off SEMGREP_ENABLE_VERSION_CHECK=0 OTEL_SDK_DISABLED=true \
+    SEMGREP_SETTINGS_FILE="$tools/quality-semgrep-settings.yml" "$tools/quality-runtime/bin/semgrep" --version
+  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/quality-runtime/bin" >> "$GITHUB_PATH"; fi
+fi
 if [[ "$capability" == rust ]]; then
   install_archive 'https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz' \
     '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' cargo-deny

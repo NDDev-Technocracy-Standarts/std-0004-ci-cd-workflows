@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import shutil
+import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from .model import Invalid, git
+from .model import Invalid, atomic_json, git
 
 
 def fresh(root: Path, specification: dict) -> None:
@@ -39,7 +41,10 @@ def retain(root: Path, specification: dict, directory: Path) -> list[str]:
     for report in sorted(root.glob(pattern)):
         if report.is_symlink() or not report.resolve().is_relative_to(root.resolve()):
             raise Invalid("Native report escapes the caller checkout")
-        if not report.is_file() or report.suffix.lower() not in {".xml", ".json", ".trx"}:
+        suffixes = {".xml", ".json", ".trx"}
+        if specification.get("kind") == "coverage":
+            suffixes |= {".info", ".lcov", ".cover"}
+        if not report.is_file() or report.suffix.lower() not in suffixes:
             raise Invalid("Retain only native XML/JSON/TRX reports")
         if report.stat().st_size > 16 * 1024 * 1024:
             raise Invalid("Native report exceeds the bounded retention size")
@@ -151,6 +156,145 @@ def aggregate(expected: list[str], results: list[dict]) -> dict:
         and item["name"] not in limited
     ]
     return {"status": "failure" if failed else "success", "failed": failed, "limitations": limited}
+
+
+def scorecard(path: Path, repository: str, required: dict) -> dict:
+    """Interpret native assessment availability separately from explicit project score gates."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16 * 1024**2:
+        raise Invalid("A bounded regular native Scorecard report is required")
+    data = json.loads(path.read_text())
+    observed = data.get("repo", {}).get("name", "").removeprefix("https://").rstrip("/")
+    if observed.lower() != ("github.com/" + repository).lower():
+        raise Invalid("Scorecard assessed a different or unknown caller repository")
+    checks = data.get("checks")
+    if not isinstance(checks, list) or not checks:
+        raise Invalid("Scorecard returned no native assessments")
+    actual = {}
+    for check in checks:
+        name, value = check.get("name"), check.get("score")
+        if (
+            not isinstance(name, str)
+            or not name
+            or name in actual
+            or type(value) is not int
+            or not -1 <= value <= 10
+        ):
+            raise Invalid("Scorecard check identities/scores are invalid or repeated")
+        actual[name] = value
+    if not any(value >= 0 for value in actual.values()):
+        raise Invalid("Scorecard established no actual available assessment")
+    if not isinstance(required, dict) or any(
+        name not in actual or type(value) is not int or not 0 <= value <= 10
+        for name, value in required.items()
+    ):
+        raise Invalid("Required Scorecard checks need explicit available names and project scores in 0..10")
+    failed = [name for name, minimum in required.items() if actual[name] < minimum]
+    return {
+        "status": "failure" if failed else "success",
+        "assessment": "required-scores" if required else "advisory",
+        "scores": actual,
+        "failed": failed,
+        "unavailable": [name for name, value in actual.items() if value < 0],
+    }
+
+
+def benchmark_history(path: Path, tool: str, repository_url: str, *, comparison: bool = False) -> dict:
+    """Validate the vendor SDK's native history, never substitute a new baseline for a comparison."""
+    if path.is_symlink() or not path.is_file() or path.stat().st_size > 16 * 1024**2:
+        raise Invalid("A bounded regular native benchmark history is required")
+    data = json.loads(path.read_text())
+    if data.get("repoUrl", "").lower().rstrip("/") != repository_url.lower().rstrip("/"):
+        raise Invalid("Benchmark history belongs to a different or unknown caller repository")
+    suites = data.get("entries", {}).get("Benchmark")
+    if not isinstance(suites, list) or not suites:
+        raise Invalid("The native benchmark history has no actual baseline")
+
+    def cases(suite):
+        if suite.get("tool") != tool or not suite.get("commit", {}).get("id") or not suite.get("benches"):
+            raise Invalid("Native benchmark tool, source or measured cases are missing")
+        values = {}
+        for case in suite["benches"]:
+            name, value, unit = case.get("name"), case.get("value"), case.get("unit")
+            if (
+                not isinstance(name, str)
+                or not name
+                or name in values
+                or not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not math.isfinite(value)
+                or value <= 0
+                or not isinstance(unit, str)
+                or not unit
+            ):
+                raise Invalid(
+                    "Benchmark cases need unique native names, units and positive finite measurements"
+                )
+            values[name] = unit
+        return values
+
+    current = cases(suites[-1])
+    if comparison:
+        previous = next(
+            (
+                suite
+                for suite in reversed(suites[:-1])
+                if suite.get("commit", {}).get("id") != suites[-1]["commit"]["id"]
+            ),
+            None,
+        )
+        if previous is None or cases(previous) != current:
+            raise Invalid(
+                "Comparison needs a distinct native source baseline and exactly matching measured cases/units"
+            )
+    return data
+
+
+def benchmark_prepare(
+    root: Path,
+    temporary: Path,
+    measurement: str,
+    history: str,
+    tool: str,
+    mode: str,
+    ratio: float,
+    repository_url: str,
+) -> dict:
+    if (
+        mode not in {"record", "compare"}
+        or not tool
+        or type(ratio) not in {int, float}
+        or not math.isfinite(ratio)
+        or ratio <= 0
+    ):
+        raise Invalid(
+            "Select a native benchmark tool, explicit mode and positive finite project regression ratio"
+        )
+
+    def selected(value):
+        path = Path(value)
+        path = path if path.is_absolute() else root / path
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or not any(path.resolve().is_relative_to(base.resolve()) for base in (root, temporary))
+            or path.stat().st_size > 16 * 1024**2
+        ):
+            raise Invalid("Benchmark inputs must be bounded regular caller/job files")
+        return path.resolve()
+
+    report = selected(measurement)
+    if not report.stat().st_size:
+        raise Invalid("An empty native measurement cannot become a benchmark")
+    if mode == "record" and history or mode == "compare" and not history:
+        raise Invalid("Record creates a fresh baseline; comparison requires the accepted native history")
+    baseline = benchmark_history(selected(history), tool, repository_url) if history else None
+    output = Path(tempfile.mkdtemp(prefix="nddev-benchmark-", dir=temporary))
+    target = output / "history.json"
+    if baseline is not None:
+        # Compare only the latest accepted suite. The caller's original history remains immutable.
+        baseline["entries"] = {"Benchmark": baseline["entries"]["Benchmark"][-1:]}
+        atomic_json(target, baseline)
+    return {"measurement": str(report), "history": str(target), "threshold": f"{ratio * 100:g}%"}
 
 
 def sarif(directory: Path, minimum: str = "moderate") -> dict:
