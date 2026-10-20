@@ -74,7 +74,8 @@ if [[ "$capability" == quality ]]; then
   library_uv="$(bash "$library/scripts/library-uv.sh")"
   UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="$tools/quality-downloads" \
     "$library_uv" sync --locked --group quality --project "$library/.github/native-tools" --python 3.13
-  "$tools/quality-runtime/bin/semgrep" --version
+  SEMGREP_APP_TOKEN='' SEMGREP_SEND_METRICS=off SEMGREP_ENABLE_VERSION_CHECK=0 OTEL_SDK_DISABLED=true \
+    SEMGREP_SETTINGS_FILE="$tools/quality-semgrep-settings.yml" "$tools/quality-runtime/bin/semgrep" --version
   if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/quality-runtime/bin" >> "$GITHUB_PATH"; fi
 fi
 if [[ "$capability" == rust ]]; then

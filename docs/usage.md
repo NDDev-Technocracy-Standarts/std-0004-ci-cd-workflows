@@ -218,6 +218,26 @@ selected existing builder retains its caller-owned storage/GC policy. This pinne
 currently Linux x64; cross-platform builds still need the corresponding project SDK/runtime tests.
 The builder exposes no deployment/registry credentials to source PR code.
 
+The build action accepts newline-separated `build-args`, `cache-from` and `cache-to`, using native
+Buildx option syntax. Build arguments are non-secret `KEY=value` data; credentials belong to the
+project's separately authorized native secret mounts. Argument names and a binding digest are
+recorded without copying values into the artifact metadata.
+
+Local exports need a dedicated contained directory and an explicit `cache-budget-bytes`. The
+operation refuses foreign populated directories, holds an owner lock during use and fails when
+the retained cache exceeds its declared budget. It never prunes host-wide caches or silently deletes
+an over-budget store. The target owner reconciles that retained state. Declare the cache and lock
+locations as local-only material. An existing caller-owned Buildx builder remains supported.
+
+Registry and GHA caches are opt-in, with caller-owned capacity, authentication and retention. No
+backend is enabled automatically or asserted free by its name. GHA uses only its native v2 runtime
+credentials, an explicit project/platform scope and a finite transfer timeout. The action exposes
+that runtime through a pinned native JavaScript action without logging credentials. Missing runtime
+credentials fail explicitly; URL/token overrides are rejected. GitHub PRs can import caches but
+cannot export them; exports require a trusted default-branch push or explicit dispatch. NDDev uses
+main for this role. Heavy cache
+and image work remains in the selected full-main path.
+
 Retain both `dist/image.oci.tar` and `dist/image.oci.json` in the source artifact. `oci-publish` then
 downloads the exact eligible full-main bundle and copies the archive through pinned native Skopeo without
 rebuilding. Native inspection must confirm the same registry digest. It publishes a content-addressed

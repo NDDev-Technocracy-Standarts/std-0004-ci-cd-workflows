@@ -141,8 +141,8 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
         except (Invalid, ValueError, OSError) as error:
             stale_coverage[name] = str(error)
     env = {str(key): str(value) for key, value in contract.get("environment", {}).items()}
-    if any(key in env for key in ("GITHUB_TOKEN", "GH_TOKEN", "ACTIONS_RUNTIME_TOKEN")):
-        raise Invalid("Credentials are not project contract values")
+    if any(key == "GH_TOKEN" or key.startswith(("GITHUB_", "ACTIONS_", "RUNNER_")) for key in env):
+        raise Invalid("Native runner context and credentials are not project contract values")
     if "ruby" in selected:
         env["BUNDLE_FROZEN"] = "true"
     env["NDDEV_RESULT_DIR"] = str(output.resolve())

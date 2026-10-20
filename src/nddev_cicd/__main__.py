@@ -98,6 +98,10 @@ def parser() -> argparse.ArgumentParser:
     image.add_argument("--dockerfile", default="Dockerfile")
     image.add_argument("--platforms", default="linux/amd64")
     image.add_argument("--builder")
+    image.add_argument("--build-arg", action="append", default=[])
+    image.add_argument("--cache-from", action="append", default=[])
+    image.add_argument("--cache-to", action="append", default=[])
+    image.add_argument("--cache-budget-bytes", type=int, default=0)
     publish = sub.add_parser(
         "oci-publish", help="Publish the exact eligible OCI archive to an existing registry"
     )
@@ -312,6 +316,10 @@ def main(argv=None) -> int:
                 dockerfile=args.dockerfile,
                 platforms=args.platforms,
                 builder=args.builder,
+                build_args=args.build_arg,
+                cache_from=args.cache_from,
+                cache_to=args.cache_to,
+                cache_budget_bytes=args.cache_budget_bytes,
             )
         elif args.operation == "oci-publish":
             from . import oci
