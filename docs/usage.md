@@ -110,6 +110,17 @@ A failed stop protects the namespace for owner reconciliation. Windows uses the 
 this local sccache mode currently requires Unix sockets. No shared-host prune or routine cargo clean
 is used. Native feature/MSRV/cross-target checks are selected native stage/extra commands.
 
+C/C++ and Qt projects can select an independent `compiler_cache` table with the same explicit
+`cache_budget_bytes`, `cache_min_free_bytes` and `cache_ttl_seconds` fields. The job owner supplies
+a dedicated absolute `NDDEV_CCACHE_ROOT`, separately from Cargo storage. The Linux tools action's
+`compiler` capability provisions the verified native ccache binary without host package changes.
+CMake C/C++ launcher variables select that binary; conflicting existing launchers fail rather than
+being overwritten. Native compiler-content keys and bounded owner namespaces preserve relevant
+toolchain, platform, configuration and trust context. The source result retains actual native
+hit/miss counters. A counter is evidence of cache behavior, not a promised speedup. Inactive cache
+reclamation follows the selected budget/reserve/TTL; published and rollback artifacts stay outside
+compiler storage. Projects with other native build systems retain their explicit launcher commands.
+
 A caller-owned monorepo job can select an existing contained working-directory; the callee package
 continues to resolve from its own action path. Private admission labels include self-hosted, Linux
 and the selected actual architecture. A requested architecture cannot be inferred from a prose host name.
@@ -218,12 +229,55 @@ selected existing builder retains its caller-owned storage/GC policy. This pinne
 currently Linux x64; cross-platform builds still need the corresponding project SDK/runtime tests.
 The builder exposes no deployment/registry credentials to source PR code.
 
+The build action accepts newline-separated `build-args`, `cache-from` and `cache-to`, using native
+Buildx option syntax. Build arguments are non-secret `KEY=value` data; credentials belong to the
+project's separately authorized native secret mounts. Argument names and a binding digest are
+recorded without copying values into the artifact metadata.
+
+Local exports need a dedicated contained directory and an explicit `cache-budget-bytes`. The
+operation refuses foreign populated directories, holds an owner lock during use and fails when
+the retained cache exceeds its declared budget. It never prunes host-wide caches or silently deletes
+an over-budget store. The target owner reconciles that retained state. Declare the cache and lock
+locations as local-only material. An existing caller-owned Buildx builder remains supported.
+
+Registry and GHA caches are opt-in, with caller-owned capacity, authentication and retention. No
+backend is enabled automatically or asserted free by its name. GHA uses only its native v2 runtime
+credentials, an explicit project/platform scope and a finite transfer timeout. The action exposes
+that runtime through a pinned native JavaScript action without logging credentials. Missing runtime
+credentials fail explicitly; URL/token overrides are rejected. GitHub PRs can import caches but
+cannot export them; exports require a trusted default-branch push or explicit dispatch. NDDev uses
+main for this role. Heavy cache
+and image work remains in the selected full-main path.
+
 Retain both `dist/image.oci.tar` and `dist/image.oci.json` in the source artifact. `oci-publish` then
-downloads the exact integrated PR bundle and copies the archive through pinned native Skopeo without
+downloads the exact eligible full-main bundle and copies the archive through pinned native Skopeo without
 rebuilding. Native inspection must confirm the same registry digest. It publishes a content-addressed
 tag and returns `repository@sha256:...`; mutable channel aliases remain an independently coordinated
 target operation. Caller secrets supply an explicit private registry auth file; optional native CA
 material does not disable TLS verification. No registry/account/storage purchase is performed.
+
+## Selected native coverage
+
+Coverage budgets belong to the project. Selecting a source profile does not impose a universal
+percentage or require an external reporting account. An explicit gate binds fresh reports to the
+profile that produces them, for example:
+
+```toml
+[coverage.application]
+profile="python"
+path=".nddev-reports/coverage.xml"
+format="cobertura"
+minimum_percent=80
+minimum_branch_percent=70
+```
+
+These percentages are illustrative project choices. Native Cobertura XML, LCOV, coverage.py JSON
+and Go coverprofiles are supported. The primary metric is lines except for Go's native statement
+coverage. A selected branch threshold requires measured branches; it cannot silently pass a report
+without branch data. Empty, stale, malformed or escaping reports fail. Original reports are retained
+with the source result on both threshold success and failure, independently from executed-test counts.
+Projects may publish those native files through their existing separately selected reporting service.
+No Codecov/Coveralls account, token or service is required by this contract.
 
 ## Ready bounded advanced operations
 
@@ -244,11 +298,54 @@ fuzzing. Rust uses a pinned installed nightly's actual rustc/cargo paths and a p
 libFuzzer consumes a caller-built native executable. The native LLVM build stage owns its compiler
 identity. SDK absence, zero native executions and changed locks fail.
 
-`advanced-mutation` runs native cargo-mutants, requires a successful unmutated baseline and complete
-nonempty native outcomes, and applies the project's explicit missed-mutant budget. It retains native
-logs/diffs/results. `benchmark-compare` reads actual paired pytest-benchmark JSON, requires matching
+`advanced-mutation` defaults to cargo-mutants and also accepts `--engine mutmut` or `--engine stryker`.
+It requires a successful unmutated baseline and complete nonempty native outcomes, and applies the
+project's explicit missed-mutant budget. Mutmut requires a POSIX fork-capable executor; its existing
+workspace is never deleted or adopted. Only state created by this invocation is moved into retained
+diagnostics. Stryker uses the project's installed dependency lock and native public SDK, forces
+copy-based mutation and full measurements, disables dashboard reporters, and retains original native
+outcomes and JSON reports. Native project breaking thresholds still apply. Missing, interrupted,
+timed-out or incomplete results fail; zero actual mutations cannot pass. Other engine settings belong
+to their native project configuration; `--timeout` remains the Cargo per-mutant setting.
+
+The existing process budget reaps a nested SDK before an outer cancellation kills its intermediate
+library process. Cancellation remains a failed operation and does not authorize a retry of target
+mutations. Native logs, diffs and outcomes remain available for diagnosis.
+
+`benchmark-compare` reads actual paired pytest-benchmark JSON, requires matching
 case/tool/machine/interpreter identities and positive native measurements, then applies the explicit
 regression ratio. These capabilities add no universal coverage percentage, schedule or production load.
+
+The optional [benchmark composite](../.github/actions/benchmark/action.yml) uses the pinned native
+github-action-benchmark SDK for Cargo, Go, Benchmark.js, pytest and Google Benchmark formats.
+Supply `measurement-file`, `tool` and an explicit `maximum-ratio`. `mode: record` collects an initial
+native history; `compare` requires its accepted `history-file` from a different source revision and
+the same measured cases and units. Select comparable hardware, toolchain and measurement conditions
+in the project workflow. This SDK does not establish machine equivalence. The accepted history is
+copied before execution; only a successful nonempty comparison emits the next `history` output.
+Caller artifact retention owns that file. There are no Pages writes, comments, external tokens or
+silent replacement of a missing baseline. The stricter paired pytest helper remains available.
+
+The optional [Scorecard composite](../.github/actions/scorecard/action.yml) collects the caller's
+native source-host assessment on Linux with Docker. It publishes no external results and uses only
+the provider token. The default is advisory: unavailable checks remain explicitly unavailable.
+An optional `required-scores` JSON object, such as `{"Pinned-Dependencies":8}`, enforces the project's
+chosen check scores. An empty assessment fails. Scores describe upstream repository heuristics;
+they do not certify application security or qualify a deployment. Retain its original `report`
+through the caller's ordinary artifact policy.
+
+The optional [ClusterFuzzLite composite](../.github/actions/clusterfuzz/action.yml) builds native
+C/C++ fuzz targets and runs a bounded batch with an explicit `seconds` budget. The caller supplies
+its real `.clusterfuzzlite` Dockerfile, build script and project configuration in `project-directory`.
+The digest-pinned upstream SDK uses its native standalone mode against that checked-out source,
+without cloning a second revision or requiring a root configuration. It requires a public
+repository and a disposable GitHub-hosted Linux job: upstream SDK disk cleanup is unsuitable for
+a persistent private Docker host. Build validation is mandatory, broken-target allowance is zero,
+and dry-run is disabled. Split `phase: build` and `phase: run` only to prepare native corpora between
+validated build and execution in the same job. No storage repository or schedule is selected.
+The composite retains the SDK's reproducing inputs and stacks as GitHub artifacts; a finding or
+unavailable SDK fails. Native SDK images are pinned by digest. Persistent SDK storage is disabled.
+Use the existing direct libFuzzer/Cargo helper when that SDK execution model is unsuitable.
 
 Before recursive source checks, native gitlink validation rejects stale, dirty, unavailable or
 symlinked submodule worktrees. Callers initialize each required checkout using their existing scoped
@@ -299,9 +396,33 @@ licenses = ["MIT", "Apache-2.0"]
 `python` scopes must each match tracked source. Bandit findings fail SAST; OSV checks lock-derived
 dependencies and the caller's SPDX license allowlist. The sample licenses are illustrative, not a
 legal grant or a universal allowlist. Missing scopes, missing policy, unavailable tools and scanner
-errors fail. Other languages retain explicit free language-native `commands.security.sast` checks;
-the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
+errors fail. Other languages can select local Semgrep CE rules or their explicit native
+`commands.security.sast` checks; the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
 services. This route needs no paid GitHub security service and cannot waive required security stages.
+
+For an independently selected SAST stage or extra, Semgrep uses an explicit project-owned source
+and rule selection:
+
+```toml
+[security]
+engine="semgrep"
+rules=["security/rules.yml"]
+paths=["src/**/*.py", "web/**/*.js"]
+```
+
+Rules must be tracked local regular files with their original grants preserved. Language-specific
+rules remain the project's responsibility. The helper uses only the OSS engine, disables metrics
+and version checks, isolates its settings from host accounts, and accepts no remote rule URL.
+Native findings, scanner errors or a source scope missing from the native scanned-file result fail.
+The original JSON and separate diagnostic stream remain in the source result. Selecting this helper
+does not select the full security profile or authorize a license policy.
+
+Spelling and unused-dependency checks remain explicit project extras. The `quality` tool capability
+provides `typos` and `cargo machete`; `rust` also provides the latter. Select actual tracked text or
+native Cargo manifests, for example `command=["typos","README.md","src"]` or
+`command=["cargo","machete","--with-metadata"]`. Project dictionaries and intentional dependency
+exemptions belong in those tools' native configuration. Findings fail the selected operation;
+these tools do not establish prose quality or replace dependency vulnerability checks.
 
 Tracked locks at every depth are bound to the result and checked again after execution. Native
 ecosystem names include JavaScript managers, Gradle and Swift. `[inputs] locks = ["config/tool.lock"]`
@@ -329,7 +450,8 @@ its own bootstrap uses an absolute verified executable outside caller PATH.
 
 The Linux `tools` action accepts a space/comma-separated capability list, for example
 `capability: security shell container`. Workflow tools include actionlint, lychee and zizmor;
-security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain, shell adds Bats and ShellCheck. The native script validates
+security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain; quality adds isolated
+Semgrep/mutmut plus typos and cargo-machete; compiler adds ccache; shell adds Bats and ShellCheck. The native script validates
 capabilities and verified owned binaries before reuse. SDKs and system libraries such as libmagic
 belong to the runner owner or an explicit job-local caller setup. A caller setup verifies downloaded
 packages against its trusted native package metadata and supplies only that job's library paths;

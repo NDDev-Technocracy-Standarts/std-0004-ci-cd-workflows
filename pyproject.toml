@@ -1,12 +1,12 @@
 [project]
 name = "nddev-cicd"
-version = "0.5.0"
+version = "0.6.0"
 description = "Native shared CI/CD operations for thin GitHub workflows and composite actions"
 readme = "README.md"
 license = "AGPL-3.0-only"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dependencies = ["PyYAML>=6.0.3,<7", "markdown-it-py>=3,<5"]
+dependencies = ["PyYAML>=6.0.3,<7", "markdown-it-py>=3,<5", "defusedxml>=0.7.1,<1"]
 
 [project.scripts]
 nddev-cicd = "nddev_cicd.__main__:main"

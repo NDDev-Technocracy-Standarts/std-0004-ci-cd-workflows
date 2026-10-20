@@ -98,6 +98,10 @@ def parser() -> argparse.ArgumentParser:
     image.add_argument("--dockerfile", default="Dockerfile")
     image.add_argument("--platforms", default="linux/amd64")
     image.add_argument("--builder")
+    image.add_argument("--build-arg", action="append", default=[])
+    image.add_argument("--cache-from", action="append", default=[])
+    image.add_argument("--cache-to", action="append", default=[])
+    image.add_argument("--cache-budget-bytes", type=int, default=0)
     publish = sub.add_parser(
         "oci-publish", help="Publish the exact eligible OCI archive to an existing registry"
     )
@@ -119,12 +123,13 @@ def parser() -> argparse.ArgumentParser:
     heavy.add_argument("--seconds", type=int, default=30)
     heavy.add_argument("--toolchain", default="nightly-2026-10-19")
     mutation = sub.add_parser(
-        "advanced-mutation", help="Run actual cargo-mutants with native result accounting"
+        "advanced-mutation", help="Run a selected native mutation engine with completed result accounting"
     )
     mutation.add_argument("--root", type=Path, default=Path.cwd())
     mutation.add_argument("--output", type=Path, required=True)
     mutation.add_argument("--maximum-missed", type=int, default=0)
     mutation.add_argument("--timeout", type=int, default=15)
+    mutation.add_argument("--engine", choices=["cargo-mutants", "mutmut", "stryker"], default="cargo-mutants")
     compare = sub.add_parser("benchmark-compare", help="Compare real paired pytest-benchmark measurements")
     compare.add_argument("--root", type=Path, default=Path.cwd())
     compare.add_argument("--baseline", type=Path, required=True)
@@ -297,6 +302,7 @@ def main(argv=None) -> int:
                     args.output.resolve(),
                     maximum_missed=args.maximum_missed,
                     timeout=args.timeout,
+                    engine=args.engine,
                 )
             else:
                 result = advanced.benchmark(args.baseline, args.candidate, args.maximum_ratio)
@@ -312,6 +318,10 @@ def main(argv=None) -> int:
                 dockerfile=args.dockerfile,
                 platforms=args.platforms,
                 builder=args.builder,
+                build_args=args.build_arg,
+                cache_from=args.cache_from,
+                cache_to=args.cache_to,
+                cache_budget_bytes=args.cache_budget_bytes,
             )
         elif args.operation == "oci-publish":
             from . import oci

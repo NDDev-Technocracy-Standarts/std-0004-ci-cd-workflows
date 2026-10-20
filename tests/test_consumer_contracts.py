@@ -530,6 +530,10 @@ def test_main_job_scope_keeps_native_platforms_and_dependents():
     assert python["windows"] and python["native"] and not python["apple"]
     all_jobs = module["plan"](list(scope), scope)
     assert all_jobs["advanced"] and "swift" not in all_jobs["matrix"]["profile"]
+    for name in ("quality", "benchmark", "assessment", "clusterfuzz"):
+        assert all_jobs[name]
+        selected = module["plan"](["native-" + name], scope)
+        assert selected[name] and not selected["native"] and not selected["runtime"]
     for name, component in scope.items():
         if name.startswith("fixture-"):
             assert "runtime" in component["depends_on"]
