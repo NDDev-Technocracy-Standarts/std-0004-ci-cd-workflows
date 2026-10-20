@@ -21,6 +21,12 @@ failed, cancelled, incomplete and known-superseded candidates do not start a tar
 The artifact is bound to the actual source, configuration, workflow and run attempt. It is not
 selected by a mutable latest name or rebuilt after validation. Native admission checks actual
 repository, main revision, complete run result and tested tree before consuming the artifact.
+The builder may be an existing project-owned server. In that case the applicable full main
+workflow validates the exact immutable payload or OCI digests produced by that server and records
+them against its successful run and attempt before promotion. Passing source checks for the same
+commit alone does not establish that a separately built binary passed artifact validation.
+The workflow need not rebuild an already validated artifact or move its builder to GitHub.
+
 Existing callers explicitly adopting the historical PR-artifact contract retain its separately
 verified path; the new main baseline is not inferred from an old green PR badge. A merge accepted
 by an API remains distinct from deployment and target acceptance.

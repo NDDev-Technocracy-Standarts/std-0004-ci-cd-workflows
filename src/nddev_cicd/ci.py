@@ -22,6 +22,8 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
         if len(command) < 2 or command[1] not in {
             "package-check",
             "secrets-check",
+            "security-sast",
+            "security-licenses",
             "documentation-check",
             "workflow-check",
             "oci-build",
@@ -31,6 +33,10 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
         }:
             raise Invalid("Select a supported source-only shared native helper")
         helper = command[1]
+        if helper in {"security-sast", "security-licenses"}:
+            from .security import native_command as security_command
+
+            return security_command(helper, root, contract)
         arguments = [sys.executable, "-m", "nddev_cicd", helper, "--root", str(root), *command[2:]]
         if (
             helper in {"advanced-fuzz", "advanced-mutation"}
@@ -70,8 +76,8 @@ def selection(
             resolved_base = successful_main_base(root, baseline_workflow)
         shared = list(specification.get("shared", [])) + [
             contract["_path"],
-            "**/*lock*",
-            "go.sum",
+            *sorted(config.LOCK_NAMES),
+            "*.lockfile",
             ".github/workflows/*",
         ]
         chosen = affected(

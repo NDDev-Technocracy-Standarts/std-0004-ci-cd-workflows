@@ -162,6 +162,19 @@ def exercise(name: str, output: Path) -> dict:
         negative = execute(root, load(root), output / "negative")
         if negative["status"] != "failure" or not negative.get("failed"):
             raise RuntimeError(f"Native {name} accepted deliberately invalid source")
+        if name == "security":
+            if "security.sast" not in negative["failed"]:
+                raise RuntimeError("The default native SAST tool must reject the unsafe YAML loader")
+            source.write_text(
+                source.read_text().replace(
+                    "yaml.load(payload, Loader=yaml.Loader)", "yaml.safe_load(payload)"
+                )
+            )
+            settings = load(root)
+            settings["security"]["licenses"] = ["Apache-2.0"]
+            license_negative = execute(root, settings, output / "license-negative")
+            if "security.licenses" not in license_negative.get("failed", []):
+                raise RuntimeError("The default native license scanner must reject the disallowed dependency")
         if name in {"web", "bun"} and "web.test" not in negative["failed"]:
             raise RuntimeError("The actual browser must reject the deliberately wrong application result")
         if (

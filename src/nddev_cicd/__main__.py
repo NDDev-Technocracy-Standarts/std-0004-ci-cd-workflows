@@ -30,8 +30,12 @@ def parser() -> argparse.ArgumentParser:
     feedback.add_argument("--workflows", required=True, help="JSON array of exact workflow paths")
     feedback.add_argument("--creators", required=True, help="JSON array of allowed run creators")
     feedback.add_argument(
-        "--conclusions", default='["failure","timed_out","action_required","startup_failure"]'
+        "--conclusions", default='["failure","timed_out","action_required","startup_failure","stale"]'
     )
+    feedback.add_argument("--events", default='["push","schedule","workflow_dispatch"]')
+    feedback.add_argument("--branches", help="JSON exact branch names; defaults to the native default branch")
+    feedback.add_argument("--since", help="Reconciliation UTC lower bound within the past 30 days")
+    feedback.add_argument("--page-budget", type=int, default=50)
     feedback.add_argument("--run-id", type=int)
     feedback.add_argument("--task-issue", type=int)
     document = sub.add_parser(
@@ -56,6 +60,10 @@ def parser() -> argparse.ArgumentParser:
     trust.add_argument("--run-id", type=int, required=True)
     trust.add_argument("--revision", required=True)
     trust.add_argument("--workflow", required=True)
+    trust.add_argument("--phase", choices=["delivery", "pr"], default="delivery")
+    trust.add_argument("--pull-request", type=int)
+    trust.add_argument("--target")
+    trust.add_argument("--aggregate", default="gate")
     apply = sub.add_parser("apply", help="Apply one authorized typed native delivery module")
     apply.add_argument("--config", type=Path, required=True)
     apply.add_argument("--download", type=Path, required=True)
@@ -214,6 +222,10 @@ def main(argv=None) -> int:
                 run_id=args.run_id,
                 task_issue=args.task_issue,
                 conclusions=json.loads(args.conclusions),
+                events=json.loads(args.events),
+                branches=json.loads(args.branches) if args.branches is not None else None,
+                since=args.since,
+                page_budget=args.page_budget,
             )
             print(json.dumps(result))
             return 0
@@ -251,7 +263,20 @@ def main(argv=None) -> int:
                 raise Invalid("Do not package a failed/unavailable source result")
             result = artifacts.pack(args.root.resolve(), args.files, args.archive, evidence["identity"])
         elif args.operation == "eligible":
-            result = github.eligible(args.repository, args.run_id, args.revision, args.workflow)
+            if args.phase == "pr":
+                if args.pull_request is None or args.target is None:
+                    raise Invalid("PR admission requires --pull-request and --target")
+                result = github.pr_eligible(
+                    args.repository,
+                    args.run_id,
+                    args.revision,
+                    args.workflow,
+                    args.pull_request,
+                    args.target,
+                    args.aggregate,
+                )
+            else:
+                result = github.eligible(args.repository, args.run_id, args.revision, args.workflow)
         elif args.operation in {"advanced-fuzz", "advanced-mutation", "benchmark-compare"}:
             from . import advanced
 

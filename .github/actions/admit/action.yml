@@ -11,6 +11,9 @@ outputs:
   provider:
     description: Admitted provider
     value: ${{ steps.route.outputs.provider }}
+  availability:
+    description: Native availability verification limit; label selection is not an online runner check
+    value: ${{ steps.route.outputs.availability }}
 runs:
   using: composite
   steps:
@@ -29,4 +32,4 @@ runs:
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd route \
           --policy "$RUNNER_TEMP/nddev-routing.json" > "$RUNNER_TEMP/nddev-admitted.json"
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -c \
-          'import json,os,pathlib; r=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"nddev-admitted.json").read_text()); print("runner="+json.dumps(r["runner"])); print("provider="+r["provider"])' >> "$GITHUB_OUTPUT"
+          'import json,os,pathlib; r=json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"nddev-admitted.json").read_text()); print("runner="+json.dumps(r["runner"])); print("provider="+r["provider"]); print("availability="+r.get("availability","provider-policy")); print("\n".join(r.get("limitations",[])),file=__import__("sys").stderr)' >> "$GITHUB_OUTPUT"

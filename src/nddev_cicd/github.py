@@ -34,6 +34,118 @@ def get(path: str):
         return json.load(response)
 
 
+def records(path: str, key: str, limit: int = 5) -> list[dict]:
+    """Exhaust a bounded native Actions collection or fail without claiming complete coverage."""
+    result = []
+    for page in range(1, limit + 1):
+        response = get(f"{path}{'&' if '?' in path else '?'}per_page=100&page={page}")
+        batch = response.get(key) if isinstance(response, dict) else None
+        if not isinstance(batch, list) or any(not isinstance(item, dict) for item in batch):
+            raise Invalid("Unexpected native Actions collection")
+        result.extend(batch)
+        if len(batch) < 100:
+            return result
+    raise Invalid("Native Actions pagination budget exhausted")
+
+
+def pr_eligible(
+    repository: str,
+    run_id: int,
+    revision: str,
+    workflow: str,
+    pull_number: int,
+    target: str,
+    aggregate_job: str = "gate",
+) -> dict:
+    """Read the existing short workflow aggregate; no second inventory of its checks."""
+    import urllib.parse
+
+    if (
+        not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository)
+        or not re.fullmatch(r"[0-9a-f]{40}", revision)
+        or not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow)
+        or run_id < 1
+        or pull_number < 1
+        or not target
+        or not aggregate_job
+    ):
+        raise Invalid("PR admission requires exact repository, workflow, head, target and aggregate")
+    prefix = f"repos/{repository}"
+    pull = get(f"{prefix}/pulls/{pull_number}")
+    if (
+        pull.get("state") != "open"
+        or pull.get("draft") is not False
+        or pull.get("head", {}).get("sha") != revision
+        or pull.get("base", {}).get("ref") != target
+        or pull.get("base", {}).get("repo", {}).get("full_name") != repository
+    ):
+        raise Invalid("PR is not the current ready candidate for the intended target")
+    base = pull["base"]["sha"]
+    run = get(f"{prefix}/actions/runs/{run_id}")
+
+    def candidate(item):
+        return (
+            item.get("repository", {}).get("full_name") == repository
+            and item.get("head_repository", {}).get("full_name") == pull["head"]["repo"]["full_name"]
+            and item.get("path") == workflow
+            and item.get("event") == "pull_request"
+            and item.get("head_sha") == revision
+            and any(
+                p.get("number") == pull_number
+                and p.get("head", {}).get("sha") == revision
+                and p.get("base", {}).get("sha") == base
+                and p.get("base", {}).get("ref") == target
+                for p in item.get("pull_requests", [])
+            )
+        )
+
+    if not candidate(run) or run.get("status") != "completed" or run.get("conclusion") != "success":
+        raise Invalid("Short PR workflow has no complete successful result for the current head/base")
+    query = urllib.parse.urlencode({"event": "pull_request", "head_sha": revision})
+    history = records(
+        f"{prefix}/actions/workflows/{workflow.rsplit('/', 1)[1]}/runs?{query}", "workflow_runs"
+    )
+    matching = [item for item in history if candidate(item)]
+    if not matching or max(item["id"] for item in matching) != run_id:
+        raise Invalid("Short PR workflow run was superseded or cannot be established")
+    attempt = run.get("run_attempt")
+    if type(attempt) is not int or attempt < 1:
+        raise Invalid("Native PR run attempt is absent")
+    jobs = records(f"{prefix}/actions/runs/{run_id}/attempts/{attempt}/jobs", "jobs")
+    selected = [job for job in jobs if job.get("name") == aggregate_job]
+    if (
+        len(selected) != 1
+        or selected[0].get("status") != "completed"
+        or selected[0].get("conclusion") != "success"
+    ):
+        raise Invalid("The expected short PR aggregate is missing, incomplete or not successful")
+    # Reconcile mutable candidate and attempt after reading the aggregate. This is not an atomic base lock.
+    current_pull = get(f"{prefix}/pulls/{pull_number}")
+    current_run = get(f"{prefix}/actions/runs/{run_id}")
+    if (
+        current_pull.get("state") != "open"
+        or current_pull.get("head", {}).get("sha") != revision
+        or current_pull.get("base", {}).get("sha") != base
+        or current_pull.get("base", {}).get("ref") != target
+        or current_run.get("run_attempt") != attempt
+        or current_run.get("status") != "completed"
+        or current_run.get("conclusion") != "success"
+    ):
+        raise Invalid("PR candidate or its latest run attempt changed during admission")
+    return {
+        "phase": "pr",
+        "repository": repository,
+        "workflow": workflow,
+        "run_id": str(run_id),
+        "attempt": str(attempt),
+        "pull_request": pull_number,
+        "head": revision,
+        "base": base,
+        "target": target,
+        "aggregate": aggregate_job,
+    }
+
+
 def eligible(
     repository: str, run_id: int, integrated_revision: str, expected_workflow: str, source: dict | None = None
 ) -> dict:

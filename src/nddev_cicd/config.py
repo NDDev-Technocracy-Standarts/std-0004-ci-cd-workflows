@@ -31,6 +31,7 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         "inputs",
         "not_applicable",
         "diagnostics",
+        "security",
     }
     if type(config.get("schema")) is not int or config.get("schema") != 1 or set(config) - allowed:
         raise Invalid("Unsupported project contract version or unknown fields")
@@ -78,6 +79,8 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         or not 0 <= diagnostics.get("tail_lines", 200) <= 1000
     ):
         raise Invalid("Diagnostic tail_lines must be an integer in 0..1000")
+    if set(config.get("security", {})) - {"python", "licenses"}:
+        raise Invalid("Unsupported native security setting")
     config["_path"] = relative
     return config
 

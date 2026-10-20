@@ -16,14 +16,15 @@ jobs:
       contents: read
       actions: read # Read native run metadata only; no failed-run artifacts or checkout.
       issues: write # Publish deduplicated failure Issues for the owning agent.
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(fromJSON('["failure","timed_out","action_required","startup_failure"]'), github.event.workflow_run.conclusion) }}
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(fromJSON('["failure","timed_out","action_required","startup_failure","stale"]'), github.event.workflow_run.conclusion) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@acb440cb613bf88286b2da65ddff334c4cb89056
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@eacce0a89f9fd96e490692bfeac54e3569d95d4c
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           workflows: '[".github/workflows/ci.yml",".github/workflows/main-ci.yml",".github/workflows/delivery-smoke.yml"]'
+          events: '["push","schedule","workflow_dispatch","workflow_run"]'
           creators: '["rldyourmnd","dependabot[bot]"]'
           run-id: ${{ github.event.workflow_run.id || '' }}
