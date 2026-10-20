@@ -14,7 +14,7 @@ from pathlib import Path
 from .model import Invalid, Unavailable, atomic_json, contained, digest, source_identity
 from .process import run
 
-SKOPEO = "quay.io/skopeo/stable@sha256:cb18e3ddb78c7ce4c06d53de494e0d83b9a63f58bd205149d2c156d75fdecfe4"
+SKOPEO = "quay.io/skopeo/stable:v1.22.3-immutable@sha256:c0ee1f4edca5c01cb8d5611124f92f3cc47196ecab68aee5d0f90834e00574d5"
 BUILDKIT = "moby/buildkit@sha256:98cc6a3fc46220d00f8224ae483f3274fc874e9be8d7dd1e2e2c5481209228b5"
 
 
