@@ -322,9 +322,26 @@ licenses = ["MIT", "Apache-2.0"]
 `python` scopes must each match tracked source. Bandit findings fail SAST; OSV checks lock-derived
 dependencies and the caller's SPDX license allowlist. The sample licenses are illustrative, not a
 legal grant or a universal allowlist. Missing scopes, missing policy, unavailable tools and scanner
-errors fail. Other languages retain explicit free language-native `commands.security.sast` checks;
-the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
+errors fail. Other languages can select local Semgrep CE rules or their explicit native
+`commands.security.sast` checks; the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
 services. This route needs no paid GitHub security service and cannot waive required security stages.
+
+For an independently selected SAST stage or extra, Semgrep uses an explicit project-owned source
+and rule selection:
+
+```toml
+[security]
+engine="semgrep"
+rules=["security/rules.yml"]
+paths=["src/**/*.py", "web/**/*.js"]
+```
+
+Rules must be tracked local regular files with their original grants preserved. Language-specific
+rules remain the project's responsibility. The helper uses only the OSS engine, disables metrics
+and version checks, isolates its settings from host accounts, and accepts no remote rule URL.
+Native findings, scanner errors or a source scope missing from the native scanned-file result fail.
+The original JSON and separate diagnostic stream remain in the source result. Selecting this helper
+does not select the full security profile or authorize a license policy.
 
 Tracked locks at every depth are bound to the result and checked again after execution. Native
 ecosystem names include JavaScript managers, Gradle and Swift. `[inputs] locks = ["config/tool.lock"]`

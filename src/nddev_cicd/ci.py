@@ -12,7 +12,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, git_inputs, quality, reports
+from . import config, documentation, git_inputs, quality, reports, security
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -146,6 +146,16 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
     if "ruby" in selected:
         env["BUNDLE_FROZEN"] = "true"
     env["NDDEV_RESULT_DIR"] = str(output.resolve())
+    if contract.get("security", {}).get("engine") == "semgrep":
+        env.update(
+            {
+                "SEMGREP_APP_TOKEN": "",
+                "SEMGREP_SEND_METRICS": "off",
+                "SEMGREP_ENABLE_VERSION_CHECK": "0",
+                "SEMGREP_SETTINGS_FILE": str(output.resolve() / "semgrep-settings.yml"),
+                "OTEL_SDK_DISABLED": "true",
+            }
+        )
     env["NDDEV_TESTED_REVISION"] = result["identity"]["tested_revision"]
     env["NDDEV_TESTED_TREE"] = result["identity"]["tested_tree"]
     for tool, specification in contract.get("tools", {}).items():
@@ -213,6 +223,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     entry.update(status="success", scopes=scopes)
                     continue
                 command = commands.get(profile_id, {}).get(stage, default)
+                semgrep = (
+                    command == ["@library", "security-sast"]
+                    and contract.get("security", {}).get("engine") == "semgrep"
+                )
                 command = native_command(command, root, contract, output / name)
                 if command is None:
                     raise Invalid(f"Selected {name} requires a native project command")
@@ -233,6 +247,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                         output / f"{name}.log",
                         timeout=contract.get("timeouts", {}).get(profile_id, 900),
                         env=env,
+                        stderr_log=output / f"{name}.stderr.log" if semgrep else None,
                     )
                 )
                 if (
@@ -261,6 +276,10 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     setup_failed = True
                 if entry["status"] == "success" and stage == definition.get("test_stage", "test"):
                     entry["tests_executed"] = reports.tests(root, report, Path(entry["log"]))
+                if entry["status"] == "success" and semgrep:
+                    entry["sast_targets"] = security.verify_semgrep(
+                        root, contract["security"], Path(entry["log"])
+                    )
                 if (
                     entry["status"] == "success"
                     and profile_id == "rust"
@@ -303,11 +322,24 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                 output / f"extra-{name}.log",
                 timeout=extra.get("timeout", 600),
                 env=env,
+                stderr_log=output / f"extra-{name}.stderr.log"
+                if extra["command"] == ["@library", "security-sast"]
+                and contract.get("security", {}).get("engine") == "semgrep"
+                else None,
             )
         if item["status"] == "success" and extra.get("report"):
             try:
                 item["tests_executed"] = reports.tests(root, extra["report"], Path(item["log"]))
             except (Invalid, ValueError, OSError, subprocess.SubprocessError) as error:
+                item.update(status="failure", detail=str(error))
+        if (
+            item["status"] == "success"
+            and extra["command"] == ["@library", "security-sast"]
+            and contract.get("security", {}).get("engine") == "semgrep"
+        ):
+            try:
+                item["sast_targets"] = security.verify_semgrep(root, contract["security"], Path(item["log"]))
+            except (Invalid, ValueError, OSError) as error:
                 item.update(status="failure", detail=str(error))
         if extra.get("report", {}).get("path"):
             try:

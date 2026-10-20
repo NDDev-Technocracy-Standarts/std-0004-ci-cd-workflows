@@ -59,7 +59,7 @@ install_file() {
 capabilities="${*//,/ }"
 unique=''
 for capability in $capabilities; do
-  case "$capability" in rust|security|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
+  case "$capability" in rust|security|quality|shell|container|infrastructure|workflows|documentation) ;; *) echo 'Unknown tool capability' >&2; exit 2 ;; esac
   case " $unique " in *" $capability "*) ;; *) unique+=" $capability" ;; esac
 done
 install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz' \
@@ -69,6 +69,14 @@ install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-
 install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
   'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
 for capability in $unique; do
+if [[ "$capability" == quality ]]; then
+  library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  library_uv="$(bash "$library/scripts/library-uv.sh")"
+  UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="$tools/quality-downloads" \
+    "$library_uv" sync --locked --group quality --project "$library/.github/native-tools" --python 3.13
+  "$tools/quality-runtime/bin/semgrep" --version
+  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/quality-runtime/bin" >> "$GITHUB_PATH"; fi
+fi
 if [[ "$capability" == rust ]]; then
   install_archive 'https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz' \
     '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' cargo-deny

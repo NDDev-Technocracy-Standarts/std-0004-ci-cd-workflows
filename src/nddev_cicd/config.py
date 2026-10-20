@@ -83,8 +83,10 @@ def load(root: Path, relative: str = ".github/nddev-ci.toml") -> dict:
         or not 0 <= diagnostics.get("tail_lines", 200) <= 1000
     ):
         raise Invalid("Diagnostic tail_lines must be an integer in 0..1000")
-    if set(config.get("security", {})) - {"python", "licenses"}:
+    if set(config.get("security", {})) - {"python", "licenses", "engine", "rules", "paths"}:
         raise Invalid("Unsupported native security setting")
+    if config.get("security", {}).get("engine", "bandit") not in {"bandit", "semgrep"}:
+        raise Invalid("Select an implemented native SAST engine")
     config["_path"] = relative
     return config
 
