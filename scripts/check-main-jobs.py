@@ -16,6 +16,10 @@ assert set(jobs) == {
     "advanced-native",
     "public-security",
     "online-refs",
+    "native-quality",
+    "native-benchmark",
+    "native-assessment",
+    "native-clusterfuzz",
 }
 required = {"source", "impact-plan", "online-refs"}
 if os.environ["NDDEV_RUNTIME_SELECTED"] == "true":
@@ -29,6 +33,14 @@ if os.environ["NDDEV_ADVANCED_SELECTED"] == "true":
     required.add("advanced-native")
 if os.environ["NDDEV_NATIVE_SELECTED"] == "true":
     required.add("native")
+for flag, name in (
+    ("QUALITY", "quality"),
+    ("BENCHMARK", "benchmark"),
+    ("ASSESSMENT", "assessment"),
+    ("CLUSTERFUZZ", "clusterfuzz"),
+):
+    if os.environ["NDDEV_" + flag + "_SELECTED"] == "true":
+        required.add("native-" + name)
 for name, job in jobs.items():
     expected = "success" if name in required else "skipped"
     assert job["result"] == expected, (name, job["result"], expected)

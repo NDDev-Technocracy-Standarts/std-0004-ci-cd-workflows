@@ -20,6 +20,10 @@ def plan(selected, components):
         "windows": runtime or "fixture-python" in selected,
         "apple": runtime or "fixture-swift" in selected,
         "advanced": "advanced" in selected,
+        "quality": "native-quality" in selected,
+        "benchmark": "native-benchmark" in selected,
+        "assessment": "native-assessment" in selected,
+        "clusterfuzz": "native-clusterfuzz" in selected,
     }
 
 
