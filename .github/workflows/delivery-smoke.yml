@@ -74,7 +74,7 @@ jobs:
       actions: read
       id-token: write
       attestations: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/release.yml@0e741445e40321b505918d3a8cfe6c335e974cd8
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/release.yml@047c183e8cab048ac7f497039b183a08d1cd954c
     with:
       run-id: ${{ needs.artifact.outputs.source-run-id }}
       source-workflow: .github/workflows/main-ci.yml
