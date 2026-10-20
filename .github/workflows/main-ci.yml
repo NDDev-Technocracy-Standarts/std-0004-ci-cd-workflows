@@ -506,6 +506,16 @@ jobs:
       with:
         persist-credentials: false
         fetch-depth: 0
+    - name: Inject the controlled native source defect only in the negative cell
+      if: ${{ matrix.variant == 'negative' }}
+      run: |
+        python3 - <<'PY'
+        from pathlib import Path
+        source = Path('tests/native/clusterfuzz/parser.cc')
+        before = source.read_text()
+        assert before.count('constexpr bool injected_defect = false;') == 1
+        source.write_text(before.replace('constexpr bool injected_defect = false;', 'constexpr bool injected_defect = true;'))
+        PY
     - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@91b1f4ed0e2ae3c099f6f41094ad6f1bee317561
       with:
         phase: build
@@ -515,7 +525,7 @@ jobs:
     - name: Seed the controlled native defect after the mandatory build check
       if: ${{ matrix.variant == 'negative' }}
       run: |
-        python3 - <<'PY'
+        sudo python3 - <<'PY'
         from pathlib import Path
         from zipfile import ZipFile
         output = Path('build-out/native_parser_seed_corpus.zip')
