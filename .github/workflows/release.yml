@@ -32,7 +32,7 @@ jobs:
       artifact-name: ${{ steps.complete.outputs.name }}
     steps:
       - id: prepare
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@87fba41ce3ecaaae2426c75d92ff6e97d5828605
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/prepare-release@acb440cb613bf88286b2da65ddff334c4cb89056
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -61,8 +61,9 @@ jobs:
           NDDEV_SBOM_ATTESTATION: ${{ steps.sbom.outputs.bundle-path }}
         run: |
           set -euo pipefail
-          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_PROVENANCE"
-          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_SBOM_ATTESTATION" --predicate-type https://spdx.dev/Document/v2.3
+          signer=NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/release.yml
+          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --signer-workflow "$signer" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_PROVENANCE"
+          gh attestation verify "$NDDEV_CANDIDATE" --repo "$GITHUB_REPOSITORY" --signer-workflow "$signer" --deny-self-hosted-runners --source-digest "$GITHUB_SHA" --bundle "$NDDEV_SBOM_ATTESTATION" --predicate-type https://spdx.dev/Document/v2.3
           publication="$RUNNER_TEMP/nddev-publication"
           mkdir "$publication"
           cp "$NDDEV_CANDIDATE" "$publication/candidate.tar.gz"

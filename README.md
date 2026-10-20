@@ -21,11 +21,13 @@ capacity; private Windows/macOS require compatible confirmed no-overage admissio
 
 ## Source, artifact, target
 
+For private vulnerability reports, use the [security reporting channel](SECURITY.md).
+
 The [CI composite](.github/actions/ci/action.yml) executes profiles selected by the caller's native
 contract. A short PR gate permits merge; full main CI establishes production readiness. Affected
 components include changes from any superseded or failed main validation. The [admission composite](.github/actions/admit/action.yml) resolves capacity before job
-allocation. The [delivery composite](.github/actions/deliver/action.yml) consumes the successful PR
-artifact from successful full main CI, verifies lineage and tested-tree identity, and coordinates an
+allocation. The [delivery composite](.github/actions/deliver/action.yml) consumes the artifact from
+successful full main CI, verifies lineage and tested-tree identity, and coordinates an
 existing target. Delivery promotes that artifact without rebuilding it. Each callee resolves its own package separately from
 the caller checkout. The [impact planner](.github/actions/impact/action.yml) exposes component selection
 before dependent jobs allocate capacity. The [failure publisher](.github/actions/feedback/action.yml)
