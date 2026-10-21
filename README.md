@@ -57,3 +57,21 @@ The [normative descriptor](standard.yml), [consumer guide](docs/usage.md),
 [executable example](docs/examples.md), and [origins](docs/origins.md) provide detailed navigation.
 [GitHub Releases](https://github.com/NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/releases)
 is the canonical journal. The source uses [AGPL-3.0-only](LICENSE); imported grants remain intact.
+
+## Native command interface
+
+The project adopts draft STD-0006 0.1.0 from its
+[selected immutable source](https://github.com/NDDev-Technocracy-Standarts/std-0006-project-command-interface/blob/9a70ac36e986cc8328c995d7428c45f4d13f7868/standard.yml).
+Bare `just` lists applicable operations without installing SDKs or reading credentials.
+`just setup` prepares locked contributor dependencies; `just verify` checks repository structure,
+Python source, routing documentation, profile-reference drift, exact runtime bindings and the
+normative corpus. The structure validator and authoring compiler are separately provisioned;
+missing required tools remain explicit failures. `just native PROFILE` selects one real SDK fixture,
+including its invalid-source case, and requires that profile's SDK and native tools.
+
+Formatting, profile-reference generation, corpus generation and packaging have separate recipes.
+`just library -- --help` preserves the actual CLI; source, artifact and target operations retain
+its validation, credentials and recovery boundaries. There is no application development server.
+The Bash interface is accepted on Linux; public Windows and Apple workflows continue using their
+native entrypoints and do not acquire acceptance from a Linux command-source check. CI retains
+its short PR and full main/target phases and can invoke the same owning native tools directly.

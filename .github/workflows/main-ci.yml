@@ -18,6 +18,9 @@ jobs:
       with:
         persist-credentials: false
         fetch-depth: 0
+    - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3
+      with:
+        just-version: '1.59.0'
     - name: Prepare pinned job-local native tools
       run: scripts/prepare-linux-tools.sh security
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
