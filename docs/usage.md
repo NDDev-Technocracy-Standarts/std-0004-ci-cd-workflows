@@ -63,7 +63,7 @@ See [Docker contexts](https://docs.docker.com/engine/manage-resources/contexts/)
 
 The Linux `.github/actions/trivy-db` composite accepts a digest-pinned scanner `image`, optional
 `java: 'true'`, and finite `budget-bytes`/`reserve-bytes`. The prepared host may provide
-`NDDEV_TRIVY_CACHE_ROOT`; otherwise the cache is job-local. Use the action's successful `cache-dir`
+`NDDEV_TRIVY_CACHE_ROOT` or its existing `NDDEV_BUILD_CACHE_ROOT`; otherwise the cache is job-local. Use the action's successful `cache-dir`
 output for each scan with `--skip-db-update` (and `--skip-java-db-update` when Java was prepared).
 Keep `--scanners vuln` explicit for vulnerability-only scans. The existing native Docker daemon and
 GNU `cp` provide execution and reflink/copy snapshots; no registry proxy, scanner server or new

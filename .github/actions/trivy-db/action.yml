@@ -38,7 +38,7 @@ runs:
           false) ;;
           *) echo 'java must be true or false' >&2; exit 2 ;;
         esac
-        storage="${NDDEV_TRIVY_CACHE_ROOT:-$RUNNER_TEMP/nddev-trivy-databases}"
+        storage="${NDDEV_TRIVY_CACHE_ROOT:-${NDDEV_BUILD_CACHE_ROOT:-$RUNNER_TEMP}/trivy-databases}"
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd trivy-db \
           --storage "$storage" --destination "$RUNNER_TEMP/trivy-cache" --image "$NDDEV_TRIVY_IMAGE" \
           --budget "$NDDEV_TRIVY_BUDGET" --reserve "$NDDEV_TRIVY_RESERVE" "${java[@]}"
