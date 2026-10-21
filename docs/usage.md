@@ -9,6 +9,22 @@ The library's own CI demonstrates a direct composite caller. Do not use the publ
 for private execution: keep private jobs and their self-hosted labels in the caller, including planners
 and final aggregation. Never grant public/fork code access to a private runner or deployment secret.
 
+Use one final `.github/actions/gate` composite pinned to the reviewed library implementation when
+intermediate rollup check names are not enforced. Its `needs` input is the caller's `toJSON(needs)`;
+`expected` is an explicit JSON map from every direct leaf job ID to `success` or `skipped`.
+The caller derives that map from its successful scope classifier and event conditions. Keep the
+classifier itself and unconditional security checks expected to succeed. Matrix job results remain
+GitHub's aggregate across their shards. Missing/extra dependencies, selected skips, cancellations
+and malformed expectations fail; no empty gate passes. Keep the final job's `if: !cancelled()` so a
+failed leaf still receives a verdict. Retain an intermediate job only when its distinct result is
+actually required by the repository's check policy or it performs real artifact work.
+
+For full main validation, use a workflow/ref concurrency group with `cancel-in-progress: false`.
+GitHub completes the running validation and replaces its single pending candidate with the newest
+push. The newest head may wait for that running validation; production still requires its own exact
+successful main result. Short PR gates can cancel obsolete PR heads. Delivery keeps its independent
+target lock and never inherits source-cancellation policy. See [native concurrency semantics](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).
+
 The CI action resolves `contract` inside `working-directory` (the checkout root by default).
 A component can keep its contract at `backend/.github/nddev-ci.toml` and select
 `working-directory: backend`. Separate invocations use unique `result-key` values; reusing an
@@ -30,6 +46,37 @@ library's isolated runtime declared in the [CI action](../.github/actions/ci/act
 runner owner. Project lockfiles remain authoritative. Environment values in the contract are nonsecret;
 credentials belong in caller repository/environment secrets and are passed only to the operation that
 needs them. Never pass deployment credentials to source checks.
+
+## Native Docker and scanner inputs
+
+Ordinary service containers, Buildx builds and daemon image scans can share a qualified rootless
+Docker pool. Daemon-mounted OCI operations resolve the selected local Unix socket using native
+context/environment precedence; they refuse an absent/remote endpoint instead of mounting an
+unrelated host socket. A job that actually needs privileged host devices/networking must declare
+and qualify that different capability explicitly. Adding a root-equivalent socket to every static
+job is not required by image scanning. Fixtures detect `name=rootless` in Docker security options:
+container root maps to the runner user, whereas the host UID inside a rootless container does not.
+See [Docker contexts](https://docs.docker.com/engine/manage-resources/contexts/) and
+[rootless clients](https://docs.docker.com/engine/security/rootless/tips/#client).
+
+The Linux `.github/actions/trivy-db` composite accepts a digest-pinned scanner `image`, optional
+`java: 'true'`, and finite `budget-bytes`/`reserve-bytes`. The prepared host may provide
+`NDDEV_TRIVY_CACHE_ROOT`; otherwise the cache is job-local. Use the action's successful `cache-dir`
+output for each scan with `--skip-db-update` (and `--skip-java-db-update` when Java was prepared).
+Keep `--scanners vuln` explicit for vulnerability-only scans. The existing native Docker daemon and
+GNU `cp` provide execution and reflink/copy snapshots; no registry proxy, scanner server or new
+background service is installed.
+
+Native Trivy downloads validate OCI content through its upstream transport. Reuse binds the scanner
+digest and compatible database schemas and requires `UpdatedAt <= now < NextUpdate`; stale data
+cannot become success after a failed refresh. Refresh has two finite attempts and a finite lock
+wait. Copies contain only the database and metadata, so concurrent scans retain separate mutable
+Bolt analysis caches. Unavailable input downloads emit an `NDDev infrastructure input` annotation;
+findings and invalid DBs remain ordinary failures. That hint never admits a release or authorizes a
+blind replay of deployment. GitHub metadata and genuinely new dependencies still require network
+access. The cache owns inactive TTL/quota reclamation and respects its free-disk reserve.
+Trivy documents [DB preparation](https://github.com/aquasecurity/trivy/blob/main/docs/guide/configuration/db.md)
+and [concurrent cache constraints](https://www.trivy.dev/docs/latest/guide/references/troubleshooting/).
 
 `[artifacts] files = ["dist/*.whl", "dist/*.tar.gz"]` packages only explicit successful outputs.
 The manifest binds bytes/modes, caller source/merge tree, lock/contract identities, run attempt and callee

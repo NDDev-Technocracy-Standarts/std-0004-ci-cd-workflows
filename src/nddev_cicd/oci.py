@@ -13,6 +13,7 @@ from contextlib import ExitStack
 from pathlib import Path
 
 from .cache import lock, size
+from .docker import local_socket
 from .model import Invalid, Unavailable, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -171,7 +172,7 @@ def skopeo(
             raise Invalid("Declare the existing native registry CA/client-certificate directory")
         command += ["--volume", str(certificates.resolve()) + ":/certificates:ro"]
     if daemon:
-        command += ["--volume", "/var/run/docker.sock:/var/run/docker.sock"]
+        command += ["--volume", str(local_socket()) + ":/var/run/docker.sock"]
     try:
         return native([*command, SKOPEO, *arguments], Path.cwd(), "SDK")
     finally:
