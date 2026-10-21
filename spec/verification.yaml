@@ -50,6 +50,10 @@ entries:
   kind: test
   target: tests/test_core.py::test_github_lineage_rejects_other_tree_and_attempt
   establishes: Native run-binding logic rejects mismatched source trees/attempts and obsolete main revisions. Main-baseline regressions preserve changes from unverified pushes. Actual main-run API/download execution supplements these finite cases.
+- id: runtime.advisory-comparison
+  kind: test
+  target: tests/test_advisory.py::test_new_upstream_advisory_on_existing_runtime_package_is_compared_without_fabricating_green_ci
+  establishes: Native per-image package inclusion rejects reintroduced versions, another ecosystem/runtime path, missing inventories and mismatched image identities without changing CI results. The project adapter still owns actual production observation, complete scan/run provenance and revalidation under its target lock; these unit cases do not establish production admission.
 - id: runtime.artifact
   kind: test
   target: tests/test_core.py::test_artifact_bytes_mode_escape_and_tampering

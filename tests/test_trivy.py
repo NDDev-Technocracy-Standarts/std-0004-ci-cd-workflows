@@ -27,7 +27,9 @@ def downloaded(root, kind, *, expires=None):
             {
                 "Version": version,
                 "UpdatedAt": (now - timedelta(minutes=5)).isoformat(),
-                "NextUpdate": (expires or now + timedelta(hours=6)).isoformat(),
+                "NextUpdate": (
+                    expires or now + (timedelta(days=3) if kind == "java-db" else timedelta(hours=6))
+                ).isoformat(),
             }
         )
     )
@@ -91,6 +93,52 @@ def test_parallel_jobs_share_only_the_refresh_lock(tmp_path, monkeypatch):
     # No namespace lock survives prepare; independent scans can proceed together.
     with trivy.cache.lock(next((tmp_path / "owned").glob("[a-f0-9]" * 64 + ".lock")), blocking=False):
         pass
+
+
+def test_java_selection_shares_the_same_vulnerability_db_without_reloading_it(tmp_path, monkeypatch):
+    calls = []
+
+    def download(_image, root, kind):
+        calls.append(kind)
+        downloaded(root, kind)
+
+    monkeypatch.setattr(trivy, "download", download)
+    storage = tmp_path / "owned"
+    trivy.prepare(storage, tmp_path / "non-java", IMAGE, reserve=0)
+    trivy.prepare(storage, tmp_path / "java", IMAGE, java=True, reserve=0)
+    trivy.prepare(storage, tmp_path / "non-java-again", IMAGE, reserve=0)
+    assert calls == ["db", "java-db"]
+    assert len(list(storage.glob("*/current"))) == 1
+
+
+def test_expired_vulnerability_db_keeps_the_still_fresh_java_database(tmp_path, monkeypatch):
+    calls = []
+
+    def download(_image, root, kind):
+        calls.append(kind)
+        downloaded(root, kind, expires=datetime.now(UTC) + timedelta(days=1 if kind == "db" else 3))
+
+    monkeypatch.setattr(trivy, "download", download)
+    storage = tmp_path / "owned"
+    trivy.prepare(storage, tmp_path / "first", IMAGE, java=True, reserve=0)
+    calls.clear()
+
+    class Later(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(days=1, seconds=1)
+
+    monkeypatch.setattr(trivy, "datetime", Later)
+
+    # Refreshed native input must actually be newer than the advanced fixture clock.
+    def refresh(_image, root, kind):
+        calls.append(kind)
+        downloaded(root, kind, expires=Later.now(UTC) + timedelta(days=1))
+
+    monkeypatch.setattr(trivy, "download", refresh)
+    trivy.prepare(storage, tmp_path / "second", IMAGE, reserve=0)
+    assert calls == ["db"]
+    assert next(storage.glob("*/current/java-db/trivy-java.db")).is_file()
 
 
 def test_expired_db_refresh_failure_never_creates_a_successful_snapshot(tmp_path, monkeypatch):
