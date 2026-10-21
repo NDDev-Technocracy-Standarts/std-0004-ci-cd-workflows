@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from . import __version__, artifacts, ci, config, delivery, github, routing
-from .model import Invalid, atomic_json
+from .model import Invalid, Unavailable, atomic_json
 
 
 def parser() -> argparse.ArgumentParser:
@@ -25,6 +25,21 @@ def parser() -> argparse.ArgumentParser:
     impact.add_argument("--contract", default=".github/nddev-ci.toml")
     impact.add_argument("--base")
     impact.add_argument("--head")
+    gate = sub.add_parser("gate", help="Evaluate explicit expected results directly from native leaf jobs")
+    gate.add_argument("--needs", required=True, help="Native toJSON(needs) object")
+    gate.add_argument("--expected", required=True, help="JSON job map of expected success/skipped results")
+    gate.add_argument(
+        "--scopes", help="Optional raw true/false classifier outputs; malformed scope fails closed"
+    )
+    trivy = sub.add_parser(
+        "trivy-db", help="Prepare fresh verified native Trivy databases for a job-local scan"
+    )
+    trivy.add_argument("--storage", type=Path, required=True)
+    trivy.add_argument("--destination", type=Path, required=True)
+    trivy.add_argument("--image", required=True)
+    trivy.add_argument("--java", action="store_true")
+    trivy.add_argument("--budget", type=int, default=4 * 1024**3)
+    trivy.add_argument("--reserve", type=int, default=32 * 1024**3)
     feedback = sub.add_parser("feedback", help="Publish bounded metadata-only failure feedback")
     feedback.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     feedback.add_argument("--workflows", required=True, help="JSON array of exact workflow paths")
@@ -38,6 +53,7 @@ def parser() -> argparse.ArgumentParser:
     feedback.add_argument("--page-budget", type=int, default=50)
     feedback.add_argument("--run-id", type=int)
     feedback.add_argument("--task-issue", type=int)
+    feedback.add_argument("--infrastructure-hints", action="store_true")
     document = sub.add_parser(
         "documentation-check", help="Check local documentation without network or authoring prerequisites"
     )
@@ -217,6 +233,32 @@ def main(argv=None) -> int:
             }
             print(json.dumps(result))
             return 0
+        if args.operation == "gate":
+            from .gate import evaluate
+
+            print(
+                json.dumps(
+                    evaluate(
+                        json.loads(args.needs),
+                        json.loads(args.expected),
+                        json.loads(args.scopes) if args.scopes is not None else None,
+                    )
+                )
+            )
+            return 0
+        if args.operation == "trivy-db":
+            from .trivy import prepare
+
+            result = prepare(
+                args.storage,
+                args.destination,
+                args.image,
+                java=args.java,
+                budget=args.budget,
+                reserve=args.reserve,
+            )
+            print(json.dumps(result))
+            return 0
         if args.operation == "feedback":
             from .feedback import publish
 
@@ -231,6 +273,7 @@ def main(argv=None) -> int:
                 branches=json.loads(args.branches) if args.branches is not None else None,
                 since=args.since,
                 page_budget=args.page_budget,
+                infrastructure_hints=args.infrastructure_hints,
             )
             print(json.dumps(result))
             return 0
@@ -384,6 +427,12 @@ def main(argv=None) -> int:
                 result = delivery.apply(archive, manifest, expected, target, authorized=True)
         print(json.dumps(result, indent=2))
         return 0
+    except Unavailable as error:
+        if str(error).startswith("infrastructure.") and os.environ.get("GITHUB_ACTIONS") == "true":
+            # A bounded metadata hint only; never an admission bypass or permission to replay a mutation.
+            print(f"::error title=NDDev infrastructure input::{error}")
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     except (Invalid, OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
