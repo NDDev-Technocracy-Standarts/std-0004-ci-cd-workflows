@@ -75,6 +75,9 @@ Bolt analysis caches. Unavailable input downloads emit an `NDDev infrastructure 
 findings and invalid DBs remain ordinary failures. That hint never admits a release or authorizes a
 blind replay of deployment. GitHub metadata and genuinely new dependencies still require network
 access. The cache owns inactive TTL/quota reclamation and respects its free-disk reserve.
+Failure feedback can opt into `infrastructure-hints: 'true'` with `checks: read`; it reads at most
+100 native annotations for each of at most 32 failed jobs and reports only the known typed input categories. It never
+downloads logs or scanner reports, and a hint does not classify other failures in the same workflow.
 Trivy documents [DB preparation](https://github.com/aquasecurity/trivy/blob/main/docs/guide/configuration/db.md)
 and [concurrent cache constraints](https://www.trivy.dev/docs/latest/guide/references/troubleshooting/).
 

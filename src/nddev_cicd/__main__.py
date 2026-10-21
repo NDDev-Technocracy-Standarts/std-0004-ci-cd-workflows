@@ -50,6 +50,7 @@ def parser() -> argparse.ArgumentParser:
     feedback.add_argument("--page-budget", type=int, default=50)
     feedback.add_argument("--run-id", type=int)
     feedback.add_argument("--task-issue", type=int)
+    feedback.add_argument("--infrastructure-hints", action="store_true")
     document = sub.add_parser(
         "documentation-check", help="Check local documentation without network or authoring prerequisites"
     )
@@ -261,6 +262,7 @@ def main(argv=None) -> int:
                 branches=json.loads(args.branches) if args.branches is not None else None,
                 since=args.since,
                 page_budget=args.page_budget,
+                infrastructure_hints=args.infrastructure_hints,
             )
             print(json.dumps(result))
             return 0

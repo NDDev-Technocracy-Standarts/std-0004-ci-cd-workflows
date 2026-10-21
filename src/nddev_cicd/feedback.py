@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
@@ -12,6 +13,31 @@ from . import github
 from .model import Invalid
 
 CONCLUSIONS = {"failure", "timed_out", "cancelled", "action_required", "startup_failure", "stale"}
+
+
+def input_hints(repository: str, job: dict) -> list[str]:
+    """Read bounded native annotations only; hints never establish eligibility or replay authority."""
+    prefix = f"https://api.github.com/repos/{repository}/check-runs/"
+    url = job.get("check_run_url", "")
+    if not isinstance(url, str) or not url.startswith(prefix) or not url[len(prefix) :].isdecimal():
+        return []
+    try:
+        rows = github.get(f"repos/{repository}/check-runs/{url[len(prefix) :]}/annotations?per_page=100")
+    except urllib.error.HTTPError:
+        return []  # unavailable optional metadata must not invent a cause or prevent ordinary feedback
+    if not isinstance(rows, list):
+        raise Invalid("Unexpected native check annotation metadata")
+    allowed = {"infrastructure.external-download", "infrastructure.cache-busy", "infrastructure.disk-reserve"}
+    return sorted(
+        {
+            row.get("message", "").partition(":")[0]
+            for row in rows[:100]
+            if isinstance(row, dict)
+            and row.get("title") == "NDDev infrastructure input"
+            and isinstance(row.get("message"), str)
+            and row["message"].partition(":")[0] in allowed
+        }
+    )
 
 
 def write(path: str, payload: dict) -> dict:
@@ -47,7 +73,10 @@ def publish(
     branches: list[str] | None = None,
     since: str | None = None,
     page_budget: int = 50,
+    infrastructure_hints: bool = False,
 ) -> dict:
+    if type(infrastructure_hints) is not bool:
+        raise Invalid("Infrastructure annotation hints must be explicitly enabled or disabled")
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
         raise Invalid("Select an exact caller repository")
     if (
@@ -178,6 +207,13 @@ def publish(
             "The owning agent must inspect the native diagnostics and resolve or record the failure. "
             "This publisher reads metadata only and does not execute candidate code or download artifacts.\n"
         )
+        if infrastructure_hints:
+            hints = sorted({hint for job in failed_jobs[:32] for hint in input_hints(repository, job)})
+            if hints:
+                body += (
+                    "\nNative input-unavailability hints: " + ", ".join(hints) + ". "
+                    "These annotations do not classify other failures, admit delivery or authorize a replay.\n"
+                )
         trusted_publishers = {"github-actions[bot]", *creators}
         if task_issue:
             issue = github.get(f"{prefix}/issues/{task_issue}")
