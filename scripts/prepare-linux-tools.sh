@@ -29,13 +29,21 @@ download() {
   done
   return "$status"
 }
+# shellcheck source=scripts/prepared-artifact.sh
+source "$(dirname "${BASH_SOURCE[0]}")/prepared-artifact.sh"
+verified_download() {
+  local url="$1" expected="$2" destination="$3" status
+  if nddev_prepared_artifact "$expected" "$destination"; then return 0; else status=$?; fi
+  if [[ "$status" != 1 ]]; then return "$status"; fi
+  download "$url" --output "$destination"
+}
 install_archive() {
   local url="$1" expected="$2" binary="$3" archive="$tools/$3.tar.gz" member
   if [[ -f "$tools/$binary.source" && "$(cat "$tools/$binary.source")" == "$expected" ]] && \
     (cd "$tools" && sha256sum --check --status "$binary.sha256"); then
     return
   fi
-  download "$url" --output "$archive"
+  verified_download "$url" "$expected" "$archive"
   printf '%s  %s\n' "$expected" "$archive" | sha256sum --check --status
   member="$(tar -tzf "$archive" | awk -F/ -v binary="$binary" '$NF == binary { print }')"
   [[ -n "$member" && "$member" != *$'\n'* ]]
@@ -51,7 +59,7 @@ install_file() {
   if [[ -f "$tools/$binary" ]] && printf '%s  %s\n' "$expected" "$tools/$binary" | sha256sum --check --status; then
     return
   fi
-  download "$url" --output "$tools/$binary.new"
+  verified_download "$url" "$expected" "$tools/$binary.new"
   printf '%s  %s\n' "$expected" "$tools/$binary.new" | sha256sum --check --status
   chmod 755 "$tools/$binary.new"
   mv "$tools/$binary.new" "$tools/$binary"
@@ -85,7 +93,7 @@ if [[ "$capability" == quality ]]; then
   "$tools/cargo-machete" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
-  UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="$tools/quality-downloads" \
+  UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/quality-downloads}" \
     "$library_uv" sync --locked --group quality --project "$library/.github/native-tools" --python 3.13
   SEMGREP_APP_TOKEN='' SEMGREP_SEND_METRICS=off SEMGREP_ENABLE_VERSION_CHECK=0 OTEL_SDK_DISABLED=true \
     SEMGREP_SETTINGS_FILE="$tools/quality-semgrep-settings.yml" "$tools/quality-runtime/bin/semgrep" --version
@@ -108,7 +116,7 @@ if [[ "$capability" == security ]]; then
   "$tools/osv-scanner" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
-  UV_PROJECT_ENVIRONMENT="$tools/security-runtime" UV_CACHE_DIR="$tools/security-downloads" \
+  UV_PROJECT_ENVIRONMENT="$tools/security-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/security-downloads}" \
     "$library_uv" sync --locked --no-dev --project "$library/tools/security" --python 3.13
   "$tools/security-runtime/bin/bandit" --version
   if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/security-runtime/bin" >> "$GITHUB_PATH"; fi
@@ -117,8 +125,9 @@ if [[ "$capability" == shell ]]; then
   install_archive 'https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz' \
     'b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6' shellcheck
   archive="$tools/bats.tar.gz"
-  curl --retry 3 --retry-max-time 480 --connect-timeout 20 --max-time 120 --fail --silent --show-error --location --proto '=https' \
-    'https://codeload.github.com/bats-core/bats-core/tar.gz/eb7f42f8d608ac693d7a4b67474f6714ea68cfc5' --output "$archive"
+  verified_download \
+    'https://codeload.github.com/bats-core/bats-core/tar.gz/eb7f42f8d608ac693d7a4b67474f6714ea68cfc5' \
+    '845574549f4c9777bf02fcdf307f1bf347d40c66920fb6b47dcc8fdfa065ac39' "$archive"
   printf '%s  %s\n' '845574549f4c9777bf02fcdf307f1bf347d40c66920fb6b47dcc8fdfa065ac39' "$archive" | sha256sum --check --status
   mkdir -p "$tools/bats-sdk"
   tar -xzf "$archive" --strip-components=1 --directory "$tools/bats-sdk"

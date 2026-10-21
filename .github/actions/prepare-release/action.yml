@@ -42,7 +42,7 @@ runs:
         NDDEV_SOURCE_WORKFLOW: ${{ inputs.source-workflow }}
         NDDEV_RELEASE_FILES: ${{ inputs.files }}
         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-release-runtime
-        UV_CACHE_DIR: ${{ runner.temp }}/nddev-downloads
+        UV_CACHE_DIR: ${{ env.NDDEV_UV_CACHE_ROOT || format('{0}/nddev-downloads', runner.temp) }}
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"

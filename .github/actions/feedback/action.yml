@@ -47,7 +47,7 @@ runs:
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         library_uv="$(bash "$library/scripts/library-uv.sh")"
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-feedback-runtime"
-        export UV_CACHE_DIR="$RUNNER_TEMP/nddev-downloads"
+        export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
         selection=()
         if [[ -n "$NDDEV_FEEDBACK_RUN" ]]; then selection+=(--run-id "$NDDEV_FEEDBACK_RUN"); fi
         if [[ -n "$NDDEV_BRANCHES" ]]; then selection+=(--branches "$NDDEV_BRANCHES"); fi
