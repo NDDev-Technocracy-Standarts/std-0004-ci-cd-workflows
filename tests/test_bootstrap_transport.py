@@ -136,9 +136,13 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     source = source.replace("--retry-max-time 480", "--retry-max-time 4")
     source = source.replace("limit=120", "limit=1")
     source = source.replace("SECONDS + 480", "SECONDS + 4")
+    for helper in ("prepared-artifact.sh", "prepared-artifact.py"):
+        shutil.copy2(scripts / helper, tmp_path / helper)
     script = tmp_path / "bootstrap.sh"
     script.write_text(source)
-    env = dict(os.environ, RUNNER_TEMP=str(tmp_path), CURL_CA_BUNDLE=str(certificate))
+    env = dict(
+        os.environ, RUNNER_TEMP=str(tmp_path), CURL_CA_BUNDLE=str(certificate), NDDEV_ARTIFACT_CACHE=""
+    )
     try:
         result = subprocess.run(
             ["bash", str(script)], env=env, capture_output=True, text=True, timeout=30, check=False

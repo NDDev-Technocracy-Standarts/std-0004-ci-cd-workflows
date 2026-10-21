@@ -37,8 +37,16 @@ download() {
 stage="$(mktemp -d "$temporary_root/nddev-library-uv.XXXXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 archive="$stage/uv.$extension"
-download \
-  "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
+# shellcheck source=scripts/prepared-artifact.sh
+source "$(dirname "${BASH_SOURCE[0]}")/prepared-artifact.sh"
+if nddev_prepared_artifact "$checksum" "$archive"; then
+  :
+else
+  prepared_status=$?
+  if [[ "$prepared_status" != 1 ]]; then exit "$prepared_status"; fi
+  download \
+    "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
+fi
 if [[ "$target" == *apple* ]]; then
   observed="$(shasum -a 256 "$archive" | awk '{print $1}')"
 else
