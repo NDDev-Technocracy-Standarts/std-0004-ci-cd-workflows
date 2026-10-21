@@ -83,6 +83,41 @@ def select(
     if platform == "linux":
         if not trusted:
             raise Unavailable("Untrusted/fork code cannot schedule private self-hosted capacity")
+        scale = choices.get("self_hosted")
+        if scale is not None:
+            if not isinstance(scale, dict) or scale.get("kind") != "scale-set":
+                raise Invalid("Select an explicit caller-owned self-hosted scale-set policy")
+            if (
+                scale.get("guarantee") != "self-hosted-only"
+                or scale.get("platform") != platform
+                or scale.get("architecture") != architecture
+            ):
+                raise Unavailable(
+                    "The scale set needs verified matching native capabilities and self-hosted-only authority"
+                )
+            for key, maximum in (("name", 100), ("group", 100), ("reference", 2048)):
+                value = scale.get(key)
+                if (
+                    not isinstance(value, str)
+                    or not value
+                    or value.strip() != value
+                    or len(value) > maximum
+                    or any(c in value for c in "\r\n\0")
+                ):
+                    raise Invalid(
+                        "Scale-set name, runner group and owner inventory reference must be explicit bounded strings"
+                    )
+            if private_labels is not None and private_labels != [scale["name"]]:
+                raise Invalid("A scale-set route uses exactly its declared label within its declared group")
+            return {
+                "provider": "self-hosted",
+                "runner": {"group": scale["group"], "labels": scale["name"]},
+                "basis": scale["reference"],
+                "availability": "not-checked",
+                "limitations": [
+                    "Scale-set capabilities/kind are caller-owned inventory facts; online state, access and queue availability are not queried."
+                ],
+            }
         labels = private_labels or []
         if (
             not labels
