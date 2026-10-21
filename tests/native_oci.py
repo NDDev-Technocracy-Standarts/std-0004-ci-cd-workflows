@@ -49,7 +49,7 @@ def test_actual_owned_layer_cache_reuse_and_native_build_argument(repository):
         cache_budget_bytes=256 * 1024**2,
     )
     log = Path(warm["archive"]).with_suffix(".build.log").read_text()
-    copied = re.search(r"(?m)^(#\d+) \[[^\n]+\] COPY index.html", log)
+    copied = re.search(r"(?m)^(#\d+) \[[^\n]+\] COPY(?: --\S+)* index\.html(?:\s|$)", log)
     assert copied and re.search(r"(?m)^" + re.escape(copied[1]) + r" CACHED$", log), log
     assert warm["local_cache_bytes"] > 0
     assert warm["build_arguments_sha256"] == cold["build_arguments_sha256"]

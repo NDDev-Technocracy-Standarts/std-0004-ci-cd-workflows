@@ -49,7 +49,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
       - id: initialize
-        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           languages: ${{ inputs.languages }}
           queries: security-extended
@@ -62,7 +62,7 @@ jobs:
         run: bash --noprofile --norc -euo pipefail -c "$CODEQL_BUILD_COMMAND"
       - name: Analyze the actual source and upload native SARIF
         if: ${{ !cancelled() && steps.initialize.outcome == 'success' && (inputs.build-command == '' || steps.build.outcome == 'success') }}
-        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         with:
           output: ${{ runner.temp }}/nddev-codeql-sarif
       - name: Fetch the exact reviewed reusable implementation separately from caller source

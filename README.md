@@ -60,8 +60,9 @@ is the canonical journal. The source uses [AGPL-3.0-only](LICENSE); imported gra
 
 ## Native command interface
 
-The project adopts the draft STD-0006 edition from its
-[selected immutable source](https://github.com/NDDev-Technocracy-Standarts/std-0006-project-command-interface/blob/9a70ac36e986cc8328c995d7428c45f4d13f7868/standard.yml).
+The project adopts the draft STD-0006 edition selected in the
+[repository manifest](.nds/nddev.yaml). The authority is private; public contributors need only
+the visible native interface and its documented prerequisites, without authority credentials.
 Bare `just` lists applicable operations without installing SDKs or reading credentials.
 `just setup` prepares locked contributor dependencies; `just verify` checks repository structure,
 Python source, routing documentation, profile-reference drift, exact runtime bindings and the
