@@ -23,3 +23,7 @@ are compiler-owned and updated only by the canonical generator. No harness adapt
 
 Public consumers must not need proprietary corpora or credentials. Keep account/browser/email
 work outside this public repository. Project CI invokes ordinary native build/test commands.
+
+The [native command interface](README.md#native-command-interface) selects the adopted STD-0006
+source and scopes. Inspect `just` for contributor, authoring and selected fixture operations;
+source feedback does not certify an unexecuted SDK or deployment target.

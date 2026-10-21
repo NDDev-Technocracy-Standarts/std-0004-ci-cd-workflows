@@ -52,3 +52,8 @@ historical=["archive/*/*.md"]
 purpose="Verify native facade/backend pins and package identity against their exact Git sources."
 command=["uv","run","python","scripts/check-runtime-lock.py"]
 timeout=30
+
+[extras.command-interface]
+purpose="Check the native command source without applying SDK or deployment operations."
+command=["just","just-check"]
+timeout=30
