@@ -61,6 +61,16 @@ container root maps to the runner user, whereas the host UID inside a rootless c
 See [Docker contexts](https://docs.docker.com/engine/manage-resources/contexts/) and
 [rootless clients](https://docs.docker.com/engine/security/rootless/tips/#client).
 
+The Linux `.github/actions/rustsec-audit` composite refreshes the public RustSec database through
+native shallow Git, then executes the caller's `cargo audit --deny warnings` against that successfully
+refreshed repository with `--no-fetch`. Select the directory containing the lockfile through
+`working-directory`. Cargo-audit must already be prepared. Each lane reuses its existing `CARGO_HOME`
+cache with a 512 MiB namespace budget, seven-day unused TTL and explicit free-space reserve. Only
+known transient fetch failures receive one bounded retry; native findings are never retried or
+waived. A failed refresh cannot use an older database. Native Git object reuse avoids repeating
+the full advisory history download. [Cargo-audit's native database options](https://docs.rs/cargo-audit/0.22.2/cargo_audit/config/struct.DatabaseConfig.html)
+retain scanner ownership of advisories, warnings and staleness checks.
+
 The Linux `.github/actions/trivy-db` composite accepts a digest-pinned scanner `image`, optional
 `java: 'true'`, and finite `budget-bytes`/`reserve-bytes`. The prepared host may provide
 `NDDEV_TRIVY_CACHE_ROOT` or its existing `NDDEV_BUILD_CACHE_ROOT`; otherwise the cache is job-local. Use the action's successful `cache-dir`
