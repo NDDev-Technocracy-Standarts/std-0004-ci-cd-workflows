@@ -78,6 +78,8 @@ wait. Read-only hardlinks snapshot only the database and metadata; cross-filesys
 read-only reflink/copy fallback. Snapshots retain their generation through refresh/eviction without
 holding the refresh lock while scanning. Concurrent scans keep separate mutable Bolt analysis
 caches. Unavailable input downloads emit an `NDDev infrastructure input` annotation;
+Java and non-Java jobs share the same vulnerability DB namespace. Refresh replaces only expired
+requested databases and retains a still-fresh Java index without downloading it again.
 findings and invalid DBs remain ordinary failures. That hint never admits a release or authorizes a
 blind replay of deployment. GitHub metadata and genuinely new dependencies still require network
 access. The cache owns inactive TTL/quota reclamation and respects its free-disk reserve.
