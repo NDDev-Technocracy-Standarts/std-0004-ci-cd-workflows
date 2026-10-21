@@ -49,7 +49,7 @@ def lock(path: Path, *, blocking: bool = True):
 
 
 @contextlib.contextmanager
-def namespace(root: Path, inputs: dict):
+def namespace(root: Path, inputs: dict, *, blocking: bool = True):
     if root.is_symlink():
         raise Invalid("A cache owner root cannot be a symlink")
     if (
@@ -68,7 +68,7 @@ def namespace(root: Path, inputs: dict):
         atomic_json(owner, {"schema": 1, "owner": "nddev-cicd"})
     name = identity(inputs)
     path = root / name
-    with lock(root / f"{name}.lock"):
+    with lock(root / f"{name}.lock", blocking=blocking):
         if path.is_symlink():
             raise Invalid("Cache namespace cannot be a symlink")
         path.mkdir(exist_ok=True)
