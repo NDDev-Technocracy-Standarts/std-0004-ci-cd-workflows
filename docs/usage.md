@@ -94,6 +94,27 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 
 # Admission and delivery
 
+The draft standard permits an explicitly owner-selected project advisory exception; it is never a
+global ignore or a green CI result. The existing `eligible`/`deliver` path remains strict. A project
+that selects this exception implements its native admission adapter: verify the latest complete
+main attempt and successful scans, admit only known advisory-policy findings, bind report/artifact
+identities, observe the actual current production component images, and recheck that baseline under
+the existing target lock before activation. Ordinary build/test/startup/network failures still refuse.
+
+`nddev-cicd advisory-compare` supplies only the package-inclusion part. Pass `--component`, exact
+`--candidate-image`/`--production-image` Docker image IDs and the corresponding native Trivy JSON
+`--candidate-report`/`--production-report`. Retain the production report's complete `Packages`
+inventory, for example through the scanner's native list-all-packages mode. Candidate findings are
+compared by exact native PURL, installed version, ecosystem and language artifact path in that one
+component. A current production image may reuse its verified immutable inventory when advisories
+change; it does not need a second package download or a live service scan.
+
+The command emits a separate `disposition` and returns nonzero for introduced or unidentifiable
+packages. It does not read the target, prove scan completion, authorize deployment or convert a
+failed workflow into success. Source lockfiles, byte-identical Dockerfiles and repository-wide
+digest searches cannot replace runtime inventory. The project records its owner policy, baseline,
+native scan/main-attempt bindings and admitted occurrences alongside ordinary delivery evidence.
+
 Admission policy is trusted account configuration, never PR body labels or a remaining-balance guess.
 Public Linux, Windows and macOS always use compatible standard GitHub-hosted runners. Private Linux
 cannot fall back from self-hosted to hosted/Blacksmith. Private Windows/macOS try a verified compatible

@@ -6,24 +6,48 @@
 strength: MUST
 basis: owner
 verification: partial
-verified-by: [runtime.lineage]
-criteria: Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; retain explicit historical PR lineage checks.
+verified-by: [runtime.lineage, runtime.advisory-comparison]
+criteria: Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; an explicitly selected advisory exception requires complete scan evidence, actual current production and no new vulnerable package identity in the same runtime component.
 sources:
 - gha-events
 applies-when: The subject determines eligibility for deployment.
 ```
 
 Production deployment MUST consume the exact integrated candidate whose applicable full main CI
-completed successfully. The short PR gate establishes merge eligibility, not production readiness.
+completed successfully, except for the explicit project-owned advisory disposition below.
+The short PR gate establishes merge eligibility, not production readiness.
 A trusted completion event or equivalent bounded native wait admits delivery only after that run;
-failed, cancelled, incomplete and known-superseded candidates do not start a target mutation.
+the ordinary path refuses failed candidates. Cancelled, incomplete and known-superseded candidates
+never start a target mutation, including through the advisory disposition below.
+
+An owner MAY explicitly select a project-scoped exception for a completed main run whose only
+failures are confirmed advisory-policy findings. The project's native admission adapter MUST bind
+the exact candidate, run and latest attempt, successful scans and immutable artifact identities;
+all other applicable checks still pass. A scanner/download error, unavailable or expired input,
+missing evidence, a cancelled job or an unexpected required skip cannot use this exception.
+
+The adapter MUST observe the release and immutable component images actually running in the intended
+production target, and show that every candidate advisory concerns the same package identity and
+installed version already present in that component's verified production artifact inventory.
+Repository-wide locks, a digest mentioned somewhere in source, an unchanged Dockerfile and another
+component's packages are insufficient. A new vulnerable version/component or reintroduction of a
+version production already fixed refuses admission. Retained native inventories may be reused for
+the same immutable image; changed target/artifact identity requires new evidence.
+
+The adapter MUST revalidate the production baseline under the existing target mutation boundary
+before activation, and record the selected owner policy, exact main run/attempt, observed production
+identity, artifact/report bindings and admitted occurrences in delivery evidence. CI stays failed on
+its findings; the exception is a separate admission disposition. It does not approve blanket package
+or build-stage patterns, remove findings, renew expired exceptions or bypass target/artifact checks.
+Without this explicit policy and complete evidence, the ordinary successful-main requirement applies.
 
 The artifact is bound to the actual source, configuration, workflow and run attempt. It is not
 selected by a mutable latest name or rebuilt after validation. Native admission checks actual
 repository, main revision, complete run result and tested tree before consuming the artifact.
 The builder may be an existing project-owned server. In that case the applicable full main
 workflow validates the exact immutable payload or OCI digests produced by that server and records
-them against its successful run and attempt before promotion. Passing source checks for the same
+them against its exact completed run/attempt and applicable admission disposition before promotion.
+Passing source checks for the same
 commit alone does not establish that a separately built binary passed artifact validation.
 The workflow need not rebuild an already validated artifact or move its builder to GitHub.
 
