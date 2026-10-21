@@ -26,3 +26,12 @@ spec:
       version: 0.1.0
   modules:
   - src/nddev_cicd
+
+  extensions:
+    nddev.command-interface:
+      visibility: public
+      standard:
+        id: std-0006
+        version: 0.1.0
+        status: draft
+        source: github:NDDev-Technocracy-Standarts/std-0006-project-command-interface@9a70ac36e986cc8328c995d7428c45f4d13f7868
