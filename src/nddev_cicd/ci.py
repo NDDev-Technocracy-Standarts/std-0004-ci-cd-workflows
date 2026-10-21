@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import os
 import platform
@@ -452,7 +453,8 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
 
 
 def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
-    cache_root = os.environ.get("NDDEV_CACHE_ROOT")
+    environment = {**os.environ, **{str(k): str(v) for k, v in contract.get("environment", {}).items()}}
+    cache_root = environment.get("NDDEV_CACHE_ROOT")
     if "rust" not in selection(root, contract)[0] or not cache_root:
         return _execute(root, contract, output)
     from .cache import namespace, reclaim
@@ -468,7 +470,6 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
         or ttl < 1
     ):
         raise Invalid("Owned Rust caches require explicit byte budget, free-disk reserve and positive TTL")
-    environment = {**os.environ, **{str(k): str(v) for k, v in contract.get("environment", {}).items()}}
     inputs = {
         "repository": os.environ.get("GITHUB_REPOSITORY", str(root.resolve())),
         "platform": platform.platform(),
@@ -493,7 +494,23 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
     }
     storage = Path(cache_root)
     try:
-        with namespace(storage, inputs) as owned:
+        with contextlib.ExitStack() as contexts:
+            try:
+                owned = contexts.enter_context(namespace(storage, inputs, blocking=False))
+            except BlockingIOError:
+                print("Cargo cache is in use; running with job-local build output", flush=True)
+                return _execute(root, contract, output)
+            output.mkdir(parents=True, exist_ok=True)
+            observation = {
+                "schema": 1,
+                "kind": "cargo",
+                "namespace": owned.name,
+                "target_present": (owned / "target").is_dir(),
+                "downloads_present": (owned / "downloads").is_dir(),
+                "sccache": bool(policy.get("sccache")),
+            }
+            atomic_json(output / "cache.json", observation)
+            print(f"Cargo cache: {observation}", flush=True)
             reclaim(storage, budget, reserve, ttl)
             if shutil.disk_usage(storage).free < reserve:
                 raise Invalid("Available disk is below the owner's reserve after inactive cache reclamation")

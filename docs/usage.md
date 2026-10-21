@@ -117,6 +117,11 @@ filesystem quota. Compiler stores, Cargo downloads/intermediates and retained fi
 distinct locations/controls. The default root Cargo package is staged into dist before cache cleanup;
 workspace/custom packaging uses its native project command.
 
+The cache root can be supplied in the process or contract environment. Each producer needs its own
+root and retention budget. `cache.json` records namespace selection and whether target/download
+directories existed; actual compiler output and optional native statistics establish hits. A busy
+namespace falls back to job-local compilation instead of waiting behind another complete run.
+
 Native Cargo target reuse works independently from optional sccache=true. Sccache disables Rust
 incremental compilation, holds the store lock for its complete server lifetime and stops that owned
 server before reclamation. Its compiler-store limit is half the declared budget, at most 2GiB.
