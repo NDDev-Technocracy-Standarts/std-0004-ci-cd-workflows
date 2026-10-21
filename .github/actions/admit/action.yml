@@ -6,7 +6,7 @@ inputs:
     required: true
 outputs:
   runner:
-    description: Admitted runner labels as JSON
+    description: Native runs-on JSON (classic labels or an explicit scale-set group/label object)
     value: ${{ steps.route.outputs.runner }}
   provider:
     description: Admitted provider

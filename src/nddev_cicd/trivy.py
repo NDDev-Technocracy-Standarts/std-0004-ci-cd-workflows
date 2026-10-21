@@ -89,6 +89,26 @@ def download(image: str, root: Path, kind: str) -> None:
     )
 
 
+def snapshot(source: Path, destination: Path, kind: str) -> None:
+    """Keep the immutable DB generation alive; mutable analysis never uses these hardlinks."""
+    (destination / kind).mkdir()
+    for filename in (DATABASES[kind][1], "metadata.json"):
+        original, target = source / kind / filename, destination / kind / filename
+        original.chmod(0o444)
+        try:
+            os.link(original, target)
+        except OSError as error:
+            if error.errno not in {errno.EXDEV, errno.EPERM, errno.EOPNOTSUPP}:
+                raise
+            subprocess.run(
+                ["cp", "--reflink=auto", str(original), str(target)],
+                capture_output=True,
+                timeout=120,
+                check=True,
+            )
+        target.chmod(0o444)
+
+
 def prepare(
     storage: Path,
     destination: Path,
@@ -124,7 +144,8 @@ def prepare(
     if destination.exists():
         raise Invalid("Prepare the database snapshot in a fresh job-owned scan cache")
     kinds = ["db", *(["java-db"] if java else [])]
-    inputs = {"kind": "trivy-databases", "image": image, "schemas": {k: DATABASES[k][0] for k in kinds}}
+    # Optional Java use does not create a second copy of the same vulnerability database.
+    inputs = {"kind": "trivy-databases", "image": image, "schemas": {k: DATABASES[k][0] for k in DATABASES}}
     deadline = time.monotonic() + wait_seconds
     with ExitStack() as stack:
         while True:
@@ -144,14 +165,22 @@ def prepare(
         if current.is_symlink():
             raise Invalid("The owned Trivy database generation cannot follow a symlink")
         now = datetime.now(UTC)
-        observations = {k: metadata(current, k, now) for k in kinds}
+        existing = {k: metadata(current, k, now) for k in DATABASES}
+        observations = {k: existing[k] for k in kinds}
         reused = all(observations.values())
         if not reused:
             with tempfile.TemporaryDirectory(prefix="refresh-", dir=owned) as temporary:
                 pending = Path(temporary)
-                for kind in kinds:
-                    # Native download-only selects the scanner's compatible schema and OCI repositories.
-                    download(image, pending, kind)
+                prepared_kinds = []
+                for kind in DATABASES:
+                    if existing[kind]:
+                        snapshot(current, pending, kind)
+                    elif kind in kinds:
+                        # Refresh only this expired/missing database, not a still-fresh Java DB.
+                        download(image, pending, kind)
+                    else:
+                        continue
+                    prepared_kinds.append(kind)
                 now = datetime.now(UTC)
                 observations = {k: metadata(pending, k, now) for k in kinds}
                 if not all(observations.values()):
@@ -163,30 +192,12 @@ def prepare(
                         current
                     )  # owned inactive generation; every scan gets an independent snapshot
                 current.mkdir()
-                for kind in kinds:
+                for kind in prepared_kinds:
                     os.replace(pending / kind, current / kind)
         destination.mkdir(mode=0o700, parents=True)
         try:
             for kind in kinds:
-                # Trivy opens its DBs read-only. Job-owned hardlinks keep the selected generation
-                # alive across refresh/GC without a scan-duration lock or a multi-GiB copy.
-                # Consumers also mount these DB subdirectories read-only; analysis stays mutable/local.
-                (destination / kind).mkdir()
-                for filename in (DATABASES[kind][1], "metadata.json"):
-                    source, target = current / kind / filename, destination / kind / filename
-                    source.chmod(0o444)
-                    try:
-                        os.link(source, target)
-                    except OSError as error:
-                        if error.errno not in {errno.EXDEV, errno.EPERM, errno.EOPNOTSUPP}:
-                            raise
-                        subprocess.run(
-                            ["cp", "--reflink=auto", str(source), str(target)],
-                            capture_output=True,
-                            timeout=120,
-                            check=True,
-                        )
-                    target.chmod(0o444)
+                snapshot(current, destination, kind)
             atomic_json(
                 destination / ".nddev-trivy-databases.json", {"image": image, "databases": observations}
             )

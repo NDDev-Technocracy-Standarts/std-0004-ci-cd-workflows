@@ -30,7 +30,7 @@ mechanical coverage and do not replace semantic review.
 | [R-0017](../spec/performance.md) | MUST | Optimization preserves obligations | condition (item): The subject changes execution efficiency or parallelism. | review | None |
 | [R-0018](../spec/performance.md) | MUST | Caches have owners and bounded lifetimes | condition (item): The subject reads, writes or reclaims acceleration state. | partial | `runtime.cache` |
 | [R-0019](../spec/performance.md) | MUST | Reports remain useful without storage duplication | condition (item): The subject exports or retains run diagnostics or artifacts. | partial | `runtime.retention` |
-| [R-0020](../spec/delivery.md) | MUST | CD consumes an eligible integrated result | condition (item): The subject determines eligibility for deployment. | partial | `runtime.lineage` |
+| [R-0020](../spec/delivery.md) | MUST | CD consumes an eligible integrated result | condition (item): The subject determines eligibility for deployment. | partial | `runtime.lineage`, `runtime.advisory-comparison` |
 | [R-0021](../spec/delivery.md) | MUST | Artifact promotion preserves identity | condition (item): A build artifact is produced, published or promoted. | partial | `runtime.artifact`, `runtime.release`, `runtime.oci` |
 | [R-0022](../spec/delivery.md) | MUST | Native deployment is complete rather than declarative only | condition (item): The project selects a deployment adapter. | partial | `runtime.delivery`, `runtime.preflight`, `runtime.current`, `runtime.remote` |
 | [R-0023](../spec/delivery.md) | MUST | The target serializes deployment | condition (item): The subject can mutate a shared delivery target. | partial | `runtime.target-lock`, `runtime.remote` |

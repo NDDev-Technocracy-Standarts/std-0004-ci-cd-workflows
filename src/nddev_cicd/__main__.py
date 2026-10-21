@@ -40,6 +40,15 @@ def parser() -> argparse.ArgumentParser:
     trivy.add_argument("--java", action="store_true")
     trivy.add_argument("--budget", type=int, default=4 * 1024**3)
     trivy.add_argument("--reserve", type=int, default=32 * 1024**3)
+    advisory = sub.add_parser(
+        "advisory-compare",
+        help="Compare findings with one actual production image inventory; does not authorize delivery",
+    )
+    advisory.add_argument("--candidate-report", type=Path, required=True)
+    advisory.add_argument("--production-report", type=Path, required=True)
+    advisory.add_argument("--candidate-image", required=True)
+    advisory.add_argument("--production-image", required=True)
+    advisory.add_argument("--component", required=True)
     feedback = sub.add_parser("feedback", help="Publish bounded metadata-only failure feedback")
     feedback.add_argument("--repository", default=os.environ.get("GITHUB_REPOSITORY", ""))
     feedback.add_argument("--workflows", required=True, help="JSON array of exact workflow paths")
@@ -259,6 +268,21 @@ def main(argv=None) -> int:
             )
             print(json.dumps(result))
             return 0
+        if args.operation == "advisory-compare":
+            from .advisory import compare
+
+            paths = [args.candidate_report, args.production_report]
+            if any(p.is_symlink() or not p.is_file() or p.stat().st_size > 256 * 1024**2 for p in paths):
+                raise Invalid("Advisory reports require bounded regular native JSON files")
+            result = compare(
+                json.loads(paths[0].read_text()),
+                json.loads(paths[1].read_text()),
+                candidate_image=args.candidate_image,
+                production_image=args.production_image,
+                component=args.component,
+            )
+            print(json.dumps(result))
+            return 1 if result["introduced"] else 0
         if args.operation == "feedback":
             from .feedback import publish
 

@@ -77,7 +77,9 @@ cannot become success after a failed refresh. Refresh has two finite attempts an
 wait. Read-only hardlinks snapshot only the database and metadata; cross-filesystem callers use a
 read-only reflink/copy fallback. Snapshots retain their generation through refresh/eviction without
 holding the refresh lock while scanning. Concurrent scans keep separate mutable Bolt analysis
-caches. Unavailable input downloads emit an `NDDev infrastructure input` annotation;
+caches. Java and non-Java jobs share the same vulnerability DB namespace. Refresh replaces only expired
+requested databases and retains a still-fresh Java index without downloading it again.
+Unavailable input downloads emit an `NDDev infrastructure input` annotation;
 findings and invalid DBs remain ordinary failures. That hint never admits a release or authorizes a
 blind replay of deployment. GitHub metadata and genuinely new dependencies still require network
 access. The cache owns inactive TTL/quota reclamation and respects its free-disk reserve.
@@ -94,6 +96,27 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 
 # Admission and delivery
 
+The draft standard permits an explicitly owner-selected project advisory exception; it is never a
+global ignore or a green CI result. The existing `eligible`/`deliver` path remains strict. A project
+that selects this exception implements its native admission adapter: verify the latest complete
+main attempt and successful scans, admit only known advisory-policy findings, bind report/artifact
+identities, observe the actual current production component images, and recheck that baseline under
+the existing target lock before activation. Ordinary build/test/startup/network failures still refuse.
+
+`nddev-cicd advisory-compare` supplies only the package-inclusion part. Pass `--component`, exact
+`--candidate-image`/`--production-image` Docker image IDs and the corresponding native Trivy JSON
+`--candidate-report`/`--production-report`. Retain the production report's complete `Packages`
+inventory, for example through the scanner's native list-all-packages mode. Candidate findings are
+compared by exact native PURL, installed version, ecosystem and language artifact path in that one
+component. A current production image may reuse its verified immutable inventory when advisories
+change; it does not need a second package download or a live service scan.
+
+The command emits a separate `disposition` and returns nonzero for introduced or unidentifiable
+packages. It does not read the target, prove scan completion, authorize deployment or convert a
+failed workflow into success. Source lockfiles, byte-identical Dockerfiles and repository-wide
+digest searches cannot replace runtime inventory. The project records its owner policy, baseline,
+native scan/main-attempt bindings and admitted occurrences alongside ordinary delivery evidence.
+
 Admission policy is trusted account configuration, never PR body labels or a remaining-balance guess.
 Public Linux, Windows and macOS always use compatible standard GitHub-hosted runners. Private Linux
 cannot fall back from self-hosted to hosted/Blacksmith. Private Windows/macOS try a verified compatible
@@ -106,6 +129,16 @@ allowlisted author. Without this list, owner/member/collaborator association is 
 Private label selection reports `availability: not-checked`: it does not observe online runners,
 repository access, busy runners or queue delay. Establish these from the existing native runner
 inventory before dispatch; a valid label list alone does not establish runner availability.
+
+Official private Linux scale sets can select a native group/label object instead of classical
+`self-hosted/Linux/X64` labels. In trusted routing policy, set `admission.self_hosted` to
+`{"kind":"scale-set","name":"my-pool","group":"Default","platform":"linux","architecture":"x64","guarantee":"self-hosted-only","reference":"owner-verified-native-inventory"}`.
+The owner reference must establish that actual group/name is a self-hosted scale set with those
+capabilities; groups can also contain paid larger runners, so a group name alone proves no such
+authority. The output is `{"group":"Default","labels":"my-pool"}` for native `runs-on: fromJSON(...)`.
+If `private_labels` is also supplied, it must be exactly the scale-set name. Classical routes remain
+unchanged. Neither route queries online state/access, and invalid Linux authority never falls back
+to a hosted provider. See [native group/label syntax](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job).
 
 Delivery follows completion of full main CI, using read-scoped Actions access. A trusted
 `workflow_run` caller first invokes `eligible` with the source run ID, exact workflow and main
