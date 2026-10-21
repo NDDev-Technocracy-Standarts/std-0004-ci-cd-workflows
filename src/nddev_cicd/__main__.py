@@ -28,6 +28,9 @@ def parser() -> argparse.ArgumentParser:
     gate = sub.add_parser("gate", help="Evaluate explicit expected results directly from native leaf jobs")
     gate.add_argument("--needs", required=True, help="Native toJSON(needs) object")
     gate.add_argument("--expected", required=True, help="JSON job map of expected success/skipped results")
+    gate.add_argument(
+        "--scopes", help="Optional raw true/false classifier outputs; malformed scope fails closed"
+    )
     trivy = sub.add_parser(
         "trivy-db", help="Prepare fresh verified native Trivy databases for a job-local scan"
     )
@@ -233,7 +236,15 @@ def main(argv=None) -> int:
         if args.operation == "gate":
             from .gate import evaluate
 
-            print(json.dumps(evaluate(json.loads(args.needs), json.loads(args.expected))))
+            print(
+                json.dumps(
+                    evaluate(
+                        json.loads(args.needs),
+                        json.loads(args.expected),
+                        json.loads(args.scopes) if args.scopes is not None else None,
+                    )
+                )
+            )
             return 0
         if args.operation == "trivy-db":
             from .trivy import prepare

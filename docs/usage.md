@@ -18,6 +18,8 @@ GitHub's aggregate across their shards. Missing/extra dependencies, selected ski
 and malformed expectations fail; no empty gate passes. Keep the final job's `if: !cancelled()` so a
 failed leaf still receives a verdict. Retain an intermediate job only when its distinct result is
 actually required by the repository's check policy or it performs real artifact work.
+Pass raw classifier outputs in `scopes` when they determine expectations: every selected scope must
+be an explicit `true`/`false` string. An empty or malformed output cannot silently become unaffected.
 
 For full main validation, use a workflow/ref concurrency group with `cancel-in-progress: false`.
 GitHub completes the running validation and replaces its single pending candidate with the newest

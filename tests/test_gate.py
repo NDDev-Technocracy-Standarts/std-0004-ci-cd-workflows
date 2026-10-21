@@ -43,6 +43,23 @@ def test_unselected_job_running_is_a_scope_mismatch():
         )
 
 
+@pytest.mark.parametrize("scopes", [{}, {"backend": ""}, {"backend": "unknown"}, {"backend": False}, []])
+def test_missing_or_malformed_classifier_outputs_cannot_hide_selected_work(scopes):
+    with pytest.raises(Invalid, match="Classifier"):
+        evaluate({"classifier": {"result": "success"}}, {"classifier": "success"}, scopes)
+
+
+def test_raw_classifier_outputs_are_validated_before_the_leaf_verdict():
+    assert (
+        evaluate(
+            {"classifier": {"result": "success"}},
+            {"classifier": "success"},
+            {"backend": "true", "docs": "false"},
+        )["status"]
+        == "success"
+    )
+
+
 def test_native_cli_preserves_failure(monkeypatch, capsys):
     monkeypatch.setattr(
         "sys.argv", ["nddev-cicd", "gate", "--needs", "{}", "--expected", '{"lint":"success"}']

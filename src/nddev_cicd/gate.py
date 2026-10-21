@@ -7,7 +7,16 @@ import re
 from .model import Invalid
 
 
-def evaluate(needs: dict, expected: dict) -> dict:
+def evaluate(needs: dict, expected: dict, scopes: dict | None = None) -> dict:
+    if scopes is not None and (
+        not isinstance(scopes, dict)
+        or not 1 <= len(scopes) <= 256
+        or any(not isinstance(k, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]{0,99}", k) for k in scopes)
+        or any(v not in ("true", "false") for v in scopes.values())
+    ):
+        raise Invalid(
+            "Classifier scope outputs must be explicit true/false strings, never missing or malformed"
+        )
     if (
         not isinstance(needs, dict)
         or not isinstance(expected, dict)
