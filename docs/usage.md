@@ -69,11 +69,15 @@ Keep `--scanners vuln` explicit for vulnerability-only scans. The existing nativ
 GNU `cp` provide execution and reflink/copy snapshots; no registry proxy, scanner server or new
 background service is installed.
 
+Mount the prepared `db` subdirectory read-only at the scanner cache's `db` path, and do the same for
+`java-db` when selected. The scan cache root remains writable for job-local analysis.
 Native Trivy downloads validate OCI content through its upstream transport. Reuse binds the scanner
 digest and compatible database schemas and requires `UpdatedAt <= now < NextUpdate`; stale data
 cannot become success after a failed refresh. Refresh has two finite attempts and a finite lock
-wait. Copies contain only the database and metadata, so concurrent scans retain separate mutable
-Bolt analysis caches. Unavailable input downloads emit an `NDDev infrastructure input` annotation;
+wait. Read-only hardlinks snapshot only the database and metadata; cross-filesystem callers use a
+read-only reflink/copy fallback. Snapshots retain their generation through refresh/eviction without
+holding the refresh lock while scanning. Concurrent scans keep separate mutable Bolt analysis
+caches. Unavailable input downloads emit an `NDDev infrastructure input` annotation;
 findings and invalid DBs remain ordinary failures. That hint never admits a release or authorizes a
 blind replay of deployment. GitHub metadata and genuinely new dependencies still require network
 access. The cache owns inactive TTL/quota reclamation and respects its free-disk reserve.

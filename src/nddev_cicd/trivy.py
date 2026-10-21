@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import re
@@ -167,20 +168,25 @@ def prepare(
         destination.mkdir(mode=0o700, parents=True)
         try:
             for kind in kinds:
-                # Reflink where supported, ordinary copy elsewhere; no shared mutable Bolt scan cache.
+                # Trivy opens its DBs read-only. Job-owned hardlinks keep the selected generation
+                # alive across refresh/GC without a scan-duration lock or a multi-GiB copy.
+                # Consumers also mount these DB subdirectories read-only; analysis stays mutable/local.
                 (destination / kind).mkdir()
-                subprocess.run(
-                    [
-                        "cp",
-                        "--reflink=auto",
-                        str(current / kind / DATABASES[kind][1]),
-                        str(current / kind / "metadata.json"),
-                        str(destination / kind),
-                    ],
-                    capture_output=True,
-                    timeout=120,
-                    check=True,
-                )
+                for filename in (DATABASES[kind][1], "metadata.json"):
+                    source, target = current / kind / filename, destination / kind / filename
+                    source.chmod(0o444)
+                    try:
+                        os.link(source, target)
+                    except OSError as error:
+                        if error.errno not in {errno.EXDEV, errno.EPERM, errno.EOPNOTSUPP}:
+                            raise
+                        subprocess.run(
+                            ["cp", "--reflink=auto", str(source), str(target)],
+                            capture_output=True,
+                            timeout=120,
+                            check=True,
+                        )
+                    target.chmod(0o444)
             atomic_json(
                 destination / ".nddev-trivy-databases.json", {"image": image, "databases": observations}
             )

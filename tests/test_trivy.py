@@ -45,12 +45,30 @@ def test_fresh_db_downloads_once_and_analysis_stays_job_local(tmp_path, monkeypa
     assert trivy.prepare(storage, first, IMAGE, java=True, reserve=0)["reused"] is False
     (first / "fanal").mkdir()
     (first / "fanal/cache.db").write_text("job-local Bolt scan cache")
-    (first / "db/trivy.db").write_bytes(b"a job cannot mutate the shared generation")
+    assert (first / "db/trivy.db").stat().st_mode & 0o222 == 0
     result = trivy.prepare(storage, second, IMAGE, java=True, reserve=0)
     assert result["reused"] is True
     assert calls == ["db", "java-db"]
     assert (second / "db/trivy.db").read_bytes() == b"native fixture database"
     assert not (second / "fanal").exists()
+    assert (first / "db/trivy.db").stat().st_ino == (second / "db/trivy.db").stat().st_ino
+
+
+def test_cross_filesystem_snapshot_falls_back_to_a_read_only_copy(tmp_path, monkeypatch):
+    import errno
+
+    monkeypatch.setattr(trivy, "download", lambda _image, root, kind: downloaded(root, kind))
+
+    def cross_device(*_args, **_kwargs):
+        raise OSError(errno.EXDEV, "different native mounts")
+
+    monkeypatch.setattr(trivy.os, "link", cross_device)
+    storage, target = tmp_path / "owned", tmp_path / "snapshot"
+    trivy.prepare(storage, target, IMAGE, reserve=0)
+    original = next(storage.glob("*/current/db/trivy.db"))
+    assert original.stat().st_ino != (target / "db/trivy.db").stat().st_ino
+    assert (target / "db/trivy.db").stat().st_mode & 0o222 == 0
+    assert (target / "db/trivy.db").read_bytes() == b"native fixture database"
 
 
 def test_parallel_jobs_share_only_the_refresh_lock(tmp_path, monkeypatch):
@@ -80,7 +98,13 @@ def test_expired_db_refresh_failure_never_creates_a_successful_snapshot(tmp_path
     storage = tmp_path / "owned"
     trivy.prepare(storage, tmp_path / "first", IMAGE, reserve=0)
     current = next(storage.glob("*/current"))
-    downloaded(current, "db", expires=datetime.now(UTC) - timedelta(seconds=1))
+
+    class Later(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(hours=7)
+
+    monkeypatch.setattr(trivy, "datetime", Later)
 
     def unavailable(*_):
         raise Unavailable("infrastructure.external-download: fixture")
