@@ -40,6 +40,10 @@ def parser() -> argparse.ArgumentParser:
     trivy.add_argument("--java", action="store_true")
     trivy.add_argument("--budget", type=int, default=4 * 1024**3)
     trivy.add_argument("--reserve", type=int, default=32 * 1024**3)
+    rustsec = sub.add_parser("rustsec-audit", help="Refresh cached RustSec through native Git, then audit")
+    rustsec.add_argument("--root", type=Path, default=Path.cwd())
+    rustsec.add_argument("--storage", type=Path, required=True)
+    rustsec.add_argument("--reserve", type=int, default=32 * 1024**3)
     advisory = sub.add_parser(
         "advisory-compare",
         help="Compare findings with one actual production image inventory; does not authorize delivery",
@@ -255,6 +259,10 @@ def main(argv=None) -> int:
                 )
             )
             return 0
+        if args.operation == "rustsec-audit":
+            from .rustsec import audit
+
+            return audit(args.root, args.storage, reserve=args.reserve)
         if args.operation == "trivy-db":
             from .trivy import prepare
 
