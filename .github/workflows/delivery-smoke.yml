@@ -19,7 +19,7 @@ jobs:
       source-run-id: ${{ steps.fixture.outputs.run_id }}
     steps:
       - id: eligible
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/eligible@91b1f4ed0e2ae3c099f6f41094ad6f1bee317561
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/eligible@1c8cb2f1031dc201df0075f862da72edebe0d3f1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -40,7 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: uv run --locked python scripts/delivery-smoke.py prepare "$RUNNER_TEMP/integrated-smoke"
-      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/deliver@91b1f4ed0e2ae3c099f6f41094ad6f1bee317561
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/deliver@1c8cb2f1031dc201df0075f862da72edebe0d3f1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -50,7 +50,7 @@ jobs:
           transport-config: ${{ steps.fixture.outputs.transport }}
       - name: Publish the exact tested OCI archive to the owned HTTPS registry
         id: image
-        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/oci-publish@91b1f4ed0e2ae3c099f6f41094ad6f1bee317561
+        uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/oci-publish@1c8cb2f1031dc201df0075f862da72edebe0d3f1
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
