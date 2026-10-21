@@ -27,6 +27,9 @@ inputs:
   page-budget:
     description: Total run-list request budget; exhaustion fails before publication
     default: '50'
+  infrastructure-hints:
+    description: Read bounded check annotations for typed unavailable inputs; requires checks read permission
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -42,6 +45,7 @@ runs:
         NDDEV_SINCE: ${{ inputs.since }}
         NDDEV_PAGE_BUDGET: ${{ inputs.page-budget }}
         NDDEV_CONCLUSIONS: ${{ inputs.conclusions }}
+        NDDEV_INFRASTRUCTURE_HINTS: ${{ inputs.infrastructure-hints }}
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
@@ -49,6 +53,11 @@ runs:
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-feedback-runtime"
         export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
         selection=()
+        case "$NDDEV_INFRASTRUCTURE_HINTS" in
+          true) selection+=(--infrastructure-hints) ;;
+          false) ;;
+          *) echo 'infrastructure-hints must be true or false' >&2; exit 2 ;;
+        esac
         if [[ -n "$NDDEV_FEEDBACK_RUN" ]]; then selection+=(--run-id "$NDDEV_FEEDBACK_RUN"); fi
         if [[ -n "$NDDEV_BRANCHES" ]]; then selection+=(--branches "$NDDEV_BRANCHES"); fi
         if [[ -n "$NDDEV_SINCE" ]]; then selection+=(--since "$NDDEV_SINCE"); fi

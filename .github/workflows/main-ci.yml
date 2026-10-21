@@ -8,7 +8,8 @@ permissions:
   actions: read
 concurrency:
   group: main-validation
-  cancel-in-progress: true
+  # Complete the running validation; GitHub retains only the newest pending push.
+  cancel-in-progress: false
 jobs:
   source:
     runs-on: ubuntu-24.04
