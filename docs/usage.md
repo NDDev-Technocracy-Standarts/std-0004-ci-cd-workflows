@@ -61,6 +61,31 @@ the existing reviewed host/setup mechanism. [Native rustup selection](https://ru
 and [minimal CI profiles](https://rust-lang.github.io/rustup/concepts/profiles.html) retain upstream
 ownership of SDK installation and component resolution.
 
+The CI action exposes the native `artifact-id`, `artifact-digest` and `producer-attempt` outputs.
+Forward them as producer job outputs and consume them through `needs` in a reusable delivery job.
+Download by immutable artifact ID and verify the producer's attempt from that output, rather than
+assuming the delivery job's `github.run_attempt` also rebuilt its dependency. Failed-only reruns
+retain successful job outputs while assigning a new workflow attempt.
+
+Source manifests bind the native [`job.check_run_id`](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context)
+when available. The shared bundle reader can use a previous producer attempt only when its successful
+execution remains in the latest native job graph, with unchanged runner, execution interval and step
+results. A replacement execution, ambiguous history, failed producer, missing provenance or changed
+archive digest fails closed. GitHub can clone retained jobs with new job/check IDs; identical IDs
+alone are not the retention test. Legacy artifacts without this provenance keep strict same-attempt
+behavior and require a full rerun. Producer proof does not authorize delivery: the expected full main
+workflow still must pass for the exact current source and library binding.
+
+`.github/actions/main-validation` observes a caller's exact full-main `workflow` through native REST.
+It requires a read-scoped caller token in `GH_TOKEN` or `GITHUB_TOKEN`. The default only reports
+metadata. With `dispatch-missing: 'true'` and caller `actions: write`, it can dispatch that same
+workflow on `main` after a bounded grace period when no matching run exists. The workflow must
+support `workflow_dispatch` and run its ordinary full checks for that event. Put this step in the
+existing scheduled feedback/reconciliation job, serialized with that job's native concurrency.
+Queued, running, failed and cancelled runs are observed without automatic replay. A dispatch is an
+acknowledged request, not a successful validation. Delivery applies the same exact-main and complete
+successful-workflow guards to a trusted manual validation as to a push validation.
+
 ## Native Docker and scanner inputs
 
 Ordinary service containers, Buildx builds and daemon image scans can share a qualified rootless

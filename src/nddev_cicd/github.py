@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -46,6 +47,99 @@ def records(path: str, key: str, limit: int = 5) -> list[dict]:
         if len(batch) < 100:
             return result
     raise Invalid("Native Actions pagination budget exhausted")
+
+
+def ensure_main(repository: str, workflow: str, *, dispatch: bool = False, grace_seconds: int = 90) -> dict:
+    """Observe current main validation; explicit dispatch never certifies or retries a failed run."""
+    from datetime import UTC, datetime
+    from urllib.parse import urlencode
+
+    if (
+        not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository)
+        or not re.fullmatch(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml", workflow)
+        or type(grace_seconds) is not int
+        or not 0 <= grace_seconds <= 3600
+    ):
+        raise Invalid("Main reconciliation requires an exact repository/workflow and bounded grace")
+    prefix = f"repos/{repository}"
+    head_path = f"{prefix}/git/ref/heads/main"
+    head = get(head_path).get("object", {}).get("sha")
+    if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{40}", head):
+        raise Invalid("Current native main identity is unavailable")
+    endpoint = f"{prefix}/actions/workflows/{workflow.rsplit('/', 1)[1]}"
+    descriptor = get(endpoint)
+    result = {"repository": repository, "workflow": workflow, "head": head}
+    if descriptor.get("path") != workflow or descriptor.get("state") != "active":
+        return {**result, "status": "workflow-unavailable"}
+
+    def observed():
+        query = urlencode({"branch": "main", "head_sha": head})
+        runs = records(endpoint + "/runs?" + query, "workflow_runs")
+        selected = [
+            item
+            for item in runs
+            if (
+                item.get("repository", {}).get("full_name") == repository
+                and item.get("head_repository", {}).get("full_name") == repository
+                and item.get("head_sha") == head
+                and item.get("head_branch") == "main"
+                and item.get("path") == workflow
+                and item.get("event") in {"push", "workflow_dispatch"}
+            )
+        ]
+        if not selected:
+            return None
+        if any(type(item.get("id")) is not int or item["id"] < 1 for item in selected):
+            raise Invalid("Native main validation history has no exact run identity")
+        latest = max(selected, key=lambda item: item["id"])
+        status = (
+            "validated"
+            if latest.get("status") == "completed" and latest.get("conclusion") == "success"
+            else "existing"
+        )
+        return {
+            **result,
+            "status": status,
+            "run_id": latest["id"],
+            "run_status": latest.get("status"),
+            "conclusion": latest.get("conclusion"),
+            "attempt": latest.get("run_attempt"),
+            "event": latest["event"],
+        }
+
+    prior = observed()
+    if prior is not None:
+        return prior
+    if not dispatch:
+        return {**result, "status": "missing"}
+    if grace_seconds:
+        commit = get(f"{prefix}/git/commits/{head}")
+        date = commit.get("committer", {}).get("date")
+        if not isinstance(date, str):
+            raise Invalid("Main commit time is unavailable; dispatch grace cannot be established")
+        committed_at = datetime.fromisoformat(date)
+        if committed_at.tzinfo is None:
+            raise Invalid("Main commit time must have its native timezone")
+        age = (datetime.now(UTC) - committed_at).total_seconds()
+        if age < grace_seconds:
+            return {**result, "status": "awaiting-native-trigger"}
+    if get(head_path).get("object", {}).get("sha") != head:
+        return {**result, "status": "superseded"}
+    prior = observed()
+    if prior is not None:
+        return prior
+    native = request(endpoint + "/dispatches")
+    native.method = "POST"
+    native.data = json.dumps({"ref": "main"}).encode()
+    native.add_header("Content-Type", "application/json")
+    with urllib.request.urlopen(native, timeout=30) as response:
+        response.read(65536)
+    current = get(head_path).get("object", {}).get("sha")
+    return {
+        **result,
+        "status": "dispatched" if current == head else "main-advanced-during-dispatch",
+        "current_head": current,
+    }
 
 
 def pr_eligible(
@@ -146,6 +240,81 @@ def pr_eligible(
     }
 
 
+def producer(repository: str, run_id: int, revision: str, source: dict, *, run: dict | None = None) -> dict:
+    """Prove a source execution is successful in the latest native graph; this is not delivery admission."""
+    if (
+        type(run_id) is not int
+        or run_id < 1
+        or not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository)
+        or not re.fullmatch(r"[0-9a-f]{40}", revision)
+    ):
+        raise Invalid("Native producer proof requires an exact repository and revision")
+    run = get(f"repos/{repository}/actions/runs/{run_id}") if run is None else run
+    if not isinstance(run, dict):
+        raise Invalid("Native source run metadata is unavailable")
+    latest = run.get("run_attempt")
+    attempt, check = source.get("attempt"), source.get("check_run_id")
+    if (
+        type(latest) is not int
+        or latest < 1
+        or not isinstance(attempt, str)
+        or not re.fullmatch(r"[1-9][0-9]{0,8}", attempt)
+        or int(attempt) > latest
+        or not isinstance(check, str)
+        or not re.fullmatch(r"[1-9][0-9]{0,19}", check)
+        or source.get("repository") != repository
+        or source.get("run_id") != str(run_id)
+        or source.get("tested_revision") != revision
+        or run.get("repository", {}).get("full_name") != repository
+        or run.get("head_repository", {}).get("full_name") != repository
+        or run.get("head_sha") != revision
+    ):
+        raise Invalid("Source producer identity differs from its native run")
+    prefix = f"repos/{repository}/actions/runs/{run_id}"
+    original = records(f"{prefix}/attempts/{attempt}/jobs", "jobs")
+    check_url = f"https://api.github.com/repos/{repository}/check-runs/{check}"
+    matches = [item for item in original if item.get("check_run_url") == check_url]
+    if len(matches) != 1:
+        raise Invalid("No unique source producer in its original native attempt")
+    built = matches[0]
+    if (
+        built.get("status") != "completed"
+        or built.get("conclusion") != "success"
+        or built.get("run_attempt") != int(attempt)
+        or built.get("run_id") != run_id
+        or built.get("head_sha") != revision
+        or not built.get("started_at")
+        or not built.get("completed_at")
+        or not built.get("runner_name")
+        or type(built.get("runner_id")) is not int
+        or not isinstance(built.get("steps"), list)
+        or not built["steps"]
+    ):
+        raise Invalid("Native source producer is incomplete or not successful")
+    current = records(f"{prefix}/jobs?filter=latest", "jobs")
+    # Failed-only reruns clone retained successful jobs with new check IDs and
+    # attempt/creation metadata. Their actual execution metadata is unchanged.
+    fields = ("name", "runner_id", "runner_name", "started_at", "completed_at", "steps")
+    retained = [item for item in current if all(item.get(key) == built.get(key) for key in fields)]
+    if (
+        len(retained) != 1
+        or retained[0].get("status") != "completed"
+        or retained[0].get("conclusion") != "success"
+        or retained[0].get("head_sha") != revision
+        or retained[0].get("run_id") != run_id
+        or retained[0].get("run_attempt") != latest
+        or type(retained[0].get("id")) is not int
+        or retained[0]["id"] < 1
+    ):
+        raise Invalid("The successful producer execution was replaced or is absent from the latest graph")
+    return {
+        "producer_attempt": attempt,
+        "validation_attempt": str(latest),
+        "check_run_id": check,
+        "latest_job_id": str(retained[0]["id"]),
+    }
+
+
 def eligible(
     repository: str, run_id: int, integrated_revision: str, expected_workflow: str, source: dict | None = None
 ) -> dict:
@@ -157,13 +326,13 @@ def eligible(
     if (
         run["repository"]["full_name"] != repository
         or run["head_repository"]["full_name"] != repository
-        or run["event"] not in {"pull_request", "push"}
+        or run["event"] not in {"pull_request", "push", "workflow_dispatch"}
         or run["status"] != "completed"
         or run["conclusion"] != "success"
         or run["path"] != expected_workflow
     ):
         raise Invalid("Build run is not the expected successful same-repository source validation")
-    if run["event"] == "push":
+    if run["event"] in {"push", "workflow_dispatch"}:
         if run.get("head_branch") != "main" or run.get("head_sha") != integrated_revision:
             raise Invalid("Delivery requires the exact successful main candidate")
         current = get(f"repos/{repository}/git/ref/heads/main")
@@ -174,17 +343,29 @@ def eligible(
             "head": integrated_revision,
             "run_id": str(run_id),
             "attempt": str(run["run_attempt"]),
-            "event": "push",
+            "event": run["event"],
         }
         if source is not None:
+            if source.get("check_run_id") is not None:
+                proof = producer(repository, run_id, integrated_revision, source, run=run)
+                if proof["producer_attempt"] != binding["attempt"]:
+                    binding["validation_attempt"] = binding["attempt"]
+                    binding["attempt"] = proof["producer_attempt"]
             if (
-                any(source.get(k) != v for k, v in binding.items())
+                any(source.get(k) != v for k, v in binding.items() if k != "validation_attempt")
                 or source.get("tested_revision") != integrated_revision
             ):
                 raise Invalid("Artifact source differs from the successful main run/attempt")
             candidate = get(f"repos/{repository}/git/commits/{integrated_revision}")
             if candidate.get("tree", {}).get("sha") != source.get("tested_tree"):
                 raise Invalid("Main artifact differs from its tested source tree")
+            refreshed = get(f"repos/{repository}/actions/runs/{run_id}")
+            if (
+                refreshed.get("run_attempt") != run["run_attempt"]
+                or refreshed.get("status") != "completed"
+                or refreshed.get("conclusion") != "success"
+            ):
+                raise Invalid("Main validation changed during producer admission")
         return {**binding, "integrated_revision": integrated_revision, "workflow": expected_workflow}
     pulls = run.get("pull_requests", [])
     if not pulls:
@@ -262,13 +443,35 @@ def bundle(
 ) -> tuple[Path, dict, dict]:
     binding = eligible(repository, run_id, revision, workflow)
     response = get(f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100")
-    name = f"nddev-source-{run_id}-{binding['attempt']}-primary"
-    matches = [a for a in response["artifacts"] if a["name"] == name and not a["expired"]]
+    if response.get("total_count", len(response["artifacts"])) > 100:
+        raise Invalid("Native source artifact selection exceeds its bounded page")
+    pattern = re.compile(rf"nddev-source-{run_id}-([1-9][0-9]{{0,8}})-primary")
+    candidates = [
+        (int(match[1]), item)
+        for item in response["artifacts"]
+        if (match := pattern.fullmatch(item["name"]))
+        and not item["expired"]
+        and int(match[1]) <= int(binding["attempt"])
+    ]
+    selected_attempt = max((attempt for attempt, _ in candidates), default=0)
+    matches = [item for attempt, item in candidates if attempt == selected_attempt]
     if len(matches) != 1:
-        raise Invalid("No unique nonexpired artifact for the exact successful run attempt")
+        raise Invalid("No unique nonexpired source artifact candidate for the successful run")
     directory.mkdir(parents=True, exist_ok=False)
     downloaded = directory / "source.zip"
     download(repository, matches[0]["id"], downloaded)
+    digest = matches[0].get("digest")
+    if digest is not None:
+        with downloaded.open("rb") as stream:
+            observed_digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if (
+            not isinstance(digest, str)
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+            or observed_digest != digest[7:]
+        ):
+            raise Invalid("Downloaded native artifact differs from its immutable archive digest")
+    elif selected_attempt != int(binding["attempt"]):
+        raise Invalid("A retained native source artifact requires its immutable archive digest")
     required = {"result.json", "artifact.tar.gz", "artifact.tar.gz.json"}
     with zipfile.ZipFile(downloaded) as archive:
         selected = [i for i in archive.infolist() if i.filename in required]
@@ -286,6 +489,12 @@ def bundle(
         or result["identity"] != manifest["source"]
     ):
         raise Invalid("Artifact lacks a complete successful native result")
+    if manifest["source"].get("attempt") != str(selected_attempt):
+        raise Invalid("Artifact name and native producer attempt differ")
+    if selected_attempt != int(binding["attempt"]) and not manifest["source"].get("check_run_id"):
+        raise Invalid(
+            "Retained source artifacts require native producer provenance; legacy sources rerun fully"
+        )
     eligible(repository, run_id, revision, workflow, manifest["source"])
     for field, environment in (
         ("library_repository", "NDDEV_LIBRARY_REPOSITORY"),
@@ -310,7 +519,7 @@ def authorized_revision(run_id: int, workflow: str, *, allow_dispatch: bool = Fa
     if (
         run.get("id") != run_id
         or run.get("path") != workflow
-        or run.get("event") != "push"
+        or run.get("event") not in {"push", "workflow_dispatch"}
         or run.get("head_branch") != "main"
         or run.get("status") != "completed"
         or run.get("conclusion") != "success"
@@ -371,7 +580,9 @@ def dependency_review_refs(
     source = source_identity(root)
     if source["event"] == "pull_request":
         base, head = source["base"], source["head"]
-    elif source["event"] == "push" and os.environ.get("GITHUB_REF") == "refs/heads/main":
+    elif (
+        source["event"] in {"push", "workflow_dispatch"} and os.environ.get("GITHUB_REF") == "refs/heads/main"
+    ):
         base, head = base or successful_main_base(root, workflow), source["tested_revision"]
         if base:
             git(root, "merge-base", "--is-ancestor", base, head)
