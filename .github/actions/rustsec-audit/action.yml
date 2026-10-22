@@ -23,4 +23,4 @@ runs:
         root="$("$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -c \
           'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_AUDIT_ROOT"],exists=True))')"
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd rustsec-audit \
-          --root "$root" --storage "${CARGO_HOME:-$HOME/.cargo}/nddev-rustsec" --reserve "$NDDEV_AUDIT_RESERVE"
+          --root "$root" --storage "${NDDEV_RUSTSEC_CACHE_ROOT:-${CARGO_HOME:-$HOME/.cargo}/nddev-rustsec}" --reserve "$NDDEV_AUDIT_RESERVE"

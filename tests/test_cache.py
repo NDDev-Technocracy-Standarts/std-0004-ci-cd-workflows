@@ -127,3 +127,50 @@ def test_rust_cache_uses_contract_environment_and_records_reuse(tmp_path, monkey
     assert directories[0] == directories[1]
     assert not json.loads((tmp_path / "first/cache.json").read_text())["target_present"]
     assert json.loads((tmp_path / "second/cache.json").read_text())["target_present"]
+
+
+def test_opted_in_native_downloads_survive_independent_compiler_namespaces(tmp_path, monkeypatch):
+    import json
+    from pathlib import Path
+
+    from nddev_cicd import ci
+
+    shared = tmp_path / "native-downloads"
+    shared.mkdir()
+    archive = shared / "cached.crate"
+    archive.write_bytes(b"owner-provided native registry input")
+    monkeypatch.setenv("NDDEV_CARGO_DOWNLOAD_CACHE", str(shared))
+    monkeypatch.setenv("CARGO_HOME", str(shared))
+    monkeypatch.setattr(ci.subprocess, "check_output", lambda *a, **k: "rustc fixture")
+    (tmp_path / "contract.toml").write_text("schema = 1")
+    environments = []
+
+    def execute(_root, selected, _output):
+        environment = selected["environment"]
+        environments.append(environment.copy())
+        Path(environment["CARGO_TARGET_DIR"]).mkdir(exist_ok=True)
+        return {"status": "success"}
+
+    monkeypatch.setattr(ci, "_execute", execute)
+    for producer in ("first", "second"):
+        contract = {
+            "profiles": ["rust"],
+            "_path": "contract.toml",
+            "environment": {"NDDEV_CACHE_ROOT": str(tmp_path / producer)},
+            "rust": {"cache_budget_bytes": 1024**2, "cache_min_free_bytes": 0, "cache_ttl_seconds": 60},
+        }
+        output = tmp_path / (producer + "-result")
+        assert ci._execute_with_rust_cache(tmp_path, contract, output)["status"] == "success"
+        assert json.loads((output / "cache.json").read_text())["downloads_shared"] is True
+    assert environments[0]["CARGO_HOME"] == environments[1]["CARGO_HOME"] == str(shared)
+    assert environments[0]["CARGO_TARGET_DIR"] != environments[1]["CARGO_TARGET_DIR"]
+    # An older queued caller can still use the same producer's private home.
+    # It must not alternate the shared caller's mutable compiler target.
+    monkeypatch.setenv("CARGO_HOME", str(tmp_path / "lane"))
+    contract["environment"] = {"NDDEV_CACHE_ROOT": str(tmp_path / "first")}
+    output = tmp_path / "legacy-result"
+    ci._execute_with_rust_cache(tmp_path, contract, output)
+    assert environments[-1]["CARGO_HOME"] != str(shared)
+    assert environments[-1]["CARGO_TARGET_DIR"] != environments[0]["CARGO_TARGET_DIR"]
+    assert json.loads((output / "cache.json").read_text())["downloads_shared"] is False
+    assert archive.read_bytes() == b"owner-provided native registry input"
