@@ -12,7 +12,8 @@ def test_foreign_cache_is_rejected_without_even_a_new_lock_file(tmp_path, existi
     foreign.mkdir()
     (foreign / "user-data").write_text("preserved")
     if existing_lock:
-        (foreign / ".owner.lock").touch()
+        with cache.lock(foreign / ".owner.lock"):
+            pass
     before = {p.name: p.read_bytes() for p in foreign.iterdir()}
     with pytest.raises(Invalid, match="unowned"), cache.namespace(foreign, {"fixture": True}):
         raise AssertionError("An unowned cache was entered")
