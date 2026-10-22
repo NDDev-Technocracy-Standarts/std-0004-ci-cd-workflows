@@ -50,7 +50,7 @@ credentials belong in caller repository/environment secrets and are passed only 
 needs them. Never pass deployment credentials to source checks.
 
 For Linux Rust jobs outside `.github/actions/ci`, `.github/actions/rust-setup` accepts an exact
-`toolchain` (a release such as `1.99.1` or dated nightly), optional comma/space-separated `components`
+`toolchain` (an exact version or dated nightly), optional comma/space-separated `components`
 (default `clippy,rustfmt`) and `targets`. Native rustup probes installed compiler identity, components
 and targets with automatic installation disabled. A complete prepared SDK needs no channel-manifest
 request. Only absent inputs invoke bounded native installation; `install-missing: 'false'` requires
