@@ -44,6 +44,12 @@ def parser() -> argparse.ArgumentParser:
     rustsec.add_argument("--root", type=Path, default=Path.cwd())
     rustsec.add_argument("--storage", type=Path, required=True)
     rustsec.add_argument("--reserve", type=int, default=32 * 1024**3)
+    rust_setup = sub.add_parser("rust-setup", help="Select exact installed Rust inputs before any download")
+    rust_setup.add_argument("--toolchain", required=True)
+    rust_setup.add_argument("--components", nargs="*", default=["clippy", "rustfmt"])
+    rust_setup.add_argument("--targets", nargs="*", default=[])
+    rust_setup.add_argument("--no-install", action="store_true")
+    rust_setup.add_argument("--github-environment", action="store_true")
     advisory = sub.add_parser(
         "advisory-compare",
         help="Compare findings with one actual production image inventory; does not authorize delivery",
@@ -263,6 +269,14 @@ def main(argv=None) -> int:
             from .rustsec import audit
 
             return audit(args.root, args.storage, reserve=args.reserve)
+        if args.operation == "rust-setup":
+            from .rust_setup import export, prepare
+
+            result = prepare(args.toolchain, args.components, args.targets, allow_install=not args.no_install)
+            if args.github_environment:
+                export(result)
+            print(json.dumps(result))
+            return 0
         if args.operation == "trivy-db":
             from .trivy import prepare
 

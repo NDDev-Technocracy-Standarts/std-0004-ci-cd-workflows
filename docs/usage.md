@@ -49,6 +49,18 @@ runner owner. Project lockfiles remain authoritative. Environment values in the 
 credentials belong in caller repository/environment secrets and are passed only to the operation that
 needs them. Never pass deployment credentials to source checks.
 
+For Linux Rust jobs outside `.github/actions/ci`, `.github/actions/rust-setup` accepts an exact
+`toolchain` (an exact version or dated nightly), optional comma/space-separated `components`
+(default `clippy,rustfmt`) and `targets`. Native rustup probes installed compiler identity, components
+and targets with automatic installation disabled. A complete prepared SDK needs no channel-manifest
+request. Only absent inputs invoke bounded native installation; `install-missing: 'false'` requires
+offline availability and fails if anything is missing. Floating channels are refused. Subsequent
+steps use the exact `RUSTUP_TOOLCHAIN` and native proxies through GitHub's file commands; the action
+does not change a shared default, directory override or project pin. Provision rustup itself through
+the existing reviewed host/setup mechanism. [Native rustup selection](https://rust-lang.github.io/rustup/examples.html)
+and [minimal CI profiles](https://rust-lang.github.io/rustup/concepts/profiles.html) retain upstream
+ownership of SDK installation and component resolution.
+
 ## Native Docker and scanner inputs
 
 Ordinary service containers, Buildx builds and daemon image scans can share a qualified rootless
