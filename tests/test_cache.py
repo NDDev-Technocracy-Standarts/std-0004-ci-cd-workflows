@@ -6,13 +6,54 @@ from nddev_cicd import cache
 from nddev_cicd.model import Invalid
 
 
-def test_foreign_cache_is_rejected_without_even_a_new_lock_file(tmp_path):
+@pytest.mark.parametrize("existing_lock", [False, True])
+def test_foreign_cache_is_rejected_without_even_a_new_lock_file(tmp_path, existing_lock):
     foreign = tmp_path / "foreign"
     foreign.mkdir()
     (foreign / "user-data").write_text("preserved")
+    if existing_lock:
+        (foreign / ".owner.lock").touch()
+    before = {p.name: p.read_bytes() for p in foreign.iterdir()}
     with pytest.raises(Invalid, match="unowned"), cache.namespace(foreign, {"fixture": True}):
         raise AssertionError("An unowned cache was entered")
-    assert [p.name for p in foreign.iterdir()] == ["user-data"]
+    assert {p.name: p.read_bytes() for p in foreign.iterdir()} == before
+
+
+def test_parallel_initialization_waits_for_the_owner_marker_publication(tmp_path, monkeypatch):
+    import contextlib
+    import os
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    root = tmp_path / "owned"
+    root.mkdir()
+    owner = root / ".nddev-cache-owner.json"
+    waiting = threading.Event()
+    native_lock = cache.lock
+
+    @contextlib.contextmanager
+    def observe_lock(path, *, blocking=True):
+        if path == root / ".owner.lock":
+            waiting.set()
+        with native_lock(path, blocking=blocking):
+            yield
+
+    def concurrent_namespace():
+        with cache.namespace(root, {"fixture": True}, blocking=False) as selected:
+            return selected
+
+    monkeypatch.setattr(cache, "lock", observe_lock)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with native_lock(root / ".owner.lock"):
+            # Pause the native atomic writer between temporary creation and rename.
+            owner.with_name(owner.name + f".tmp-{os.getpid()}").write_text("{")
+            contender = pool.submit(concurrent_namespace)
+            try:
+                assert waiting.wait(2), "Parallel initialization rejected the in-flight owner marker"
+                assert not contender.done()
+            finally:
+                cache.atomic_json(owner, {"schema": 1, "owner": "nddev-cicd"})
+        assert contender.result(timeout=2).is_dir()
 
 
 @pytest.mark.parametrize("bad", [None, True, -1, "1024"])
