@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -88,7 +89,7 @@ def source_identity(root: Path, library: Path | None = None) -> dict:
         for p in sorted(code.rglob("*"))
         if p.is_file() and "__pycache__" not in p.parts
     }
-    return {
+    result = {
         "repository": os.environ.get("GITHUB_REPOSITORY", "local"),
         "event": os.environ.get("GITHUB_EVENT_NAME", "local"),
         "tested_revision": git(root, "rev-parse", "HEAD"),
@@ -102,3 +103,9 @@ def source_identity(root: Path, library: Path | None = None) -> dict:
         "library_ref": os.environ.get("NDDEV_LIBRARY_REF", "local"),
         "implementation_digest": identity(implementation),
     }
+    check = os.environ.get("NDDEV_SOURCE_CHECK_RUN_ID", "")
+    if check:
+        if not re.fullmatch(r"[1-9][0-9]{0,19}", check):
+            raise Invalid("The native source check-run identity must be numeric")
+        result["check_run_id"] = check
+    return result

@@ -26,6 +26,15 @@ outputs:
   result-directory:
     description: Job-local result and selected artifact directory
     value: ${{ steps.native.outputs.directory }}
+  artifact-id:
+    description: Immutable native uploaded artifact ID; empty when no artifact was uploaded
+    value: ${{ steps.upload.outputs.artifact-id }}
+  artifact-digest:
+    description: Native upload archive digest
+    value: ${{ steps.upload.outputs.artifact-digest }}
+  producer-attempt:
+    description: Native attempt that executed this source job; retained needs outputs preserve it
+    value: ${{ github.run_attempt }}
 runs:
   using: composite
   steps:
@@ -41,6 +50,7 @@ runs:
         NDDEV_RESULT_KEY: ${{ inputs.result-key }}
         NDDEV_UPLOAD: ${{ inputs.upload }}
         NDDEV_RETENTION: ${{ inputs.retention-days }}
+        NDDEV_SOURCE_CHECK_RUN_ID: ${{ job.check_run_id }}
         UV_PYTHON: ${{ inputs.python }}
       run: |
         set -euo pipefail
@@ -62,6 +72,7 @@ runs:
           --root "$project_root" --contract "$NDDEV_CONTRACT" --output "$directory"
         echo "status=success" >> "$GITHUB_OUTPUT"
     - name: Retain native results and selected deployable files
+      id: upload
       if: ${{ !cancelled() && steps.native.outputs.directory != '' && (inputs.upload == 'always' || (inputs.upload == 'failure' && steps.native.outcome == 'failure')) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:

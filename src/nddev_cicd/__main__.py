@@ -99,6 +99,13 @@ def parser() -> argparse.ArgumentParser:
     trust.add_argument("--pull-request", type=int)
     trust.add_argument("--target")
     trust.add_argument("--aggregate", default="gate")
+    ensure = sub.add_parser(
+        "ensure-main", help="Observe missing current-main validation; explicitly dispatch once"
+    )
+    ensure.add_argument("--repository", required=True)
+    ensure.add_argument("--workflow", required=True)
+    ensure.add_argument("--dispatch", action="store_true")
+    ensure.add_argument("--grace-seconds", type=int, default=90)
     apply = sub.add_parser("apply", help="Apply one authorized typed native delivery module")
     apply.add_argument("--config", type=Path, required=True)
     apply.add_argument("--download", type=Path, required=True)
@@ -261,6 +268,18 @@ def main(argv=None) -> int:
                         json.loads(args.needs),
                         json.loads(args.expected),
                         json.loads(args.scopes) if args.scopes is not None else None,
+                    )
+                )
+            )
+            return 0
+        if args.operation == "ensure-main":
+            print(
+                json.dumps(
+                    github.ensure_main(
+                        args.repository,
+                        args.workflow,
+                        dispatch=args.dispatch,
+                        grace_seconds=args.grace_seconds,
                     )
                 )
             )
