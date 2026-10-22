@@ -146,7 +146,7 @@ def test_shared_downloads_are_explicit_and_keep_advisory_state_separate(installe
     monkeypatch.delenv("GITHUB_PATH", raising=False)
     rust_setup.export(result)
     assert f"CARGO_HOME={shared}\n" in environment.read_text()
-    assert f"NDDEV_RUSTSEC_CACHE_ROOT={lane}/nddev-rustsec\n" in environment.read_text()
+    assert f"NDDEV_RUSTSEC_CACHE_ROOT={lane / 'nddev-rustsec'}\n" in environment.read_text()
     assert "CARGO_TARGET_DIR=" not in environment.read_text()
     monkeypatch.setenv("CARGO_HOME", str(shared))
     monkeypatch.setenv("NDDEV_RUSTSEC_CACHE_ROOT", str(lane / "nddev-rustsec"))
