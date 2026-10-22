@@ -91,6 +91,10 @@ def audit(root: Path, storage: Path, *, reserve: int = 32 * 1024**3) -> int:
             repository = owned / "repository"
             if repository.is_symlink() or (repository / ".git").is_symlink():
                 raise Invalid("RustSec native repository cannot redirect cache writes")
+            if repository.exists() and not (repository / ".git").is_dir():
+                raise Invalid(
+                    "RustSec cache requires its own Git directory; foreign worktree pointers are refused"
+                )
             if not repository.exists():
                 repository.mkdir()
                 git(repository, "init", "--quiet")

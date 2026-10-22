@@ -151,3 +151,18 @@ def test_native_cache_git_ignores_foreign_repository_context(tmp_path, monkeypat
     assert Path(rustsec.git(repository, "rev-parse", "--show-toplevel")) == repository
     assert not foreign.exists()
     assert os.environ["GIT_DIR"] == str(foreign)
+
+
+def test_cache_refuses_a_foreign_git_directory_pointer_before_git_runs(tmp_path, monkeypatch):
+    storage = tmp_path / "cache"
+    with rustsec.cache.namespace(storage, {"kind": "rustsec", "source": rustsec.SOURCE}) as owned:
+        repository = owned / "repository"
+        repository.mkdir()
+        (repository / ".git").write_text("gitdir: /synthetic/foreign-git-directory\n")
+
+    def unexpected(*_args):
+        raise AssertionError("Foreign Git metadata must not be opened")
+
+    monkeypatch.setattr(rustsec, "git", unexpected)
+    with pytest.raises(Invalid, match="foreign worktree"):
+        rustsec.audit(tmp_path, storage, reserve=0)
