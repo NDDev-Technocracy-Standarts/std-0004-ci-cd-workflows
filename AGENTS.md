@@ -27,3 +27,7 @@ work outside this public repository. Project CI invokes ordinary native build/te
 The [native command interface](README.md#native-command-interface) selects the adopted STD-0006
 source and scopes. Inspect `just` for contributor, authoring and selected fixture operations;
 source feedback does not certify an unexecuted SDK or deployment target.
+
+The [component versioning selection](README.md#component-versioning) owns the maintenance scope
+and native version sources. Follow that selected contract for a release; preserve existing
+publication authority and independent owners.
