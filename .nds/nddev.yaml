@@ -33,5 +33,5 @@ spec:
       standard:
         id: std-0006
         version: 0.1.0
-        status: draft
-        source: github:NDDev-Technocracy-Standarts/std-0006-project-command-interface@9a70ac36e986cc8328c995d7428c45f4d13f7868
+        status: published
+        source: github:NDDev-Technocracy-Standarts/std-0006-project-command-interface@0a47f4dc046f69cda80fedf1228d3b5b0e995417
