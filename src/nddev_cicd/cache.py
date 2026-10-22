@@ -56,6 +56,10 @@ def namespace(root: Path, inputs: dict, *, blocking: bool = True):
         root.exists()
         and any(p.name != ".owner.lock" for p in root.iterdir())
         and not (root / ".nddev-cache-owner.json").is_file()
+        # An initializer holds this lock before publishing its atomic marker.
+        # Inspect that state under the lock, preserving write-free rejection of
+        # foreign directories which have no existing ownership lock.
+        and not (root / ".owner.lock").exists()
     ):
         raise Invalid("Do not adopt an existing unowned cache directory")
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
