@@ -80,6 +80,10 @@ its short PR and full main/target phases and can invoke the same owning native t
 ## Component versioning
 
 Maintenance adopts the [selected STD-0008 source](https://github.com/NDDev-Technocracy-Standarts/std-0008-component-versioning/blob/83ac6252d2be8241b39ebfad1aeebd9d5662884e/standard.yml) for the standard edition in `standard.yml` and library package in `pyproject.toml`.
+Owner-directed release numbering and compatibility are assessed independently. The number alone
+does not promise SemVer-compatible upgrades; consumers select the supported contract and immutable
+implementation reference documented above.
+
 The selected descriptor identifies the authoring transition. Prepare future normative changes as
 a new draft under that transition; issued editions retain their original source and authoring policy.
 Follow existing publication authority and any requested draft hold. Source/package publication
