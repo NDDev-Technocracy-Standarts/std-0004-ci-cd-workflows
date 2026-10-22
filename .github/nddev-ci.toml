@@ -8,7 +8,7 @@ scopes = ["src/nddev_cicd"]
 dependencies = ["uv", "run", "lint-imports"]
 
 [commands.documentation]
-external-links = ["lychee", "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "SECURITY.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
+external-links = ["lychee", "--exclude", "^https://github[.]com/NDDev-Technocracy-Standarts/std-0008-component-versioning/blob/f616a7394d5561f6dd0de0ef3430b657c9c19cb0/standard[.]yml$",  "--no-progress", "--max-retries", "2", "--timeout", "20", "--", "README.md", "SECURITY.md", "docs/usage.md", "docs/origins.md", "docs/examples.md"]
 generate = ["uv", "run", "python", "-m", "nddev_cicd", "reference", "--check"]
 examples = ["uv", "run", "python", "-m", "doctest", "docs/examples.md"]
 
