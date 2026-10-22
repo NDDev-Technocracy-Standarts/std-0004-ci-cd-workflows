@@ -49,6 +49,7 @@ def parser() -> argparse.ArgumentParser:
     rust_setup.add_argument("--components", nargs="*", default=["clippy", "rustfmt"])
     rust_setup.add_argument("--targets", nargs="*", default=[])
     rust_setup.add_argument("--no-install", action="store_true")
+    rust_setup.add_argument("--shared-downloads", action="store_true")
     rust_setup.add_argument("--github-environment", action="store_true")
     advisory = sub.add_parser(
         "advisory-compare",
@@ -291,7 +292,13 @@ def main(argv=None) -> int:
         if args.operation == "rust-setup":
             from .rust_setup import export, prepare
 
-            result = prepare(args.toolchain, args.components, args.targets, allow_install=not args.no_install)
+            result = prepare(
+                args.toolchain,
+                args.components,
+                args.targets,
+                allow_install=not args.no_install,
+                shared_downloads=args.shared_downloads,
+            )
             if args.github_environment:
                 export(result)
             print(json.dumps(result))

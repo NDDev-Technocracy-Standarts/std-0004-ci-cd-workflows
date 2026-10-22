@@ -132,3 +132,36 @@ def test_native_file_commands_select_exact_proxies_without_changing_shared_defau
     rust_setup.export(result)
     assert environment.read_text() == "RUSTUP_TOOLCHAIN=1.99.1\nRUSTUP_AUTO_INSTALL=0\n"
     assert path.read_text() == result["proxy_directory"] + "\n"
+
+
+def test_shared_downloads_are_explicit_and_keep_advisory_state_separate(installed, tmp_path, monkeypatch):
+    shared, lane = tmp_path / "shared", tmp_path / "lane"
+    monkeypatch.setenv("NDDEV_CARGO_DOWNLOAD_CACHE", str(shared))
+    monkeypatch.setenv("CARGO_HOME", str(lane))
+    monkeypatch.delenv("NDDEV_RUSTSEC_CACHE_ROOT", raising=False)
+    assert "download_cache" not in rust_setup.prepare("1.99.1", [], [])
+    result = rust_setup.prepare("1.99.1", [], [], shared_downloads=True)
+    environment = tmp_path / "env"
+    monkeypatch.setenv("GITHUB_ENV", str(environment))
+    monkeypatch.delenv("GITHUB_PATH", raising=False)
+    rust_setup.export(result)
+    assert f"CARGO_HOME={shared}\n" in environment.read_text()
+    assert f"NDDEV_RUSTSEC_CACHE_ROOT={lane / 'nddev-rustsec'}\n" in environment.read_text()
+    assert "CARGO_TARGET_DIR=" not in environment.read_text()
+    monkeypatch.setenv("CARGO_HOME", str(shared))
+    monkeypatch.setenv("NDDEV_RUSTSEC_CACHE_ROOT", str(lane / "nddev-rustsec"))
+    assert rust_setup.prepare("1.99.1", [], [], shared_downloads=True)["rustsec_cache"] == str(
+        lane / "nddev-rustsec"
+    )
+
+
+def test_shared_download_request_without_host_hint_preserves_hosted_behavior(installed, monkeypatch):
+    monkeypatch.delenv("NDDEV_CARGO_DOWNLOAD_CACHE", raising=False)
+    assert "download_cache" not in rust_setup.prepare("1.99.1", [], [], shared_downloads=True)
+
+
+@pytest.mark.parametrize("location", ["relative/cache", "/cache\nINJECT=1"])
+def test_shared_download_root_rejects_file_command_injection(installed, monkeypatch, location):
+    monkeypatch.setenv("NDDEV_CARGO_DOWNLOAD_CACHE", location)
+    with pytest.raises(Invalid, match="absolute nonsymlink"):
+        rust_setup.prepare("1.99.1", [], [], shared_downloads=True)

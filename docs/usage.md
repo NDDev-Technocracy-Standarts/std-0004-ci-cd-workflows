@@ -258,6 +258,20 @@ root and retention budget. `cache.json` records namespace selection and whether 
 directories existed; actual compiler output and optional native statistics establish hits. A busy
 namespace falls back to job-local compilation instead of waiting behind another complete run.
 
+The `rust-setup` action can explicitly select `shared-downloads: 'true'` when the prepared host
+exports `NDDEV_CARGO_DOWNLOAD_CACHE`. Cargo's native package locks coordinate this common
+`CARGO_HOME` across jobs; without the host hint the existing hosted/job-local behavior remains.
+The owned compiler cache preserves that selected download home and keeps its own target namespace
+and retention policy. `cache.json` reports `downloads_shared`. The host owns the download budget
+and inactive cleanup, so a compiler namespace never reclaims the common inputs.
+
+This opt-in leaves SDKs and compiler targets separate. Callers deriving targets from `CARGO_HOME`
+must select a lane/job-owned target instead. Keep registry login files and auxiliary Cargo tool
+databases in their own scope. `rust-setup` preserves the previous RustSec location through
+`NDDEV_RUSTSEC_CACHE_ROOT`, which the matching `rustsec-audit` action honors. Cargo configuration
+and native [package locking](https://doc.rust-lang.org/stable/nightly-rustc/cargo/util/cache_lock/index.html)
+retain their upstream behavior; no registry proxy or extra dependency service is installed.
+
 Native Cargo target reuse works independently from optional sccache=true. Sccache disables Rust
 incremental compilation, holds the store lock for its complete server lifetime and stops that owned
 server before reclamation. Its compiler-store limit is half the declared budget, at most 2GiB.
