@@ -60,7 +60,7 @@ is the canonical journal. The source uses [AGPL-3.0-only](LICENSE); imported gra
 
 ## Native command interface
 
-The project adopts the draft STD-0006 edition selected in the
+The project adopts the published STD-0006 edition selected in the
 [repository manifest](.nds/nddev.yaml). The authority is private; public contributors need only
 the visible native interface and its documented prerequisites, without authority credentials.
 Bare `just` lists applicable operations without installing SDKs or reading credentials.
@@ -79,7 +79,7 @@ its short PR and full main/target phases and can invoke the same owning native t
 
 ## Component versioning
 
-Maintenance adopts the [selected STD-0008 source](https://github.com/NDDev-Technocracy-Standarts/std-0008-component-versioning/blob/f616a7394d5561f6dd0de0ef3430b657c9c19cb0/standard.yml) for the standard edition in `standard.yml` and library package in `pyproject.toml`.
+Maintenance adopts the [selected STD-0008 source](https://github.com/NDDev-Technocracy-Standarts/std-0008-component-versioning/blob/83ac6252d2be8241b39ebfad1aeebd9d5662884e/standard.yml) for the standard edition in `standard.yml` and library package in `pyproject.toml`.
 The selected descriptor identifies the authoring transition. Prepare future normative changes as
 a new draft under that transition; issued editions retain their original source and authoring policy.
 Follow existing publication authority and any requested draft hold. Source/package publication
