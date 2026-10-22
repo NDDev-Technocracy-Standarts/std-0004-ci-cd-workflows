@@ -13,6 +13,9 @@ inputs:
   install-missing:
     description: Allow bounded native installation of missing SDK inputs
     default: 'true'
+  shared-downloads:
+    description: Opt into the host-provided Cargo download cache; keep targets and auxiliary tool state separate
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -23,6 +26,7 @@ runs:
         NDDEV_RUST_COMPONENTS: ${{ inputs.components }}
         NDDEV_RUST_TARGETS: ${{ inputs.targets }}
         NDDEV_RUST_INSTALL: ${{ inputs.install-missing }}
+        NDDEV_RUST_SHARED_DOWNLOADS: ${{ inputs.shared-downloads }}
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
@@ -34,6 +38,11 @@ runs:
           true) ;;
           false) options+=(--no-install) ;;
           *) echo 'install-missing requires true or false' >&2; exit 2 ;;
+        esac
+        case "$NDDEV_RUST_SHARED_DOWNLOADS" in
+          true) options+=(--shared-downloads) ;;
+          false) ;;
+          *) echo 'shared-downloads requires true or false' >&2; exit 2 ;;
         esac
         read -ra components <<< "${NDDEV_RUST_COMPONENTS//,/ }"
         read -ra targets <<< "${NDDEV_RUST_TARGETS//,/ }"

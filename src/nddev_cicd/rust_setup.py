@@ -63,7 +63,14 @@ def install(arguments: list[str]) -> None:
             raise Unavailable("infrastructure.external-download: native Rust installation did not complete")
 
 
-def prepare(toolchain: str, components: list[str], targets: list[str], *, allow_install: bool = True) -> dict:
+def prepare(
+    toolchain: str,
+    components: list[str],
+    targets: list[str],
+    *,
+    allow_install: bool = True,
+    shared_downloads: bool = False,
+) -> dict:
     exact = re.fullmatch(
         r"(1\.[0-9]+\.[0-9]+|nightly-[0-9]{4}-[0-9]{2}-[0-9]{2})(?:-[A-Za-z0-9_-]+)?", toolchain
     )
@@ -119,7 +126,7 @@ def prepare(toolchain: str, components: list[str], targets: list[str], *, allow_
             if any(item not in actual and f"{item}-{host}" not in actual for item in missing):
                 raise Invalid("Native Rust installation did not provide every requested component/target")
             reused = False
-    return {
+    result = {
         "toolchain": toolchain,
         "release": facts["release"],
         "host": host,
@@ -128,6 +135,16 @@ def prepare(toolchain: str, components: list[str], targets: list[str], *, allow_
         "components": components,
         "targets": targets,
     }
+    shared = os.environ.get("NDDEV_CARGO_DOWNLOAD_CACHE") if shared_downloads else None
+    if shared:
+        state = os.environ.get("CARGO_HOME", str(Path.home() / ".cargo"))
+        advisory = os.environ.get("NDDEV_RUSTSEC_CACHE_ROOT", str(Path(state) / "nddev-rustsec"))
+        for value in (shared, state, advisory):
+            if not Path(value).is_absolute() or Path(value).is_symlink() or any(c in value for c in "\r\n"):
+                raise Invalid("Native Cargo download/state roots require absolute nonsymlink paths")
+        result["download_cache"] = shared
+        result["rustsec_cache"] = advisory
+    return result
 
 
 def export(result: dict) -> None:
@@ -135,6 +152,9 @@ def export(result: dict) -> None:
     if os.environ.get("GITHUB_ENV"):
         with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
             stream.write(f"RUSTUP_TOOLCHAIN={result['toolchain']}\nRUSTUP_AUTO_INSTALL=0\n")
+            if result.get("download_cache"):
+                stream.write(f"CARGO_HOME={result['download_cache']}\n")
+                stream.write(f"NDDEV_RUSTSEC_CACHE_ROOT={result['rustsec_cache']}\n")
     if os.environ.get("GITHUB_PATH"):
         with Path(os.environ["GITHUB_PATH"]).open("a") as stream:
             stream.write(result["proxy_directory"] + "\n")

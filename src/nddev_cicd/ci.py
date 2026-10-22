@@ -470,6 +470,12 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
         or ttl < 1
     ):
         raise Invalid("Owned Rust caches require explicit byte budget, free-disk reserve and positive TTL")
+    shared = environment.get("NDDEV_CARGO_DOWNLOAD_CACHE")
+    shared_downloads = bool(shared) and environment.get("CARGO_HOME") == shared
+    if shared_downloads:
+        assert shared is not None
+        if not Path(shared).is_absolute() or Path(shared).is_symlink() or any(c in shared for c in "\r\n"):
+            raise Invalid("Native Cargo downloads require an absolute nonsymlink owner root")
     inputs = {
         "repository": os.environ.get("GITHUB_REPOSITORY", str(root.resolve())),
         "platform": platform.platform(),
@@ -492,6 +498,10 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
         },
         "lock": digest(root / "Cargo.lock") if (root / "Cargo.lock").exists() else "missing",
     }
+    if shared_downloads:
+        # Cargo home changes registry source paths. Retain old private-cache
+        # namespaces for queued callers instead of alternating one target tree.
+        inputs["native_download_cache"] = shared
     storage = Path(cache_root)
     try:
         with contextlib.ExitStack() as contexts:
@@ -501,12 +511,17 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
                 print("Cargo cache is in use; running with job-local build output", flush=True)
                 return _execute(root, contract, output)
             output.mkdir(parents=True, exist_ok=True)
+            downloads = owned / "downloads"
+            if shared_downloads:
+                assert shared is not None
+                downloads = Path(shared)
             observation = {
                 "schema": 1,
                 "kind": "cargo",
                 "namespace": owned.name,
                 "target_present": (owned / "target").is_dir(),
-                "downloads_present": (owned / "downloads").is_dir(),
+                "downloads_present": downloads.is_dir(),
+                "downloads_shared": shared_downloads,
                 "sccache": bool(policy.get("sccache")),
             }
             atomic_json(output / "cache.json", observation)
@@ -515,7 +530,7 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
             if shutil.disk_usage(storage).free < reserve:
                 raise Invalid("Available disk is below the owner's reserve after inactive cache reclamation")
             env = contract.setdefault("environment", {})
-            env["CARGO_TARGET_DIR"], env["CARGO_HOME"] = str(owned / "target"), str(owned / "downloads")
+            env["CARGO_TARGET_DIR"], env["CARGO_HOME"] = str(owned / "target"), str(downloads)
             if not policy.get("sccache"):
                 return _execute(root, contract, output)
             if os.name == "nt":
