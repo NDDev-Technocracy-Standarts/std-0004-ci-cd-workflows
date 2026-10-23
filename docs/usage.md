@@ -272,6 +272,10 @@ databases in their own scope. `rust-setup` preserves the previous RustSec locati
 and native [package locking](https://doc.rust-lang.org/stable/nightly-rustc/cargo/util/cache_lock/index.html)
 retain their upstream behavior; no registry proxy or extra dependency service is installed.
 
+Compiler target namespaces include the resolved checkout path; compile-time paths cannot be reused
+from another checkout. Same-root runs retain warm targets, while explicit common native downloads
+stay shared across separate targets.
+
 Native Cargo target reuse works independently from optional sccache=true. Sccache disables Rust
 incremental compilation, holds the store lock for its complete server lifetime and stops that owned
 server before reclamation. Its compiler-store limit is half the declared budget, at most 2GiB.
@@ -628,8 +632,15 @@ the shared action does not install packages into the host.
 
 Non-success stages print a bounded diagnostic tail in the job log and an escaped summary detail.
 `[diagnostics] tail_lines = 200` selects the limit, from zero to one thousand. Passing stages keep
-full logs without flooding the console. Known secret environment values are redacted in exported
-tails; caller-native masking and safe commands remain necessary for arbitrary private output.
+full logs without flooding the console. Known sensitive environment values (names containing
+TOKEN, SECRET, PASSWORD, CREDENTIAL or PRIVATE_KEY, values at least four characters) are redacted
+from registered stdout/stderr logs, retained native text reports and result text after native
+parsing and cache finalizers, including failure paths. Native JSON/XML reports keep their format;
+caller originals and application payload bytes/digests are preserved. Nested helpers register their
+owned diagnostics separately from corpora, failing inputs and mutated source. Upload requires
+completed diagnostic export preparation; interrupted/failed preparation cannot upload raw results.
+This treats known values, not arbitrary unknown or encoded private output; caller-native masking
+and safe commands remain necessary.
 Workflow-command processing is suspended while tails are printed.
 
 The CI action accepts `upload: always`, `failure` or `never` and `retention-days` from one to three.
