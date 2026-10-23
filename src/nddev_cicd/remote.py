@@ -33,9 +33,13 @@ def runtime_bundle(path: Path, expected: dict) -> None:
         "implementation_digest"
     ):
         raise Invalid("Remote delivery must execute the exact implementation used by the source run")
+    distribution = importlib.metadata.distribution("nddev-cicd")
+    metadata = distribution.read_text("METADATA")
+    if not metadata:
+        raise Invalid("The portable runtime requires its native distribution metadata")
+    metadata_directory = "nddev_cicd-" + distribution.version + ".dist-info"
     license_file = Path(__file__).parent.parent.parent / "LICENSE"
     if not license_file.is_file():
-        distribution = importlib.metadata.distribution("nddev-cicd")
         licenses = [
             distribution.locate_file(p)
             for p in distribution.files or []
@@ -48,6 +52,8 @@ def runtime_bundle(path: Path, expected: dict) -> None:
         for name, file in files.items():
             archive.write(file, "nddev_cicd/" + name)
         archive.write(license_file, "LICENSE")
+        archive.writestr(metadata_directory + "/METADATA", metadata)
+        archive.write(license_file, metadata_directory + "/licenses/LICENSE")
 
 
 def transport(settings: dict) -> tuple[list[str], str, int, str]:
