@@ -11,6 +11,7 @@ import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from .diagnostic_export import register
 from .model import Invalid, atomic_json, git
 
 
@@ -54,6 +55,7 @@ def retain(root: Path, specification: dict, directory: Path) -> list[str]:
         )
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(report, destination)
+        register(destination)
         saved.append(destination.name)
     return saved
 

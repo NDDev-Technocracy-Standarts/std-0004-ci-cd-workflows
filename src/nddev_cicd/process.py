@@ -10,6 +10,7 @@ import time
 from contextlib import nullcontext
 from pathlib import Path
 
+from .diagnostic_export import register
 from .model import Invalid, git_environment
 
 
@@ -77,6 +78,9 @@ def run(
     if not all(isinstance(word, str) and "\0" not in word for word in command):
         raise Invalid("Command must contain valid argument strings")
     log.parent.mkdir(parents=True, exist_ok=True)
+    register(log)
+    if stderr_log is not None:
+        register(stderr_log)
     started = time.monotonic()
     status, code, detail = "failure", None, ""
     with (

@@ -13,7 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from . import config, documentation, git_inputs, quality, reports, security
+from . import config, diagnostic_export, documentation, git_inputs, quality, reports, security
 from .model import Invalid, atomic_json, contained, digest, git, identity, source_identity
 from .process import run
 
@@ -34,6 +34,37 @@ def native_command(command, root: Path, contract: dict, diagnostics: Path | None
         }:
             raise Invalid("Select a supported source-only shared native helper")
         helper = command[1]
+        if diagnostics is not None:
+            default_directory = diagnostics
+            supplied_output = False
+            for index, argument in enumerate(command[2:], 2):
+                if argument == "--output" and index + 1 < len(command):
+                    diagnostics = root / command[index + 1]
+                    supplied_output = True
+                    break
+                if argument.startswith("--output="):
+                    diagnostics = root / argument.split("=", 1)[1]
+                    supplied_output = True
+                    break
+            product_directory = diagnostics
+            if helper == "secrets-check" and not supplied_output:
+                product_directory = default_directory.parent / "secret-scan"
+            # Child helpers own these diagnostic products; corpus, failing inputs,
+            # generated runners and mutated source remain application bytes.
+            products = {
+                "advanced-fuzz": ("dependencies.log", "fuzz.log", "result.json"),
+                "advanced-mutation": (
+                    "mutation.log",
+                    "export.log",
+                    "result.json",
+                    "mutants.out/outcomes.json",
+                    "mutants/mutmut-cicd-stats.json",
+                    "stryker-native.json",
+                ),
+                "secrets-check": ("gitleaks.log", "result.json"),
+            }
+            for product in products.get(helper, ()):
+                diagnostic_export.register(product_directory / product)
         if helper in {"security-sast", "security-licenses"}:
             from .security import native_command as security_command
 
@@ -414,6 +445,15 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
 def execute(root: Path, contract: dict, output: Path) -> dict:
     contract = copy.deepcopy(contract)
     output.mkdir(parents=True, exist_ok=False)
+    with diagnostic_export.prepare(output, contract.get("environment", {})) as values:
+        result = _execute_cached(root, contract, output)
+        safe = diagnostic_export.redact_data(result, values)
+        result.clear()
+        result.update(safe)
+        return result
+
+
+def _execute_cached(root: Path, contract: dict, output: Path) -> dict:
     if "compiler_cache" not in contract or not {"c-cpp", "qt"} & set(selection(root, contract)[0]):
         return _execute_with_rust_cache(root, contract, output)
     from .cache import compiler
@@ -478,6 +518,7 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
             raise Invalid("Native Cargo downloads require an absolute nonsymlink owner root")
     inputs = {
         "repository": os.environ.get("GITHUB_REPOSITORY", str(root.resolve())),
+        "checkout": str(root.resolve()),
         "platform": platform.platform(),
         "architecture": platform.machine(),
         "trust": os.environ.get("NDDEV_TRUST_SCOPE", "local"),
@@ -594,11 +635,10 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
             reclaim(storage, budget, reserve, ttl)
 
 
-def redact(text: str) -> str:
-    for key, value in os.environ.items():
-        if re.search(r"TOKEN|SECRET|PASSWORD|CREDENTIAL|PRIVATE_KEY", key, re.IGNORECASE) and len(value) >= 4:
-            text = text.replace(value, "***")
-    return text
+def redact(text: str, environment: dict[str, str] | None = None) -> str:
+    return diagnostic_export.redact(
+        text, diagnostic_export.sensitive_values({**os.environ, **(environment or {})})
+    )
 
 
 def diagnostics(result: dict, contract: dict) -> None:
@@ -613,8 +653,11 @@ def diagnostics(result: dict, contract: dict) -> None:
         if count and entry.get("log") and Path(entry["log"]).is_file():
             with Path(entry["log"]).open(encoding="utf-8", errors="replace") as stream:
                 tail = "".join(deque((line[:2000] for line in stream), maxlen=count))
-        tail = redact(tail)
-        detail = redact(entry.get("detail") or f"Native command exited with {entry.get('exit_code')}")
+        tail = redact(tail, contract.get("environment"))
+        detail = redact(
+            entry.get("detail") or f"Native command exited with {entry.get('exit_code')}",
+            contract.get("environment"),
+        )
         entry["diagnostic_tail"] = tail[-1500:].strip()
         entry["detail"] = detail
         marker = uuid.uuid4().hex
