@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -82,7 +83,14 @@ def test_prepared_source_reports_native_identity():
     )
 
 
-def test_portable_runtime_has_native_metadata_without_installed_site_packages(tmp_path):
+def test_portable_runtime_imports_real_entrypoint_with_only_target_dependencies(tmp_path):
+    import yaml
+
+    # Existing SSH targets prepare PyYAML; expose only that dependency, never all site packages.
+    dependencies = tmp_path / "target-dependencies"
+    shutil.copytree(
+        Path(yaml.__file__).parent, dependencies / "yaml", ignore=shutil.ignore_patterns("__pycache__")
+    )
     archive = tmp_path / "runtime.zip"
     expected = {
         "implementation_digest": identity(
@@ -97,11 +105,14 @@ def test_portable_runtime_has_native_metadata_without_installed_site_packages(tm
             "-S",
             "-c",
             (
-                "import sys,json; sys.path.insert(0,sys.argv[1]); "
+                "import sys,json; sys.path[:0]=sys.argv[1:]; "
+                "from importlib.util import find_spec; assert find_spec('defusedxml') is None; "
                 "from importlib.metadata import version; import nddev_cicd; "
+                "from nddev_cicd.remote import execute; assert callable(execute); "
                 "print(json.dumps([nddev_cicd.__version__,version('nddev-cicd')]))"
             ),
             str(archive),
+            str(dependencies),
         ],
         cwd=tmp_path,
         capture_output=True,
