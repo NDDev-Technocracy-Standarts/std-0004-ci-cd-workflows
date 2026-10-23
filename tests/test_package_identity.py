@@ -11,6 +11,9 @@ from pathlib import Path
 
 import pytest
 
+from nddev_cicd import remote
+from nddev_cicd.model import Invalid, digest, identity
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -77,6 +80,48 @@ def test_prepared_source_reports_native_identity():
         == version("nddev-cicd")
         == tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["version"]
     )
+
+
+def test_portable_runtime_has_native_metadata_without_installed_site_packages(tmp_path):
+    archive = tmp_path / "runtime.zip"
+    expected = {
+        "implementation_digest": identity(
+            {name: digest(path) for name, path in remote.implementation().items()}
+        )
+    }
+    remote.runtime_bundle(archive, expected)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            (
+                "import sys,json; sys.path.insert(0,sys.argv[1]); "
+                "from importlib.metadata import version; import nddev_cicd; "
+                "print(json.dumps([nddev_cicd.__version__,version('nddev-cicd')]))"
+            ),
+            str(archive),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    from importlib.metadata import version
+
+    assert json.loads(result.stdout) == [version("nddev-cicd")] * 2
+    with zipfile.ZipFile(archive) as bundled:
+        assert "LICENSE" in bundled.namelist()
+        (metadata,) = (name for name in bundled.namelist() if name.endswith(".dist-info/METADATA"))
+        assert Parser().parsestr(bundled.read(metadata).decode())["Version"] == version("nddev-cicd")
+
+
+def test_portable_runtime_refuses_a_different_implementation_before_writing(tmp_path):
+    archive = tmp_path / "runtime.zip"
+    with pytest.raises(Invalid, match="exact implementation"):
+        remote.runtime_bundle(archive, {"implementation_digest": "not-the-tested-implementation"})
+    assert not archive.exists()
 
 
 @pytest.mark.parametrize("missing", [False, True])
