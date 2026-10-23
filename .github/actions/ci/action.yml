@@ -67,13 +67,21 @@ runs:
         project_root="$("$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -c \
           'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_WORKING_DIRECTORY"],exists=True))')"
         directory="$RUNNER_TEMP/nddev-source-$NDDEV_RESULT_KEY"
+        [[ ! -e "$directory" ]]
         echo "directory=$directory" >> "$GITHUB_OUTPUT"
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -m nddev_cicd ci \
           --root "$project_root" --contract "$NDDEV_CONTRACT" --output "$directory"
         echo "status=success" >> "$GITHUB_OUTPUT"
+    - name: Verify diagnostic export preparation
+      id: diagnostics
+      if: ${{ !cancelled() && steps.native.outputs.directory != '' }}
+      shell: bash
+      env:
+        NDDEV_RESULT_DIRECTORY: ${{ steps.native.outputs.directory }}
+      run: test -f "$NDDEV_RESULT_DIRECTORY/.diagnostics-ready"
     - name: Retain native results and selected deployable files
       id: upload
-      if: ${{ !cancelled() && steps.native.outputs.directory != '' && (inputs.upload == 'always' || (inputs.upload == 'failure' && steps.native.outcome == 'failure')) }}
+      if: ${{ !cancelled() && steps.diagnostics.outcome == 'success' && (inputs.upload == 'always' || (inputs.upload == 'failure' && steps.native.outcome == 'failure')) }}
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: nddev-source-${{ github.run_id }}-${{ github.run_attempt }}-${{ inputs.result-key }}

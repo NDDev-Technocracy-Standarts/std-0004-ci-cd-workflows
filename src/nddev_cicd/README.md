@@ -8,6 +8,11 @@ Runner admission precedes allocation. Public routes remain hosted; private route
 caller-owned policy. A test failure cannot select a different provider to manufacture success.
 The package does not depend on a private standard compiler or acquire an account entitlement.
 
+`pyproject.toml` owns the package version through the existing `uv_build` backend. `__version__`,
+the console script and module entrypoint use its installed distribution metadata. In a source
+checkout the manifest and metadata must agree; `uv sync --locked` prepares that environment.
+Missing or stale metadata fails explicitly instead of reporting an unrelated installed version.
+
 Target locks, generations and previous artifact identities protect activation. Partial data changes
 remain pending until the target owner reconciles real state; a network failure cannot authorize a
 blind replay. SSH transfers the same tested implementation and bundle, with pinned host identity,

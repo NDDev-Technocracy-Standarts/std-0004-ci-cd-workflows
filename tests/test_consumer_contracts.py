@@ -135,6 +135,12 @@ def test_failed_native_diagnostics_are_bounded_redacted_and_visible(
     assert result["status"] == "failure" and "assertion failed" in text and "assertion failed" in summary
     assert "private-fixture-value" not in text + summary and "discarded" not in text
     assert "stop-commands" in text
+    exported = tmp_path / "out"
+    assert (exported / ".diagnostics-ready").is_file()
+    assert "assertion failed" in (exported / "documentation.examples.log").read_text()
+    assert all(
+        b"private-fixture-value" not in path.read_bytes() for path in exported.rglob("*") if path.is_file()
+    )
 
 
 def test_yaml_merge_override_is_valid_and_malformed_input_is_named(repository):

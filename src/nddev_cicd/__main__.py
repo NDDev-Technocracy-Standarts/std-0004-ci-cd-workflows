@@ -210,7 +210,7 @@ def main(argv=None) -> int:
                         result["identity"],
                     )
                 except (Invalid, OSError, ValueError) as error:
-                    result.update(status="failure", artifact_error=str(error))
+                    result.update(status="failure", artifact_error=ci.redact(str(error)))
                 atomic_json(args.output.resolve() / "result.json", result)
             print(
                 json.dumps(
@@ -503,10 +503,10 @@ def main(argv=None) -> int:
         if str(error).startswith("infrastructure.") and os.environ.get("GITHUB_ACTIONS") == "true":
             # A bounded metadata hint only; never an admission bypass or permission to replay a mutation.
             print(f"::error title=NDDev infrastructure input::{error}")
-        print(f"error: {error}", file=sys.stderr)
+        print(f"error: {ci.redact(str(error))}", file=sys.stderr)
         return 2
     except (Invalid, OSError, ValueError) as error:
-        print(f"error: {error}", file=sys.stderr)
+        print(f"error: {ci.redact(str(error))}", file=sys.stderr)
         return 2
 
 
