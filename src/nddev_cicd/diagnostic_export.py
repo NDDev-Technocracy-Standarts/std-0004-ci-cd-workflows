@@ -10,8 +10,6 @@ import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from defusedxml.ElementTree import fromstring
-
 _files: contextvars.ContextVar[set[Path] | None] = contextvars.ContextVar("diagnostic_files", default=None)
 
 
@@ -67,6 +65,9 @@ def _sanitize(path: Path, values: list[str]) -> None:
             if cleaned != document:
                 safe = json.dumps(cleaned, indent=2, ensure_ascii=False) + "\n"
     elif path.suffix.lower() in {".xml", ".trx"}:
+        # Portable target execution registers logs without selecting source XML export.
+        from defusedxml.ElementTree import fromstring
+
         try:
             document = fromstring(text)
         except (ValueError, ET.ParseError):
