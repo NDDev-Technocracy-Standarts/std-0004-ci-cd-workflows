@@ -7,24 +7,26 @@ strength: MUST
 basis: owner
 verification: partial
 verified-by: [runtime.lineage, runtime.advisory-comparison]
-criteria: Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; an explicitly selected advisory exception requires complete scan evidence, actual current production and no new vulnerable package identity in the same runtime component.
+criteria: Review the accepted project ADR and its native admission policy together. Advisory admission requires complete scan evidence, actual current production and no new vulnerable package identity in the same runtime component; incomplete, cancelled or superseded runs and mismatched artifacts remain ineligible.
 sources:
 - gha-events
 applies-when: The subject determines eligibility for deployment.
 ```
 
 Production deployment MUST consume the exact integrated candidate whose applicable full main CI
-completed successfully, except for the explicit project-owned advisory disposition below.
+completed under the effective project contract. The ordinary baseline requires successful full main
+validation; an accepted project ADR may select the bounded advisory admission described below.
 The short PR gate establishes merge eligibility, not production readiness.
 A trusted completion event or equivalent bounded native wait admits delivery only after that run;
 the ordinary path refuses failed candidates. Cancelled, incomplete and known-superseded candidates
 never start a target mutation, including through the advisory disposition below.
 
-An owner MAY explicitly select a project-scoped exception for a completed main run whose only
-failures are confirmed advisory-policy findings. The project's native admission adapter MUST bind
+A project's accepted ADR MAY select native advisory admission for a completed main run whose only
+failures are confirmed advisory-policy findings. The ADR owns the adapted result and its rationale;
+the native policy owns exact machine inputs and admission conditions. The admission adapter MUST bind
 the exact candidate, run and latest attempt, successful scans and immutable artifact identities;
 all other applicable checks still pass. A scanner/download error, unavailable or expired input,
-missing evidence, a cancelled job or an unexpected required skip cannot use this exception.
+missing evidence, a cancelled job or an unexpected required skip cannot use this admission path.
 
 The adapter MUST observe the release and immutable component images actually running in the intended
 production target, and show that every candidate advisory concerns the same package identity and
@@ -35,10 +37,10 @@ version production already fixed refuses admission. Retained native inventories 
 the same immutable image; changed target/artifact identity requires new evidence.
 
 The adapter MUST revalidate the production baseline under the existing target mutation boundary
-before activation, and record the selected owner policy, exact main run/attempt, observed production
+before activation, and record the selected ADR and native policy, exact main run/attempt, observed production
 identity, artifact/report bindings and admitted occurrences in delivery evidence. CI stays failed on
-its findings; the exception is a separate admission disposition. It does not approve blanket package
-or build-stage patterns, remove findings, renew expired exceptions or bypass target/artifact checks.
+its findings; admission has its own recorded disposition. Blanket package or build-stage patterns,
+removed findings, expired native policy inputs and missing target/artifact checks do not establish eligibility.
 Without this explicit policy and complete evidence, the ordinary successful-main requirement applies.
 
 The artifact is bound to the actual source, configuration, workflow and run attempt. It is not
@@ -130,7 +132,7 @@ applies-when: Delivery changes data or encounters partial execution or failure.
 
 Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover
 through the existing target mechanism. Data-affecting operations use an appropriate existing backup
-or recoverable transition unless the user explicitly waived it for that scope. No-backup authority
+or recoverable transition unless the user's accepted scoped ADR selects a different recovery result. No-backup authority
 is not permission for unrelated deletion. A previous binary is not automatically compatible with
 migrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations
 before reconciling their actual result.

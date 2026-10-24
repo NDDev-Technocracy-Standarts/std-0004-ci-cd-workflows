@@ -7,8 +7,8 @@ metadata:
   owner: rldyourmnd
 spec:
   edition:
-    version: 0.3.2
-    status: draft
+    version: 0.3.3
+    status: published
   purpose: Define a public modular CI/CD contract and reusable implementation with complete applicable
     feedback, no additional spend and coherent artifact delivery.
   scope:
@@ -25,11 +25,11 @@ spec:
       credentials database.
     - Claiming universal language, hardware, security or production correctness from a schema or a finite
       test suite.
-  conformance: A selected implementation or invocation conforms when its actual behavior meets every applicable
-    active requirement. The standard uses explicit review criteria; the implementation binds genuine automated
-    checks only to properties they establish. Unavailable or unexecuted work is not passed. Technical
-    modules are independently usable; private authoring tools are not runtime dependencies. NDDev departures
-    follow actual scoped user decisions.
+  conformance: 'An implementation or invocation meets the effective project contract: the applicable selected
+    standards and accepted ADR adaptations. Automated checks establish only the properties they execute;
+    review maps the ADR and native policy to the verified result. Unavailable or unexecuted work is not
+    passed. Technical modules remain independently usable, without private authoring tools as runtime
+    dependencies.'
   tags:
   - ci
   - cd
@@ -54,7 +54,7 @@ spec:
   relations:
   - type: authored-under
     target: std-0000
-    edition: 2.0.0
+    edition: 3.0.1
   - type: organized-by
     target: std-0001
     edition: 2.0.0
@@ -87,7 +87,7 @@ spec:
       revised: 0.3.1
     R-0007:
       since: 0.1.0
-      revised: 0.3.2
+      revised: 0.3.3
     R-0008:
       since: 0.1.0
       revised: 0.3.0
@@ -115,7 +115,7 @@ spec:
       since: 0.1.0
     R-0020:
       since: 0.1.0
-      revised: 0.3.2
+      revised: 0.3.3
     R-0021:
       since: 0.1.0
     R-0022:
@@ -124,6 +124,7 @@ spec:
       since: 0.1.0
     R-0024:
       since: 0.1.0
+      revised: 0.3.3
     R-0025:
       since: 0.1.0
     R-0026:

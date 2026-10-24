@@ -28,7 +28,7 @@ push. Newer main candidates can supersede source-only work without cancelling a 
 GitHub does not build or deploy dev pushes under this baseline. An existing dev server may build
 and check dev through its own project-owned path. Absence of that server does not prevent normal
 promotion to main. Production readiness follows full main validation and the exact-candidate
-admission rule in R-0020, including its explicitly selected project advisory exception.
+admission rule in R-0020, including a project's ADR-backed advisory admission policy.
 
 Declared narrow schedules for advisory refresh, owned registry reclamation or failure feedback
 retain an explicit purpose, owner, selected inputs and finite budget. They do not duplicate full
