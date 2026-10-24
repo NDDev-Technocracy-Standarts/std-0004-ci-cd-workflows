@@ -31,3 +31,7 @@ source feedback does not certify an unexecuted SDK or deployment target.
 The [component versioning selection](README.md#component-versioning) owns the maintenance scope
 and native version sources. Follow that selected contract for a release; preserve existing
 publication authority and independent owners.
+
+The complete standards selection is in [.nds/nddev.yaml](.nds/nddev.yaml); selected ADR paths
+there own project adaptations. Resolve it with `std0000 resolve --project PATH` from the standards
+catalog, then load the relevant items. A resolved selection does not prove implementation passed.
