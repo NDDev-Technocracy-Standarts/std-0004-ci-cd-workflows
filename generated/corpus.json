@@ -3,14 +3,14 @@
   "kind": "Corpus",
   "compiler": {
     "name": "nddev-std0000",
-    "version": "1.3.1"
+    "version": "1.3.3"
   },
   "standard": {
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.2",
-    "status": "draft",
+    "version": "0.3.3",
+    "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
       "The selected CI/CD library modules and their authorized project invocations, including source validation, build artifacts, delivery and maintenance."
@@ -22,7 +22,7 @@
       "A new runner manager, agent scheduler, universal source analyzer, prose-attestation platform or credentials database.",
       "Claiming universal language, hardware, security or production correctness from a schema or a finite test suite."
     ],
-    "conformance": "A selected implementation or invocation conforms when its actual behavior meets every applicable active requirement. The standard uses explicit review criteria; the implementation binds genuine automated checks only to properties they establish. Unavailable or unexecuted work is not passed. Technical modules are independently usable; private authoring tools are not runtime dependencies. NDDev departures follow actual scoped user decisions.",
+    "conformance": "An implementation or invocation meets the effective project contract: the applicable selected standards and accepted ADR adaptations. Automated checks establish only the properties they execute; review maps the ADR and native policy to the verified result. Unavailable or unexecuted work is not passed. Technical modules remain independently usable, without private authoring tools as runtime dependencies.",
     "tags": [
       "ci",
       "cd",
@@ -36,7 +36,7 @@
       {
         "type": "authored-under",
         "target": "std-0000",
-        "edition": "2.0.0"
+        "edition": "3.0.1"
       },
       {
         "type": "organized-by",
@@ -60,11 +60,11 @@
   "inputs": [
     {
       "path": "spec/ci.md",
-      "sha256": "f77fc21ca5250149a74be0449124432bcf94502279aeebecbd5de480f0ec2de2"
+      "sha256": "08d367a375900d2cc2f517c5d553cfbc63f4e066cf7d8802dd8e470c342d8ae2"
     },
     {
       "path": "spec/delivery.md",
-      "sha256": "d439844310c770077a0f404b836c2b7e91a939944a1dad942a437b369be44c6b"
+      "sha256": "92d5597a7e588788103bfcee69af242f8005f354e9014d1c86f161c66cb29575"
     },
     {
       "path": "spec/foundation.md",
@@ -92,11 +92,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "f81878bd077961ff40d2f821db6dd2e3b972953f60be72e0582351762336c9b2"
+      "sha256": "3d6d971589a6b06682894811fdb87ef0dde08ea56d3b4595e1838586f60d7bd0"
     }
   ],
   "listings": [],
-  "inputs-sha256": "7326a69f493d94346c305f4eb86e3ba8c5667ea35d15b2fb92e04f4d3d6cec20",
+  "inputs-sha256": "6bc31bfc96502fca74cf99993efe974624879652f0514d80d0c65c1ebbc5eed6",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -627,12 +627,12 @@
       "verification": "review",
       "criteria": "Trace short PR eligibility, affected full main validation and completed-artifact delivery; duplicate full PR/dev paths and undeclared schedules are absent.",
       "since": "0.1.0",
-      "revised": "0.3.2",
+      "revised": "0.3.3",
       "condition": {
         "from": "item",
         "text": "The subject defines or invokes source-validation CI."
       },
-      "statement": "Pull-request candidates MUST pass a short, finite integration gate before merge. The project owns\nits fast syntax, lint/type, relevant unit and critical secret checks; an empty or stale host check\nlist is not eligibility. Promotion PRs retain the adopted branch and merge policy.\nEligibility evidence binds that workflow path, PR event, repository, current head,\ntarget and relevant base or tested merge context to its latest run attempt. A same-named\nmain check is not premerge evidence.\n\nFull source validation runs on integrated main pushes. It selects changed components and affected\ndependents using the actual validation contract; uncertain scope retains the full set or fails\nexplicitly. Native builds, SDK/browser matrices, package consumption and target acceptance belong\nin this main path when applicable. The same exhaustive suite is not duplicated on every PR or dev\npush. Newer main candidates can supersede source-only work without cancelling a target mutation.\n\nGitHub does not build or deploy dev pushes under this baseline. An existing dev server may build\nand check dev through its own project-owned path. Absence of that server does not prevent normal\npromotion to main. Production readiness follows full main validation and the exact-candidate\nadmission rule in R-0020, including its explicitly selected project advisory exception.\n\nDeclared narrow schedules for advisory refresh, owned registry reclamation or failure feedback\nretain an explicit purpose, owner, selected inputs and finite budget. They do not duplicate full\nsource CI. A manual reproduction is tied to an authorized candidate or failed attempt. Branch and\nagent task policy remain owned by their adopted standards; an alternative CI phase model needs\nan explicit scoped owner decision.",
+      "statement": "Pull-request candidates MUST pass a short, finite integration gate before merge. The project owns\nits fast syntax, lint/type, relevant unit and critical secret checks; an empty or stale host check\nlist is not eligibility. Promotion PRs retain the adopted branch and merge policy.\nEligibility evidence binds that workflow path, PR event, repository, current head,\ntarget and relevant base or tested merge context to its latest run attempt. A same-named\nmain check is not premerge evidence.\n\nFull source validation runs on integrated main pushes. It selects changed components and affected\ndependents using the actual validation contract; uncertain scope retains the full set or fails\nexplicitly. Native builds, SDK/browser matrices, package consumption and target acceptance belong\nin this main path when applicable. The same exhaustive suite is not duplicated on every PR or dev\npush. Newer main candidates can supersede source-only work without cancelling a target mutation.\n\nGitHub does not build or deploy dev pushes under this baseline. An existing dev server may build\nand check dev through its own project-owned path. Absence of that server does not prevent normal\npromotion to main. Production readiness follows full main validation and the exact-candidate\nadmission rule in R-0020, including a project's ADR-backed advisory admission policy.\n\nDeclared narrow schedules for advisory refresh, owned registry reclamation or failure feedback\nretain an explicit purpose, owner, selected inputs and finite budget. They do not duplicate full\nsource CI. A manual reproduction is tied to an authorized candidate or failed attempt. Branch and\nagent task policy remain owned by their adopted standards; an alternative CI phase model needs\nan explicit scoped owner decision.",
       "source": {
         "path": "spec/ci.md",
         "line": 3
@@ -959,14 +959,14 @@
         "runtime.lineage",
         "runtime.advisory-comparison"
       ],
-      "criteria": "Reject incomplete, failed and superseded main runs and mismatched artifact attempts or trees; an explicitly selected advisory exception requires complete scan evidence, actual current production and no new vulnerable package identity in the same runtime component.",
+      "criteria": "Review the accepted project ADR and its native admission policy together. Advisory admission requires complete scan evidence, actual current production and no new vulnerable package identity in the same runtime component; incomplete, cancelled or superseded runs and mismatched artifacts remain ineligible.",
       "since": "0.1.0",
-      "revised": "0.3.2",
+      "revised": "0.3.3",
       "condition": {
         "from": "item",
         "text": "The subject determines eligibility for deployment."
       },
-      "statement": "Production deployment MUST consume the exact integrated candidate whose applicable full main CI\ncompleted successfully, except for the explicit project-owned advisory disposition below.\nThe short PR gate establishes merge eligibility, not production readiness.\nA trusted completion event or equivalent bounded native wait admits delivery only after that run;\nthe ordinary path refuses failed candidates. Cancelled, incomplete and known-superseded candidates\nnever start a target mutation, including through the advisory disposition below.\n\nAn owner MAY explicitly select a project-scoped exception for a completed main run whose only\nfailures are confirmed advisory-policy findings. The project's native admission adapter MUST bind\nthe exact candidate, run and latest attempt, successful scans and immutable artifact identities;\nall other applicable checks still pass. A scanner/download error, unavailable or expired input,\nmissing evidence, a cancelled job or an unexpected required skip cannot use this exception.\n\nThe adapter MUST observe the release and immutable component images actually running in the intended\nproduction target, and show that every candidate advisory concerns the same package identity and\ninstalled version already present in that component's verified production artifact inventory.\nRepository-wide locks, a digest mentioned somewhere in source, an unchanged Dockerfile and another\ncomponent's packages are insufficient. A new vulnerable version/component or reintroduction of a\nversion production already fixed refuses admission. Retained native inventories may be reused for\nthe same immutable image; changed target/artifact identity requires new evidence.\n\nThe adapter MUST revalidate the production baseline under the existing target mutation boundary\nbefore activation, and record the selected owner policy, exact main run/attempt, observed production\nidentity, artifact/report bindings and admitted occurrences in delivery evidence. CI stays failed on\nits findings; the exception is a separate admission disposition. It does not approve blanket package\nor build-stage patterns, remove findings, renew expired exceptions or bypass target/artifact checks.\nWithout this explicit policy and complete evidence, the ordinary successful-main requirement applies.\n\nThe artifact is bound to the actual source, configuration, workflow and run attempt. It is not\nselected by a mutable latest name or rebuilt after validation. Native admission checks actual\nrepository, main revision, complete run result and tested tree before consuming the artifact.\nThe builder may be an existing project-owned server. In that case the applicable full main\nworkflow validates the exact immutable payload or OCI digests produced by that server and records\nthem against its exact completed run/attempt and applicable admission disposition before promotion.\nPassing source checks for the same\ncommit alone does not establish that a separately built binary passed artifact validation.\nThe workflow need not rebuild an already validated artifact or move its builder to GitHub.\n\nExisting callers explicitly adopting the historical PR-artifact contract retain its separately\nverified path; the new main baseline is not inferred from an old green PR badge. A merge accepted\nby an API remains distinct from deployment and target acceptance.",
+      "statement": "Production deployment MUST consume the exact integrated candidate whose applicable full main CI\ncompleted under the effective project contract. The ordinary baseline requires successful full main\nvalidation; an accepted project ADR may select the bounded advisory admission described below.\nThe short PR gate establishes merge eligibility, not production readiness.\nA trusted completion event or equivalent bounded native wait admits delivery only after that run;\nthe ordinary path refuses failed candidates. Cancelled, incomplete and known-superseded candidates\nnever start a target mutation, including through the advisory disposition below.\n\nA project's accepted ADR MAY select native advisory admission for a completed main run whose only\nfailures are confirmed advisory-policy findings. The ADR owns the adapted result and its rationale;\nthe native policy owns exact machine inputs and admission conditions. The admission adapter MUST bind\nthe exact candidate, run and latest attempt, successful scans and immutable artifact identities;\nall other applicable checks still pass. A scanner/download error, unavailable or expired input,\nmissing evidence, a cancelled job or an unexpected required skip cannot use this admission path.\n\nThe adapter MUST observe the release and immutable component images actually running in the intended\nproduction target, and show that every candidate advisory concerns the same package identity and\ninstalled version already present in that component's verified production artifact inventory.\nRepository-wide locks, a digest mentioned somewhere in source, an unchanged Dockerfile and another\ncomponent's packages are insufficient. A new vulnerable version/component or reintroduction of a\nversion production already fixed refuses admission. Retained native inventories may be reused for\nthe same immutable image; changed target/artifact identity requires new evidence.\n\nThe adapter MUST revalidate the production baseline under the existing target mutation boundary\nbefore activation, and record the selected ADR and native policy, exact main run/attempt, observed production\nidentity, artifact/report bindings and admitted occurrences in delivery evidence. CI stays failed on\nits findings; admission has its own recorded disposition. Blanket package or build-stage patterns,\nremoved findings, expired native policy inputs and missing target/artifact checks do not establish eligibility.\nWithout this explicit policy and complete evidence, the ordinary successful-main requirement applies.\n\nThe artifact is bound to the actual source, configuration, workflow and run attempt. It is not\nselected by a mutable latest name or rebuilt after validation. Native admission checks actual\nrepository, main revision, complete run result and tested tree before consuming the artifact.\nThe builder may be an existing project-owned server. In that case the applicable full main\nworkflow validates the exact immutable payload or OCI digests produced by that server and records\nthem against its exact completed run/attempt and applicable admission disposition before promotion.\nPassing source checks for the same\ncommit alone does not establish that a separately built binary passed artifact validation.\nThe workflow need not rebuild an already validated artifact or move its builder to GitHub.\n\nExisting callers explicitly adopting the historical PR-artifact contract retain its separately\nverified path; the new main baseline is not inferred from an old green PR badge. A merge accepted\nby an API remains distinct from deployment and target acceptance.",
       "source": {
         "path": "spec/delivery.md",
         "line": 3
@@ -997,7 +997,7 @@
       "statement": "A supplied release artifact MUST identify its source, build inputs and digest. The same verified\nartifact is promoted between compatible environments where possible, with environment configuration\nkept separate. Necessary environment-specific rebuilds create a new artifact identity and receive\napplicable build validation, not a copied success label. Provenance/attestation claims reflect the\nactual build and provider guarantees; a checksum alone neither authenticates an artifact nor grants\nSLSA level certification.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 58
+        "line": 60
       }
     },
     {
@@ -1028,7 +1028,7 @@
       "statement": "A delivered CD module MUST invoke the project's actual configured deployment path and observe its\noutcome. First-party adapters remain modular and cover their documented target types without forcing\none universal plan/approval platform. Repository secrets provide required credentials through\nsupported host features; private GitHub Free is not assumed to have organization secrets or\nEnvironments. Source-only projects and mobile artifacts without store credentials have their real\ncompletion boundary; a fictitious production service is not required.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 78
+        "line": 80
       }
     },
     {
@@ -1055,7 +1055,7 @@
       "statement": "Concurrent changes to the same delivery target MUST have one effective coordination owner. A unique\nattempt/deployment ID is not a target lock. Repository-local concurrency is not a cross-repository\nlock. An older attempt cannot overwrite a newer accepted target state, and superseding CI cancellation\nis not blindly applied to a running data migration. Read-only or unrelated jobs need not share the\nmutation lock. Native target/infrastructure primitives are preferred over a new scheduling service.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 101
+        "line": 103
       }
     },
     {
@@ -1071,14 +1071,15 @@
       ],
       "criteria": "Cover failed health checks, interruption after migration and an incompatible previous artifact.",
       "since": "0.1.0",
+      "revised": "0.3.3",
       "condition": {
         "from": "item",
         "text": "Delivery changes data or encounters partial execution or failure."
       },
-      "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user explicitly waived it for that scope. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
+      "statement": "Failed or interrupted delivery MUST leave enough truthful state to diagnose and resume or recover\nthrough the existing target mechanism. Data-affecting operations use an appropriate existing backup\nor recoverable transition unless the user's accepted scoped ADR selects a different recovery result. No-backup authority\nis not permission for unrelated deletion. A previous binary is not automatically compatible with\nmigrated data. Recovery does not silently cancel other agents' work or retry uncertain mutations\nbefore reconciling their actual result.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 120
+        "line": 122
       }
     },
     {
@@ -1101,7 +1102,7 @@
       "statement": "Successful delivery MUST identify the intended target revision and demonstrate the relevant health\nor user scenario with available current diagnostics. A process start or absence of log lines alone\nis insufficient when the intended scenario fails. Active DAST, stress and destructive fixtures use\nauthorized suitable test targets, not live customer data by default. Failure remains visible to the\nowning GitHub task; no pipeline auto-closes a delivery parent merely at merge.",
       "source": {
         "path": "spec/delivery.md",
-        "line": 138
+        "line": 140
       }
     },
     {
