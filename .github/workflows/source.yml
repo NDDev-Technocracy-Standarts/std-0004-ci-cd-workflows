@@ -7,7 +7,7 @@ on:
         default: .github/nddev-ci.toml
       uv:
         type: string
-        default: '0.13.1'
+        default: '0.13.5'
       python:
         type: string
         default: '3.13'

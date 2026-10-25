@@ -3,11 +3,11 @@
 set -euo pipefail
 : "${RUNNER_TEMP:?Use an owned job temporary directory}"
 case "$(uname -s):$(uname -m)" in
-  Linux:x86_64) target=x86_64-unknown-linux-gnu; checksum=eadd9d27c134ab5ac1ffd4473b97a741407f3ea238288f03121fc4deddf90220 ;;
-  Linux:aarch64) target=aarch64-unknown-linux-gnu; checksum=9041c73c99fdc5892cf128140beb354eca9231d502068cc36e6cb53a8e59ad14 ;;
-  Darwin:arm64) target=aarch64-apple-darwin; checksum=cfe454573412ff7380d15fc7dae5997ab53ffce72fce0a78e91ddbc84001acd2 ;;
-  Darwin:x86_64) target=x86_64-apple-darwin; checksum=bb7b805bdcf3d0bc8c74ceb94569e6b3e8aa35bd492acdbb9d46bf46d9d4ff6b ;;
-  MINGW*:x86_64|MSYS*:x86_64) target=x86_64-pc-windows-msvc; checksum=3b2661a463a5baea7f5076ea2b25ab71d77f36a6c0d809e5350651792f80a672 ;;
+  Linux:x86_64) target=x86_64-unknown-linux-gnu; checksum=f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f ;;
+  Linux:aarch64) target=aarch64-unknown-linux-gnu; checksum=4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403 ;;
+  Darwin:arm64) target=aarch64-apple-darwin; checksum=743f85035a1996ecb350659e01cd9faea9709829be09b1b4b03c73eaf3c9cd73 ;;
+  Darwin:x86_64) target=x86_64-apple-darwin; checksum=b0f52b0e3945b4107d89024ea38e625683011fbfc05a0d98f9fa2d6dcee28c66 ;;
+  MINGW*:x86_64|MSYS*:x86_64) target=x86_64-pc-windows-msvc; checksum=a38b8d1902b7cfbc76b423ba1bb456f623f42064cdc72628b6075b89afd1019a ;;
   *) echo 'Unsupported library uv platform' >&2; exit 2 ;;
 esac
 extension=tar.gz
@@ -45,7 +45,7 @@ else
   prepared_status=$?
   if [[ "$prepared_status" != 1 ]]; then exit "$prepared_status"; fi
   download \
-    "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension" --output "$archive"
+    "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-$target.$extension" --output "$archive"
 fi
 if [[ "$target" == *apple* ]]; then
   observed="$(shasum -a 256 "$archive" | awk '{print $1}')"

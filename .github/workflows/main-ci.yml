@@ -26,7 +26,7 @@ jobs:
       run: scripts/prepare-linux-tools.sh security
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         python-version: '3.13'
         enable-cache: 'false'
     - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@85660ca41b85b5139641158da2f1cf9cfefe5fbe
@@ -44,7 +44,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         enable-cache: 'false'
         python-version: '3.13'
     - name: Select the declared native Node toolchain
@@ -296,7 +296,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         enable-cache: 'false'
         python-version: '3.13'
     - name: Execute real Windows Python package and rejected source
@@ -314,7 +314,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         enable-cache: 'false'
         python-version: '3.13'
     - name: Execute real Apple ARM Swift package and rejected source
@@ -329,7 +329,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         enable-cache: 'false'
         python-version: '3.13'
     - name: Prepare the pinned native release inventory tool
@@ -350,7 +350,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         enable-cache: 'false'
         python-version: '3.13'
     - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec
@@ -385,7 +385,7 @@ jobs:
         fetch-depth: 0
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         python-version: '3.13'
         enable-cache: 'false'
     - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -428,7 +428,7 @@ jobs:
         fetch-depth: 0
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         python-version: '3.13'
         enable-cache: 'false'
     - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -583,7 +583,7 @@ jobs:
         persist-credentials: false
     - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
       with:
-        version: 0.13.1
+        version: 0.13.5
         python-version: '3.13'
         enable-cache: 'false'
     - name: Check actual remote references with read-only metadata access
