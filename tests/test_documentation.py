@@ -118,3 +118,29 @@ def test_style_guidance_can_name_freshness_terms_without_asserting_freshness(rep
     (root / "README.md").write_text("# Project\n\nLast reviewed: 2026-10-19\n")
     with pytest.raises(Invalid, match="transient-claim"):
         documentation.check(root, {"style": {"authored": ["README.md"]}})
+
+
+def test_native_adr_metadata_is_data_but_body_and_comments_keep_full_style_coverage(repository):
+    metadata = "---\nstatus: accepted\nadaptation:\n  standard: {id: std-0004, version: 0.3.3}\n  rules: [R-0004]\n---\n"
+    root = repository({"docs/decisions/native.md": metadata + "# Native route\n\nUse the selected host.\n"})
+    scope = {"authored": ["docs/decisions/*.md"]}
+    assert documentation.check(root, {"style": scope})["style"]["files"] == 1
+    path = root / "docs/decisions/native.md"
+    for body in ("Release 1.2.3\n", "<!-- release 1.2.3 -->\n", "```yaml\nversion: 1.2.3\n```\n"):
+        path.write_text(metadata + body)
+        with pytest.raises(Invalid, match=r"native.md:7: release-value"):
+            documentation.check(root, {"style": scope})
+
+
+@pytest.mark.parametrize("metadata", ["owner: one\nowner: two\n", "adaptation: [unterminated\n"])
+def test_native_markdown_metadata_errors_do_not_leak_source_or_pass(repository, metadata):
+    root = repository({"README.md": "---\n" + metadata + "---\n# Project\n"})
+    with pytest.raises(Invalid, match="Invalid Markdown YAML front matter") as failure:
+        documentation.check(root)
+    assert "unterminated" not in str(failure.value) and "owner: two" not in str(failure.value)
+
+
+def test_thematic_break_is_not_an_unchecked_prose_container(repository):
+    root = repository({"README.md": "---\nRelease 1.2.3\n---\n# Project\n"})
+    with pytest.raises(Invalid, match="release-value"):
+        documentation.check(root, {"style": {"authored": ["README.md"]}})
