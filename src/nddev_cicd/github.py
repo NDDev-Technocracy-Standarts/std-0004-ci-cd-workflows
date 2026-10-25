@@ -270,43 +270,88 @@ def producer(repository: str, run_id: int, revision: str, source: dict, *, run: 
         or run.get("head_sha") != revision
     ):
         raise Invalid("Source producer identity differs from its native run")
+
+    def bounded_number(value):
+        return value if type(value) is int and 0 < value < 10**20 else None
+
+    def rejected(message: str, phase: str, observation: dict) -> Invalid:
+        # Only caller-validated identities and fixed predicate names reach this
+        # failure message. Never export API names, steps, URLs or arbitrary text.
+        evidence = {
+            "phase": phase,
+            "run_id": bounded_number(run_id),
+            "revision": revision,
+            "producer_attempt": int(attempt),
+            "check_run_id": int(check),
+            "latest_attempt": bounded_number(latest),
+            **observation,
+        }
+        return Invalid(message + "; producer_observation=" + json.dumps(evidence, sort_keys=True))
+
     prefix = f"repos/{repository}/actions/runs/{run_id}"
     original = records(f"{prefix}/attempts/{attempt}/jobs", "jobs")
     check_url = f"https://api.github.com/repos/{repository}/check-runs/{check}"
     matches = [item for item in original if item.get("check_run_url") == check_url]
     if len(matches) != 1:
-        raise Invalid("No unique source producer in its original native attempt")
+        raise rejected(
+            "No unique source producer in its original native attempt",
+            "original-selection",
+            {"records": len(original), "matches": len(matches)},
+        )
     built = matches[0]
-    if (
-        built.get("status") != "completed"
-        or built.get("conclusion") != "success"
-        or built.get("run_attempt") != int(attempt)
-        or built.get("run_id") != run_id
-        or built.get("head_sha") != revision
-        or not built.get("started_at")
-        or not built.get("completed_at")
-        or not built.get("runner_name")
-        or type(built.get("runner_id")) is not int
-        or not isinstance(built.get("steps"), list)
-        or not built["steps"]
-    ):
-        raise Invalid("Native source producer is incomplete or not successful")
+    predicates = {
+        "status_completed": built.get("status") == "completed",
+        "conclusion_success": built.get("conclusion") == "success",
+        "attempt_matches": built.get("run_attempt") == int(attempt),
+        "run_matches": built.get("run_id") == run_id,
+        "revision_matches": built.get("head_sha") == revision,
+        "started_at_present": bool(built.get("started_at")),
+        "completed_at_present": bool(built.get("completed_at")),
+        "runner_name_present": bool(built.get("runner_name")),
+        "runner_id_integer": type(built.get("runner_id")) is int,
+        "steps_nonempty_list": isinstance(built.get("steps"), list) and bool(built["steps"]),
+    }
+    if not all(predicates.values()):
+        raise rejected(
+            "Native source producer is incomplete or not successful",
+            "original-completion",
+            {"job_id": bounded_number(built.get("id")), "predicates": predicates},
+        )
     current = records(f"{prefix}/jobs?filter=latest", "jobs")
     # Failed-only reruns clone retained successful jobs with new check IDs and
     # attempt/creation metadata. Their actual execution metadata is unchanged.
     fields = ("name", "runner_id", "runner_name", "started_at", "completed_at", "steps")
     retained = [item for item in current if all(item.get(key) == built.get(key) for key in fields)]
-    if (
-        len(retained) != 1
-        or retained[0].get("status") != "completed"
-        or retained[0].get("conclusion") != "success"
-        or retained[0].get("head_sha") != revision
-        or retained[0].get("run_id") != run_id
-        or retained[0].get("run_attempt") != latest
-        or type(retained[0].get("id")) is not int
-        or retained[0]["id"] < 1
-    ):
-        raise Invalid("The successful producer execution was replaced or is absent from the latest graph")
+    current_producer = retained[0] if len(retained) == 1 else {}
+    predicates = {"unique_execution": len(retained) == 1}
+    if len(retained) == 1:
+        predicates.update(
+            status_completed=current_producer.get("status") == "completed",
+            conclusion_success=current_producer.get("conclusion") == "success",
+            revision_matches=current_producer.get("head_sha") == revision,
+            run_matches=current_producer.get("run_id") == run_id,
+            attempt_matches=current_producer.get("run_attempt") == latest,
+            job_id_positive_integer=type(current_producer.get("id")) is int and current_producer["id"] >= 1,
+        )
+    if not all(predicates.values()):
+        raise rejected(
+            "The successful producer execution was replaced or is absent from the latest graph",
+            "latest-execution",
+            {
+                "records": len(current),
+                "matches": len(retained),
+                "selected_job_id": bounded_number(current_producer.get("id")),
+                "predicates": predicates,
+                "execution_comparisons": [
+                    {
+                        "job_id": bounded_number(item.get("id")),
+                        "same_execution": {key: item.get(key) == built.get(key) for key in fields},
+                    }
+                    for item in current[:4]
+                ],
+                "comparisons_truncated": len(current) > 4,
+            },
+        )
     return {
         "producer_attempt": attempt,
         "validation_attempt": str(latest),

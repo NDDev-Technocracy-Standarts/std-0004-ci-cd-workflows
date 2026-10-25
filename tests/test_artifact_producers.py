@@ -126,6 +126,121 @@ def test_producer_identity_cannot_move_between_attempts_or_repositories(producer
         github.producer(REPOSITORY, 7, REVISION, source | {field: value})
 
 
+@pytest.mark.parametrize(
+    "field,value,predicate",
+    [
+        ("status", "in_progress", "status_completed"),
+        ("conclusion", "failure", "conclusion_success"),
+        ("run_attempt", 2, "attempt_matches"),
+        ("run_id", 8, "run_matches"),
+        ("head_sha", "b" * 40, "revision_matches"),
+        ("started_at", None, "started_at_present"),
+        ("completed_at", None, "completed_at_present"),
+        ("runner_name", "", "runner_name_present"),
+        ("runner_id", "8", "runner_id_integer"),
+        ("steps", {}, "steps_nonempty_list"),
+        ("steps", [], "steps_nonempty_list"),
+    ],
+)
+def test_rejection_identifies_the_observed_incomplete_field_without_more_reads(
+    producer, monkeypatch, field, value, predicate
+):
+    _, source, original, _ = producer
+    original[0][field] = value
+    get = github.get
+    calls = []
+
+    def observed(path):
+        calls.append(path)
+        return get(path)
+
+    monkeypatch.setattr(github, "get", observed)
+    with pytest.raises(Invalid) as error:
+        github.producer(REPOSITORY, 7, REVISION, source)
+    evidence = json.loads(str(error.value).split("; producer_observation=", 1)[1])
+    assert evidence["phase"] == "original-completion"
+    assert evidence["run_id"] == 7 and evidence["check_run_id"] == 11
+    assert evidence["revision"] == REVISION and evidence["job_id"] == 11
+    assert [key for key, passed in evidence["predicates"].items() if not passed] == [predicate]
+    assert calls == [
+        "repos/example/project/actions/runs/7",
+        "repos/example/project/actions/runs/7/attempts/1/jobs?per_page=100&page=1",
+    ]
+
+
+def test_latest_failure_bounds_observation_and_does_not_export_hostile_api_text(producer, monkeypatch):
+    _, source, original, latest = producer
+    sentinel = 'synthetic-known-secret-<"\n' + "x" * 20_000
+    monkeypatch.setenv("FIXTURE_SECRET", sentinel)
+    for field in ("name", "runner_name", "started_at", "completed_at"):
+        original[0][field] = sentinel
+    original[0]["steps"] = [{"name": sentinel}]
+    latest[:] = [
+        copy.deepcopy(original[0])
+        | {"id": number, "run_attempt": 2, "steps": [{"name": sentinel, "conclusion": sentinel}]}
+        for number in range(20, 83)
+    ]
+    before = copy.deepcopy((original, latest))
+    with pytest.raises(Invalid) as error:
+        github.producer(REPOSITORY, 7, REVISION, source)
+    message = str(error.value)
+    assert "synthetic-known-secret" not in message and len(message) < 3000
+    evidence = json.loads(message.split("; producer_observation=", 1)[1])
+    assert evidence["phase"] == "latest-execution" and evidence["matches"] == 0
+    assert evidence["predicates"] == {"unique_execution": False}
+    assert evidence["records"] == 63 and evidence["comparisons_truncated"] is True
+    assert [row["job_id"] for row in evidence["execution_comparisons"]] == [20, 21, 22, 23]
+    assert all(not row["same_execution"]["steps"] for row in evidence["execution_comparisons"])
+    assert (original, latest) == before
+
+
+def test_successful_retained_proof_keeps_its_reads_and_result_without_diagnostics(producer, monkeypatch):
+    _, source, _, _ = producer
+    get = github.get
+    calls = []
+
+    def observed(path):
+        calls.append(path)
+        return get(path)
+
+    monkeypatch.setattr(github, "get", observed)
+    result = github.producer(REPOSITORY, 7, REVISION, source)
+    assert result == {
+        "producer_attempt": "1",
+        "validation_attempt": "2",
+        "check_run_id": "11",
+        "latest_job_id": "22",
+    }
+    assert calls == [
+        "repos/example/project/actions/runs/7",
+        "repos/example/project/actions/runs/7/attempts/1/jobs?per_page=100&page=1",
+        "repos/example/project/actions/runs/7/jobs?filter=latest&per_page=100&page=1",
+    ]
+
+
+@pytest.mark.parametrize("count", [0, 2])
+def test_original_selection_observation_keeps_missing_and_ambiguous_producers_rejected(producer, count):
+    _, source, original, _ = producer
+    original[:] = [copy.deepcopy(original[0]) for _ in range(count)]
+    with pytest.raises(Invalid) as error:
+        github.producer(REPOSITORY, 7, REVISION, source)
+    evidence = json.loads(str(error.value).split("; producer_observation=", 1)[1])
+    assert evidence["phase"] == "original-selection"
+    assert evidence["records"] == evidence["matches"] == count
+
+
+def test_latest_invalid_identity_is_not_exported_as_a_native_job_id(producer):
+    _, source, _, latest = producer
+    latest[0]["id"] = "synthetic-secret-arbitrary-api-text"
+    with pytest.raises(Invalid) as error:
+        github.producer(REPOSITORY, 7, REVISION, source)
+    assert "synthetic-secret" not in str(error.value)
+    evidence = json.loads(str(error.value).split("; producer_observation=", 1)[1])
+    assert evidence["selected_job_id"] is None
+    assert evidence["predicates"]["unique_execution"] is True
+    assert evidence["predicates"]["job_id_positive_integer"] is False
+
+
 def test_bundle_downloads_one_digest_bound_candidate_and_requires_retained_proof(tmp_path, monkeypatch):
     source = {
         "attempt": "1",

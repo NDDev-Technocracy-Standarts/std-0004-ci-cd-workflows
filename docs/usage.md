@@ -76,6 +76,12 @@ alone are not the retention test. Legacy artifacts without this provenance keep 
 behavior and require a full rerun. Producer proof does not authorize delivery: the expected full main
 workflow still must pass for the exact current source and library binding.
 
+Producer selection/completion failures include a bounded `producer_observation` JSON suffix in the
+existing error. It binds the run, source and attempts to named predicate outcomes and at most four
+latest-job execution comparisons from the responses already read. Names, step contents, URLs and
+arbitrary response strings are omitted. The observation explains that invocation's rejection;
+it does not reconstruct an earlier response, certify provider consistency or retry admission.
+
 `.github/actions/main-validation` observes a caller's exact full-main `workflow` through native REST.
 It requires a read-scoped caller token in `GH_TOKEN` or `GITHUB_TOKEN`. The default only reports
 metadata. With `dispatch-missing: 'true'` and caller `actions: write`, it can dispatch that same
