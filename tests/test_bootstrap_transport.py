@@ -125,8 +125,8 @@ def test_bootstrap_retries_transport_but_never_integrity(tmp_path, installer, co
     if installer == "uv":
         source = (scripts / "library-uv.sh").read_text()
         source = source.replace(
-            "https://github.com/astral-sh/uv/releases/download/0.13.1/uv-$target.$extension", url
-        ).replace("eadd9d27c134ab5ac1ffd4473b97a741407f3ea238288f03121fc4deddf90220", checksum)
+            "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-$target.$extension", url
+        ).replace("f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f", checksum)
     else:
         source = (scripts / "prepare-linux-tools.sh").read_text().split("capabilities=", 1)[0]
         source += f"install_{installer} '{url}' '{checksum}' fixture\n"
