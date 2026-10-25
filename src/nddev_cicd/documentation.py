@@ -36,6 +36,24 @@ def mapping(loader, node, deep=False):
 StrictLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, mapping)
 
 
+def markdown_body(text: str) -> str:
+    """Separate an initial native YAML mapping from prose, retaining source line positions."""
+    lines = text.splitlines(keepends=True)
+    if not lines or lines[0].strip() != "---":
+        return text
+    end = next((index for index, line in enumerate(lines[1:], 1) if line.strip() == "---"), None)
+    if end is None:
+        return text
+    try:
+        metadata = yaml.load("".join(lines[1:end]), Loader=StrictLoader)
+    except (yaml.YAMLError, Invalid) as error:
+        raise Invalid("Invalid Markdown YAML front matter") from error
+    if not isinstance(metadata, dict):
+        # A thematic break followed by ordinary Markdown is not structured metadata.
+        return text
+    return "\n" * (end + 1) + "".join(lines[end + 1 :])
+
+
 def check(root: Path, settings: dict | None = None) -> dict:
     settings = settings or {}
     exclusions = settings.get("exclude", [])
@@ -64,7 +82,7 @@ def check(root: Path, settings: dict | None = None) -> dict:
                 # File identity, not private source excerpts, belongs in shared diagnostics.
                 raise Invalid(f"Invalid structured document: {relative} ({type(error).__name__})") from error
         elif path.suffix == ".md":
-            for target in markdown_targets(text):
+            for target in markdown_targets(markdown_body(text)):
                 if re.match(r"[a-zA-Z][a-zA-Z0-9+.-]*:", target) or target.startswith("//"):
                     continue
                 pathname, _, fragment = target.partition("#")
@@ -199,7 +217,7 @@ def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
         if role not in {"authored", "generated"}:
             continue
         path = contained(root, relative, exists=True)
-        text = path.read_text(encoding="utf-8")
+        text = markdown_body(path.read_text(encoding="utf-8"))
         checked += 1
         for token in parser.parse(text):
             if token.type not in {"inline", "html_block", "fence", "code_block"}:
