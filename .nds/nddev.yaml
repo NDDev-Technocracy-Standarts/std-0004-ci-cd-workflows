@@ -40,6 +40,7 @@ spec:
         std-0007: 0.1.1
         std-0008: 0.1.1
         std-0009: 0.1.0
+        std-0010: 0.1.0
     nddev.command-interface:
       visibility: public
       standard:
