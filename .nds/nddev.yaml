@@ -26,7 +26,6 @@ spec:
       version: 0.2.2
   modules:
   - src/nddev_cicd
-
   extensions:
     nddev.standards-system:
       editions:
@@ -37,13 +36,32 @@ spec:
         std-0004: 0.3.3
         std-0005: 0.2.2
         std-0006: 0.1.1
-        std-0007: 0.1.1
+        std-0007: 0.1.2
         std-0008: 0.1.1
         std-0009: 0.1.1
         std-0010: 0.1.1
         std-0011: 0.1.0
         std-0012: 0.1.0
         std-0013: 0.1.1
+        std-0014: 0.1.0
+        std-0015: 0.1.0
+        std-0016: 0.1.0
+        std-0017: 0.1.0
+        std-0018: 0.1.0
+        std-0019: 0.1.0
+        std-0020: 0.1.0
+        std-0021: 0.1.0
+        std-0022: 0.1.0
+        std-0023: 0.1.0
+        std-0024: 0.1.0
+        std-0025: 0.1.0
+        std-0026: 0.1.0
+        std-0027: 0.1.0
+        std-0028: 0.1.0
+        std-0029: 0.1.0
+        std-0030: 0.1.0
+        std-0031: 0.1.0
+        std-0032: 0.1.0
     nddev.command-interface:
       visibility: public
       standard:
