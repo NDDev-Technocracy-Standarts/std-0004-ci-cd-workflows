@@ -299,6 +299,79 @@ def benchmark_prepare(
     return {"measurement": str(report), "history": str(target), "threshold": f"{ratio * 100:g}%"}
 
 
+def _sarif_rule(tool: dict, descriptor: dict) -> tuple[tuple[int, int], dict]:
+    """Resolve one driver/extension rule without borrowing metadata from another rule."""
+    component = descriptor.get("toolComponent", {})
+    components = [tool["driver"], *tool.get("extensions", [])]
+    if "index" in component:
+        number = component["index"]
+        if type(number) is not int or not 0 <= number < len(components) - 1:
+            raise Invalid("Native SARIF references an unknown tool component")
+        component_index = number + 1
+    elif "guid" in component:
+        matches = [i for i, value in enumerate(components) if value.get("guid") == component["guid"]]
+        if len(matches) != 1:
+            raise Invalid("Native SARIF tool component identity is unknown or ambiguous")
+        component_index = matches[0]
+    else:
+        component_index = 0
+    selected = components[component_index]
+    if any(name in component and component[name] != selected.get(name) for name in ("name", "guid")):
+        raise Invalid("Native SARIF tool component identities disagree")
+    rules = selected.get("rules", [])
+    index = descriptor.get("index", -1)
+    if type(index) is not int or index < -1 or index >= len(rules):
+        raise Invalid("Native SARIF references an unknown rule index")
+    if index == -1:
+        field = "guid" if "guid" in descriptor else "id"
+        matches = [i for i, rule in enumerate(rules) if rule.get(field) == descriptor.get(field)]
+        if len(matches) != 1:
+            raise Invalid("Native SARIF finding has no unique identifiable rule")
+        index = matches[0]
+    rule = rules[index]
+    if not isinstance(rule.get("id"), str) or not rule["id"]:
+        raise Invalid("Native SARIF rule has no identity")
+    if "guid" in descriptor and descriptor["guid"] != rule.get("guid"):
+        raise Invalid("Native SARIF rule index and GUID disagree")
+    if "id" in descriptor:
+        identity = descriptor["id"]
+        prefix = rule["id"] + "/"
+        if identity != rule["id"] and not (
+            isinstance(identity, str)
+            and identity.startswith(prefix)
+            and identity[len(prefix) :]
+            and "/" not in identity[len(prefix) :]
+        ):
+            raise Invalid("Native SARIF rule index and identity disagree")
+    return (component_index, index), rule
+
+
+def _sarif_level(run: dict, result: dict, identity: tuple[int, int], rule: dict) -> str:
+    """Resolve result severity using SARIF 2.1.0 + Errata 01, sections 3.27.10 and 3.48.6."""
+    if "level" in result:
+        level = result["level"]
+    else:
+        configuration = rule.get("defaultConfiguration", {})
+        invocations = run["invocations"]
+        index = result.get("provenance", {}).get("invocationIndex", 0 if len(invocations) == 1 else -1)
+        if type(index) is not int or not -1 <= index < len(invocations):
+            raise Invalid("Native SARIF result references an unknown invocation")
+        if index >= 0:
+            matches = []
+            for override in invocations[index].get("ruleConfigurationOverrides", []):
+                target, _ = _sarif_rule(run["tool"], override["descriptor"])
+                if target == identity:
+                    matches.append(override["configuration"])
+            if len(matches) > 1:
+                raise Invalid("Native SARIF has ambiguous configuration overrides for a rule")
+            if matches:
+                configuration = configuration | matches[0]
+        level = configuration.get("level", "warning")
+    if not isinstance(level, str) or level not in {"error", "warning", "note", "none"}:
+        raise Invalid("Native SARIF result severity is invalid")
+    return level
+
+
 def sarif(directory: Path, minimum: str = "moderate") -> dict:
     """Gate actual CodeQL SARIF findings without treating an empty/missing analysis as success."""
     import math
@@ -326,36 +399,25 @@ def sarif(directory: Path, minimum: str = "moderate") -> dict:
             ):
                 raise Invalid("CodeQL did not establish a successful native analysis")
             runs += 1
-            rules = driver.get("rules", [])
             for result in run.get("results", []):
                 if result.get("kind", "fail") != "fail":
                     continue
-                descriptor = result.get("rule", {})
-                component = descriptor.get("toolComponent", {})
-                selected = driver
-                if "index" in component:
-                    extensions = run["tool"].get("extensions", [])
-                    number = component["index"]
-                    if type(number) is not int or not 0 <= number < len(extensions):
-                        raise Invalid("Native SARIF references an unknown tool component")
-                    selected = extensions[number]
-                rules = selected.get("rules", [])
-                index = descriptor.get("index", result.get("ruleIndex"))
-                rule_id = descriptor.get("id", result.get("ruleId"))
-                rule = (
-                    rules[index]
-                    if type(index) is int and 0 <= index < len(rules)
-                    else next((r for r in rules if r.get("id") == rule_id), None)
-                )
-                if rule is not None and rule_id is not None and rule.get("id") != rule_id:
-                    raise Invalid("Native SARIF rule index and identity disagree")
-                if rule is None:
-                    raise Invalid("Native SARIF finding has no identifiable rule")
+                descriptor = dict(result.get("rule", {}))
+                for legacy, field in (("ruleId", "id"), ("ruleIndex", "index")):
+                    if legacy in result:
+                        if field in descriptor and descriptor[field] != result[legacy]:
+                            raise Invalid("Native SARIF legacy and descriptor rule identities disagree")
+                        descriptor[field] = result[legacy]
+                identity, rule = _sarif_rule(run["tool"], descriptor)
                 raw = rule.get("properties", {}).get("security-severity")
                 score = float(raw) if raw is not None else None
                 if score is not None and (not math.isfinite(score) or not 0 <= score <= 10):
                     raise Invalid("Native SARIF security score is invalid")
-                blocking = score >= scores[minimum] if score is not None else result.get("level") == "error"
+                blocking = (
+                    score >= scores[minimum]
+                    if score is not None
+                    else _sarif_level(run, result, identity, rule) == "error"
+                )
                 findings.append(
                     {
                         "rule": rule["id"],

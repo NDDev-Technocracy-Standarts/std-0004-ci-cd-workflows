@@ -387,6 +387,13 @@ free dependency graph before selecting Dependency Review. The module grants no p
 entitlement, starts no private hosted helper, and returns no successful status for an inapplicable event.
 Its successful output means both the native analysis and the selected finding gates completed.
 
+When a CodeQL rule has no numeric security severity, the gate resolves its effective result level
+using [the SARIF specification and its approved errata](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html):
+an explicit result level wins, then the applicable invocation override, then the rule default,
+and finally warning. A sole invocation is the default; multiple invocations need an explicit
+result provenance index to apply an override. Driver and extension rules retain separate identities.
+Invalid or ambiguous references fail validation. Numeric security scores keep the selected threshold.
+
 `prepare-release` consumes the exact eligible source run through the same library ref as source CI.
 Its explicit file selection produces a mode-preserving candidate tar, source/asset bindings,
 SHA256SUMS and native Syft SPDX inventory. Package containers are safely exposed to native catalogers;
