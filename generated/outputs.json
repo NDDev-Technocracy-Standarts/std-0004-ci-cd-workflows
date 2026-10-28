@@ -3,11 +3,11 @@
   "kind": "OutputLedger",
   "generator": {
     "name": "nddev-std0000",
-    "version": "1.3.3"
+    "version": "1.3.4"
   },
   "outputs": {
     "generated/corpus.json": {
-      "sha256": "d752156288e3ee2c9c356f9f80a49e5052fa3d44ebdb2e32e1f1f64c9a3685b9",
+      "sha256": "7a8af0d10e67e4ed1c05cad11050aeb2c8e5219cb0200fa902ee69e9db898775",
       "state": "current"
     },
     "generated/index.md": {
