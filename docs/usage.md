@@ -690,6 +690,42 @@ allowlists and permissions come from trusted workflow configuration. The same bo
 can serve an explicitly declared feedback schedule; it does not rerun source CI or repair code.
 The owning agent still returns to native diagnostics and unresolved task work.
 
+
+### After diagnosis, follow the actual implementation owner
+
+A failed consumer run establishes a failure in that run's selected context. It does not itself
+identify a shared library defect. Inspect the exact selected library revision, run and attempt,
+contract, original diagnostic and a bounded reproduction. Distinguish consumer configuration or
+code, an unsupported capability claim, a shared implementation defect, executor or connectivity
+failure, and an unavailable external service. Preserve uncertainty when evidence does not identify
+the cause.
+
+Keep the original consumer task and run linked. Create or reuse the Issue in the repository that
+owns a confirmed problem, including the affected contract, public provider pin, impact, relevant
+facts and remaining uncertainty. Search existing open and closed work first. For a public report,
+use a sanitized minimal reproduction; keep private source, repository identities, host paths,
+credentials and raw diagnostic payloads in their authorized private location.
+
+An active repair has one current execution owner until an explicit handoff. Another agent's
+report, contribution or Issue link does not silently transfer that responsibility. Coordinate
+with an existing repair through the task's accepted collaboration method. Ordinary authorized
+work does not acquire another waiting or approval stage solely because it affects a shared
+component; changes outside that authority follow the consuming project's decision process.
+
+| Confirmed situation | Follow-through |
+| --- | --- |
+| Consumer-only defect | Correct the consumer and verify its affected scenario. |
+| Shared defect necessary to the current task | Link the provider Issue, correct the actual owner within task authority, and retain the original consumer failure. |
+| Duplicate report | Add relevant distinct evidence to the existing owning Issue. |
+| Another owner is already repairing it | Contribute evidence and coordinate scope without creating a competing writer. |
+| A provider correction requires a consumer update | Link a task in each affected project and identify its actual implementation owner. |
+| The provider has published but a consumer is unchanged | Record provider publication separately; consumer acceptance remains pending until its selected update and checks complete. |
+
+Select updates and procedures for the actual authorized scope. Keep required checks and truthful
+unresolved results; publication does not imply fleet migration, deployment or product acceptance.
+This guidance adds no automatic classifier, cross-repository publisher, permission, scheduler or
+routing registry.
+
 The native [runtime lock](../.github/runtime-lock.json) maps reviewed implementation and reusable workflow
 commits independently. A draft pin has no invented release-tag comment. Published release notes
 must identify both native refs; a standard edition tag alone does not identify the facade/backend

@@ -173,6 +173,48 @@ def _selected(path: str, pattern: str) -> bool:
     return fnmatchcase(path, pattern) or (pattern.startswith("**/") and fnmatchcase(path, pattern[3:]))
 
 
+_REPLACEMENT_PIN = re.compile(r"[a-z][a-z0-9-]*@(?P<release>[0-9]+[.][0-9]+[.][0-9]+)#[A-Z][A-Z0-9]*-[0-9]+")
+
+
+def _retirement_data_text(text: str) -> str:
+    """Keep only a retired item's replacement release in its native scalar-data role."""
+    try:
+        data = yaml.load(text, Loader=StrictLoader)
+        node = yaml.compose(text, Loader=StrictLoader)
+    except (yaml.YAMLError, Invalid, TypeError, ValueError):
+        return text
+    if not isinstance(data, dict) or data.get("status") != "retired":
+        return text
+    value = data.get("replaced-by")
+    pin = _REPLACEMENT_PIN.fullmatch(value) if isinstance(value, str) else None
+    if pin is None or not isinstance(node, yaml.MappingNode):
+        return text
+    fields = {}
+    for key, scalar in node.value:
+        if not isinstance(key, yaml.ScalarNode) or key.value in fields or key.value == "<<":
+            return text
+        fields[key.value] = (key, scalar)
+    pair = fields.get("replaced-by")
+    if pair is None:
+        return text
+    key, scalar = pair
+    if (
+        not isinstance(scalar, yaml.ScalarNode)
+        or scalar.tag != "tag:yaml.org,2002:str"
+        or scalar.style not in {None, "'", '"'}
+        or scalar.start_mark.index < key.end_mark.index
+    ):
+        return text
+    start, end = scalar.start_mark.index, scalar.end_mark.index
+    raw = text[start:end]
+    release = pin.group("release")
+    if raw.count(release) != 1:
+        return text
+    # Only the release inside this exact scalar is data. Comments, other fields,
+    # code fences and ordinary prose retain their existing identity checks.
+    return text[:start] + raw.replace(release, "<release>", 1) + text[end:]
+
+
 def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
     """Finite opt-in mechanical coverage; exemptions retain source roles, not active-file waivers."""
     if settings is None:
@@ -232,6 +274,8 @@ def style_check(root: Path, paths: list[str], settings: dict | None) -> dict:
                 identity_text = " ".join(html.text)
             else:
                 identity_text = token.content
+                if token.type == "fence" and token.info.strip() == "item":
+                    identity_text = _retirement_data_text(identity_text)
             raw = _URL.sub("", identity_text)
             line = token.map[0] + 1 if token.map else 1
             for name, pattern in (
