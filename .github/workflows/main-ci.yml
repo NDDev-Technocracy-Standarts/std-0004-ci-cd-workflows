@@ -29,7 +29,7 @@ jobs:
         version: 0.13.5
         python-version: '3.13'
         enable-cache: 'false'
-    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@41cae0cce946f9af485281210001f4590fe2a686
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
   native:
     name: native (${{ matrix.profile }})
     runs-on: ubuntu-24.04
@@ -189,7 +189,7 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
     - id: impact
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/impact@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/impact@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         contract: .github/impact.toml
       env:
@@ -230,14 +230,14 @@ jobs:
     - name: Capture the caller's executable
       run: command -v uv > "$RUNNER_TEMP/caller-uv-path"
     - id: positive
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         working-directory: tests/native/action-contract
         result-key: contract-${{ runner.os }}-positive
         upload: failure
     - id: negative
       continue-on-error: true
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         working-directory: tests/native/action-contract
         contract: .github/failure.toml
@@ -245,7 +245,7 @@ jobs:
         upload: failure
         retention-days: '1'
     - id: never
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         working-directory: tests/native/action-contract
         result-key: contract-${{ runner.os }}-never
@@ -272,11 +272,11 @@ jobs:
       macos: ${{ steps.macos.outputs.runner }}
     steps:
     - id: windows
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         policy: '{"visibility":"public","platform":"windows","architecture":"x64"}'
     - id: macos
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/admit@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         policy: '{"visibility":"public","platform":"macos","architecture":"arm64"}'
     needs: impact-plan
@@ -438,7 +438,7 @@ jobs:
     - name: Measure the actual unchanged earlier Go implementation
       run: uv run --locked python tests/benchmark_driver.py prepare "$RUNNER_TEMP/native-benchmark"
     - id: record
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         tool: go
         mode: record
@@ -451,7 +451,7 @@ jobs:
     - name: Measure the actual positive candidate
       run: uv run --locked python tests/benchmark_driver.py positive "$RUNNER_TEMP/native-benchmark"
     - id: positive
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         tool: go
         measurement-file: ${{ runner.temp }}/native-benchmark/positive.txt
@@ -461,7 +461,7 @@ jobs:
       run: uv run --locked python tests/benchmark_driver.py negative "$RUNNER_TEMP/native-benchmark"
     - id: negative
       continue-on-error: true
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/benchmark@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         tool: go
         measurement-file: ${{ runner.temp }}/native-benchmark/negative.txt
@@ -489,7 +489,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
         persist-credentials: false
-    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/scorecard@41cae0cce946f9af485281210001f4590fe2a686
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/scorecard@60f52ba1978b97343483a45d22edb6e338e0e3f5
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       if: ${{ !cancelled() }}
       with:
@@ -525,7 +525,7 @@ jobs:
         assert before.count('constexpr bool injected_defect = false;') == 1
         source.write_text(before.replace('constexpr bool injected_defect = false;', 'constexpr bool injected_defect = true;'))
         PY
-    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@41cae0cce946f9af485281210001f4590fe2a686
+    - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         phase: build
         project-directory: tests/native/clusterfuzz
@@ -544,7 +544,7 @@ jobs:
         PY
     - id: fuzz
       continue-on-error: ${{ matrix.variant == 'negative' }}
-      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@41cae0cce946f9af485281210001f4590fe2a686
+      uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/clusterfuzz@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
         phase: run
         project-directory: tests/native/clusterfuzz
@@ -567,7 +567,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@a73f7b724c054d57b3d553c7c9463cec2c9d61de
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/public-security.yml@a1e09cdd47c428b6d18729f4573955c18fe93c4e
     with:
       languages: python,actions
       comparison-base: ${{ fromJSON(needs.impact-plan.outputs.base) || '' }}
