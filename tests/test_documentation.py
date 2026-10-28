@@ -144,3 +144,38 @@ def test_thematic_break_is_not_an_unchecked_prose_container(repository):
     root = repository({"README.md": "---\nRelease 1.2.3\n---\n# Project\n"})
     with pytest.raises(Invalid, match="release-value"):
         documentation.check(root, {"style": {"authored": ["README.md"]}})
+
+
+def test_retired_replacement_pin_is_native_data_without_rewriting_source(repository):
+    text = "# History\n\n```item\nstatus: retired\nreplaced-by: example-core@8.4.2#R-9001\n```\n"
+    root = repository({"README.md": text})
+    before = (root / "README.md").read_bytes()
+    assert documentation.check(root, {"style": {"authored": ["README.md"]}})["style"]["status"] == "success"
+    assert (root / "README.md").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "metadata,language,tail",
+    [
+        ("status: active\nreplaced-by: example-core@8.4.2#R-9001\n", "item", ""),
+        ("kind: retired\nreplaced-by: example-core@8.4.2#R-9001\n", "item", ""),
+        ("status: retired\nreplaced-by: example-core@8.4.2\n", "item", ""),
+        ("status: retired\nreplaced-by: example-core@8.4.2#R-9001\n", "yaml", ""),
+        ("status: retired\nreplaced-by: example-core@8.4.2#R-9001 # copied release 3.2.1\n", "item", ""),
+        ("status: retired\nreplaced-by: example-core@8.4.2#R-9001\nrelease: 3.2.1\n", "item", ""),
+        ("status: retired\nstatus: active\nreplaced-by: example-core@8.4.2#R-9001\n", "item", ""),
+        ("status: retired\npin: &pin example-core@8.4.2#R-9001\nreplaced-by: *pin\n", "item", ""),
+        ("status: retired\nreplaced-by: example-core@8.4.2#R-9001\n", "item", "Copied release 3.2.1.\n"),
+    ],
+)
+def test_replacement_data_cannot_hide_copied_or_unrecognized_identity(repository, metadata, language, tail):
+    root = repository({"README.md": "# History\n\n```" + language + "\n" + metadata + "```\n" + tail})
+    with pytest.raises(Invalid, match="release-value"):
+        documentation.check(root, {"style": {"authored": ["README.md"]}})
+
+
+@pytest.mark.parametrize("quote", ["", "'", chr(34)])
+def test_replacement_scalar_quoting_keeps_the_same_data_boundary(repository, quote):
+    metadata = "status: retired\nreplaced-by: " + quote + "example-core@8.4.2#R-9001" + quote + "\n"
+    root = repository({"README.md": "# History\n\n```item\n" + metadata + "```\n"})
+    assert documentation.check(root, {"style": {"authored": ["README.md"]}})["style"]["status"] == "success"
