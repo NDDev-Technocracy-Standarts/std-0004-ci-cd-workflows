@@ -388,7 +388,7 @@ entitlement, starts no private hosted helper, and returns no successful status f
 Its successful output means both the native analysis and the selected finding gates completed.
 
 When a CodeQL rule has no numeric security severity, the gate resolves its effective result level
-using [SARIF 2.1.0 with Errata 01](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html):
+using [the SARIF specification and its approved errata](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html):
 an explicit result level wins, then the applicable invocation override, then the rule default,
 and finally warning. A sole invocation is the default; multiple invocations need an explicit
 result provenance index to apply an override. Driver and extension rules retain separate identities.
