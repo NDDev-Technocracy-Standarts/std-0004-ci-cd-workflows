@@ -84,7 +84,7 @@ nothing.
   images again (30 s).
 - **Poll readiness yourself or set `start_interval`.** A deploy that waits on Docker's health
   status is bounded by the health `interval` (often 30 s). Running the health command directly
-  every 1–2 s, or `start_interval` (Engine 25+, Compose 2.20.2+), makes readiness visible at
+  every 1–2 s, or `start_interval` (recent Docker Engine and Compose), makes readiness visible at
   once.
 - **Bind directories, not single configuration files.** A single-file bind keeps the inode the
   container was created with. A checkout that replaces the file then leaves reloads reading the
