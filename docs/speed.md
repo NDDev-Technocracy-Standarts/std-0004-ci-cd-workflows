@@ -39,8 +39,9 @@ nothing.
   forge, while HTTPS checkouts of the same repository finished in 6 s. The sparse set's on-demand
   blobs (16 MB) took 15–18 min, and a `blob:limit=1m` pack (54 MB) took 20 min. Name only the
   paths the job reads and fetch with `blob:none`, so only their blobs (2.4 MB) cross the slow
-  transport. Where a runner's HTTPS path is fast, prefer installation-token reads over deploy
-  keys. Time the checkout step, not only the fetch.
+  transport: the module checkout went from 15–20 min to 20 s. Where a runner's HTTPS path is
+  fast, prefer installation-token reads over deploy keys. Time the checkout step, not only the
+  fetch.
 - **A history scanner needs history, not a working tree.** A secret scan with `fetch-depth: 0`,
   `filter: blob:none` and a sparse checkout of the configuration files went from 294–350 s to
   about 40 s. Partial clones fetch missing blobs on demand, so a later step that widens the
