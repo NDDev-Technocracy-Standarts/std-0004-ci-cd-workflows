@@ -53,6 +53,9 @@ Linux, Windows and Apple runners. Remote delivery fixtures use isolated targets 
 main completion smoke checks artifact lineage and recovery. These checks do not establish every
 SDK combination, a production deployment, or acceptance on a physical remote server.
 
+Measured critical-path practices for gates, promotion, images and activation are in
+[speed practices](docs/speed.md).
+
 The [normative descriptor](standard.yml), [consumer guide](docs/usage.md),
 [executable example](docs/examples.md), and [origins](docs/origins.md) provide detailed navigation.
 [GitHub Releases](https://github.com/NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/releases)
