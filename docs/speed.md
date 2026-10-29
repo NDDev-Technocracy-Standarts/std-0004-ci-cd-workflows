@@ -75,6 +75,14 @@ nothing.
   issued in parallel, took 4 s where two sequential round trips per image took 95 s.
 - For layers that do rebuild, export `mode=max` registry cache per target (inline cache supports
   only `min`).
+- **Keep compiler cache mounts out of the layer cap.** BuildKit's default GC policies delete
+  cache mounts unused for 48 h and evict them with every other record under one size cap. The
+  compiler cache of the least frequently changed language goes first. Measured: a Rust workspace
+  built incrementally in 285 s; a day of other image builds under a 24 GB cap evicted its target
+  mount, and the next build compiled 421 crates in 39 min. Declare explicit `gcpolicy` rules:
+  `type==exec.cachemount` with its own duration and size, a separate cap for the other records,
+  and a ceiling that keeps the disk margin. A builder created from the file reads back with the
+  same parsed policy, so a drift check can compare it.
 
 ## Activation on existing hosts
 
