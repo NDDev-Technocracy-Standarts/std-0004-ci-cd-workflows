@@ -35,13 +35,12 @@ nothing.
 - **Fetch only what the job reads.** A sparse checkout without a filter still downloads every
   blob of the tree. A cone sparse checkout of a few files plus `filter: blob:none` fetched in
   3–4 s, where the full tree (558 MB of store exports) took 150–600 s.
-- **Mind what `blob:none` defers.** The checkout then fetches every blob of the sparse set on
-  demand, as a second request. On one set of runners that request ran at a fraction of the normal
-  rate: 16 MB took 15–18 min, while single-pack fetches on the same runners took 2–3 s. When a
-  few large files are the problem, `blob:limit=<size>` brings every smaller blob in the one fetch
-  (54 MB instead of 264 MB in the measured repository). Excluding the larger files from the
-  sparse set then leaves the checkout nothing to fetch. Time the checkout step, not only the
-  fetch.
+- **Count the bytes per transport.** On one set of runners, SSH moved 20–45 KB/s from the
+  forge, while HTTPS checkouts of the same repository finished in 6 s. The sparse set's on-demand
+  blobs (16 MB) took 15–18 min, and a `blob:limit=1m` pack (54 MB) took 20 min. Name only the
+  paths the job reads and fetch with `blob:none`, so only their blobs (2.4 MB) cross the slow
+  transport. Where a runner's HTTPS path is fast, prefer installation-token reads over deploy
+  keys. Time the checkout step, not only the fetch.
 - **A history scanner needs history, not a working tree.** A secret scan with `fetch-depth: 0`,
   `filter: blob:none` and a sparse checkout of the configuration files went from 294–350 s to
   about 40 s. Partial clones fetch missing blobs on demand, so a later step that widens the
