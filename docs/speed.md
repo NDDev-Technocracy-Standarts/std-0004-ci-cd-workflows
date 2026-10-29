@@ -1,111 +1,88 @@
 # Measured speed practices
 
-Non-normative guidance for R-0017 (optimization preserves obligations), R-0018 (owned caches),
-R-0007 and R-0020 (gates and admission). Each practice names what it removes from the critical
-path and the obligation it keeps. The numbers come from one adopting project's private
-self-hosted runners and existing hosts (28–29 Oct 2026). They show the order of magnitude, not a
-benchmark (R-0017: no speedup from one warm sample).
+Measure the current critical path before choosing an optimization. Retain the source revision,
+runner class, cold/warm state, queue and step durations, selected input sizes and failed attempts.
+Compare repeated observations under matching conditions. The practices below explain mechanisms;
+a project establishes its own improvement and verification evidence.
 
-## Find the critical path first
+Optimization retains the consumer's selected integration route, required checks, complete source
+identity and actual delivery result. This guide changes no project policy, cache route, runner or
+target configuration.
 
-Read the job and step timestamps of real runs before changing anything: queue time, `Set up
-job`, checkout and the work itself. In the measured project the work took 20–120 s while
-checkout took 150–630 s and `Set up job` up to 126 s. Optimizing the tests would have changed
-nothing.
+## Promotion and admission
 
-## Promotion
+Promote the exact eligible composition through the project's accepted route. Independent providers
+can qualify independently before the composition advances. Record the real head, base, workflow,
+attempt, aggregate and original artifact producer; successful feedback publication is separate.
 
-- **Fast-forward main to the verified dev commit** (STD-0003 R-0015) instead of a promotion pull
-  request with its own gate and merge commit. The production candidate is then the exact commit
-  dev verified, and full main validation still runs on its push (R-0020). Measured: promotion of
-  seven repositories went from 5.3 min (25–50 min while promotion PRs ran the full gate) to
-  seconds. Prerequisite: every main is an ancestor of dev. Fast-forward dev to main once when
-  main is only promotion merges ahead with equal trees. A main holding work dev lacks (a hotfix)
-  refuses until that work is merged into dev (STD-0003 R-0014).
-- **Promote side by side.** Independent repositories advance in parallel and the aggregate
-  (superproject) advances last, so one module's failure keeps the composition off main.
-- **Retry runner faults once, not changes.** Rerun only the failed jobs of a first attempt, as
-  native admission does, then let a repeated failure stand. Measured causes: a checkout that died
-  mid-fetch, a toolchain that vanished from a shared SDK, a run cancelled from outside. Never
-  cancel a validation run of a SHA that a later gate will read: the cancelled aggregate becomes
-  that SHA's latest result.
+Use ancestry-preserving fast-forward reconciliation where the selected branch contract permits it.
+Equal trees alone do not prove retained ancestry or authorize replacing a promotion PR. Preserve
+hotfixes, concurrent work and every legitimate task commit.
 
-## Checkout
+Diagnose a failed run before selecting a retry. Reconcile uncertain effects and the actual owning
+contract, preserve the first failure and admit the replacement attempt independently. A green
+unrelated job or an earlier attempt cannot replace the required current result.
 
-- **Fetch only what the job reads.** A sparse checkout without a filter still downloads every
-  blob of the tree. A cone sparse checkout of a few files plus `filter: blob:none` fetched in
-  3–4 s, where the full tree (558 MB of store exports) took 150–600 s.
-- **Count the bytes per transport.** On one set of runners, SSH moved 20–45 KB/s from the
-  forge, while HTTPS checkouts of the same repository finished in 6 s. The sparse set's on-demand
-  blobs (16 MB) took 15–18 min, and a `blob:limit=1m` pack (54 MB) took 20 min. Name only the
-  paths the job reads and fetch with `blob:none`, so only their blobs (2.4 MB) cross the slow
-  transport: the module checkout went from 15–20 min to 20 s. Where a runner's HTTPS path is
-  fast, prefer installation-token reads over deploy keys. Time the checkout step, not only the
-  fetch.
-- **A history scanner needs history, not a working tree.** A secret scan with `fetch-depth: 0`,
-  `filter: blob:none` and a sparse checkout of the configuration files went from 294–350 s to
-  about 40 s. Partial clones fetch missing blobs on demand, so a later step that widens the
-  sparse set needs the read token in its own environment. With `persist-credentials: false` it
-  is not in `.git/config`.
-- **Check through the API instead of checking out.** A gate that only compares ancestry and trees
-  reads `compare` and `git/commits` with `contents: read`. A `pull_request` run's `github.sha` is
-  GitHub's test merge, so no pulls API call (which needs `pull-requests: read`) is required.
-- On persistent runners a sparse setting can outlive its job. Use a checkout implementation that
-  resets it, or a fresh workspace per job.
+## Checkout and history
 
-## Runner setup
+Fetch the paths and objects the operation actually needs. The native checkout action supports
+sparse checkout and partial-clone filters such as blob:none; measure their real transport cost.
+Lazy object fetches still require the selected read authority. Keep ephemeral credentials within
+their authorized operation and preserve the action's credential-retention policy.
 
-- **Cache action archives on self-hosted runners.** The runner reads
-  `ACTIONS_RUNNER_ACTION_ARCHIVE_CACHE` (`{owner}_{repo}/{sha}.tar.gz`) before downloading an
-  action, which removes the per-job action downloads from `Set up job`. Keep the archives keyed by
-  the pinned SHAs.
-- **Keep git objects near the runner.** A bare mirror per repository on runner storage, used via
-  `--reference`/alternates, turns a full fetch into a fetch of the new objects (STD-0011 owns the
-  shared cache).
+A history scanner still needs its complete required history and referenced content. A missing
+object, failed fetch or incomplete scan remains unresolved. Inspect persistent sparse settings
+before another job reuses the workspace.
 
-## Images
+A verified local reference repository can reduce downloads. Its object ownership, retention and
+availability remain explicit; use native dissociation when an independent checkout is required.
+An optimization does not select a new public fallback or change a project's private registry policy.
 
-- **Key images by their inputs, not by the commit.** Digest the build specification, the
-  Dockerfile, the `.dockerignore` and the Git object of each path the target's stages copy or
-  bind-mount. An image whose inputs did not change keeps its tag and digest. Its containers are
-  then not replaced, and a docs or workflow change rebuilds nothing. Treat anything the parser
-  cannot resolve as the whole context, which costs a rebuild, never a stale image. A
-  whole-context image may still leave out the plain names its `.dockerignore` excludes.
-- **Ask the registry once per image, all at once.** One manifest-and-config inspection per image,
-  issued in parallel, took 4 s where two sequential round trips per image took 95 s.
-- For layers that do rebuild, export `mode=max` registry cache per target (inline cache supports
-  only `min`).
+## Native tools and shared inputs
 
-## Activation on existing hosts
+Prepare the project's selected toolchain before its commands execute. Callee bootstrap tools and
+project runtimes keep their own identities. Check the effective executable and interpreter after
+actions that affect PATH; use supported step contexts for job-owned temporary preparation.
 
-- **Replace only what changed.** Record each service's selected configuration digest and
-  container after activation, and replace a service only when either differs. Compose's own
-  `config-hash` label may disagree with `config --hash` for some services, so compare against
-  the record. The first release on a host replaces everything once. When a service is replaced,
-  log which configuration field names changed. Never log values, because the configuration
-  carries environment secrets.
-- **Settle only for what was replaced.** A fixed telemetry settle (90 s) is needed only after a
-  runtime restarted. A release that replaced nothing waits a few seconds.
-- **Reuse an identical recovery archive.** When the previous release archived exactly the same
-  image references, hard-link its archive and verify its recorded digest instead of saving the
-  images again (30 s).
-- **Reload instead of waiting out a resolver cache.** A proxy that resolves upstream names at
-  run time (nginx with `resolver ... valid=10s`) keeps each worker's cached address. A reload
-  starts workers that resolve afresh, and the old ones stop accepting connections. Wait for the
-  new worker generation (about 0.5 s) instead of the cache lifetime: a rolling replacement
-  dropped two 12 s waits.
-- **Poll readiness yourself or set `start_interval`.** A deploy that waits on Docker's health
-  status is bounded by the health `interval` (often 30 s). Running the health command directly
-  every 1–2 s, or `start_interval` (recent Docker Engine and Compose), makes readiness visible at
-  once.
-- **Bind directories, not single configuration files.** A single-file bind keeps the inode the
-  container was created with. A checkout that replaces the file then leaves reloads reading the
-  old configuration.
+Where the selected official runner supports an action archive cache, retain exact owner/repository,
+immutable action revision and verified archive bytes. A cache hit is byte transport, while native
+source and producer checks still establish acceptance. Existing SDK, shared-cache and host owners
+retain their scopes.
 
-## Sources
+## Container builds and cache mounts
 
-- [Ken Muse: runner images with an action archive cache](https://www.kenmuse.com/blog/building-github-actions-runner-images-with-an-action-archive-cache/)
-- [Depot: why organizations have slow actions/checkout](https://depot.dev/blog/why-organizations-have-slow-actions-checkout)
-- [actions/checkout reference cache proposal (ADR 2303)](https://git.libre-chip.org/actions/checkout/src/commit/090955f4b7c3c5e5b3f067c16ffb4d193e386e18/adrs/2303-reference-cache.md)
-- [Docker: cache storage backends](https://docs.docker.com/build/cache/backends/)
-- [Docker Compose healthcheck `start_interval`](https://docs.docker.com/reference/compose-file/services/#healthcheck)
+Include every semantically relevant Dockerfile, context, ignore rule, selected build argument,
+platform and external image reference in the build's native input identity. Unknown dependencies
+require a rebuild. Reuse an existing image only when the complete selected input and image identity
+are unchanged and the project's artifact contract permits reuse.
+
+Choose an export mode supported by the actual BuildKit backend. Layer export and mutable compiler
+cache mounts have different retention behavior. Docker evaluates ordered garbage-collection
+policies; an owning builder can assign measured age and capacity budgets to cache mounts and other
+records while preserving disk margin. Read the effective policy back through the selected builder.
+This source does not apply a builder policy or prune shared storage.
+
+## Target work and readiness
+
+An authorized delivery can avoid unchanged work when its current inputs, retained artifact and
+target state are actually established. Preserve configuration provenance and original recovery
+evidence. Log useful field names and digests while excluding secret values.
+
+Use the target's real readiness and recovery criteria. Tune supported health-check scheduling only
+while preserving those criteria; distinguish command success, container status, application readiness
+and confirmed recovery. A resolver reload, restart, copied archive or elapsed delay is not itself
+evidence that the consumer scenario works.
+
+Atomic replacement of a bind-mounted file can leave a container using an earlier inode. Select and
+qualify an appropriate native mount/update method for the actual application rather than treating
+configuration bytes on disk as proof the process loaded them.
+
+## Primary sources
+
+- [GitHub checkout inputs and credential behavior](https://github.com/actions/checkout#usage)
+- [Git clone reference and dissociation semantics](https://git-scm.com/docs/git-clone)
+- [GitHub workflow context availability](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#context-availability)
+- [Official runner action archive preparation](https://github.com/actions/runner/blob/main/src/Runner.Worker/ActionManager.cs)
+- [Docker cache storage backends](https://docs.docker.com/build/cache/backends/)
+- [Docker build garbage collection](https://docs.docker.com/build/cache/garbage-collection/)
+- [Compose health-check scheduling](https://docs.docker.com/reference/compose-file/services/#healthcheck)

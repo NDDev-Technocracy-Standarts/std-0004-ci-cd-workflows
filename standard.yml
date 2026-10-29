@@ -1,13 +1,12 @@
-apiVersion: std-0000.nddev.ai/v1alpha3
+apiVersion: std-0000.nddev.ai/v1alpha4
 kind: Standard
 metadata:
   id: std-0004
-  name: ci-cd-workflows
   title: NDDev CI/CD Workflows
   owner: rldyourmnd
 spec:
   edition:
-    version: 0.3.3
+    version: 0.3.4
     status: published
   purpose: Define a public modular CI/CD contract and reusable implementation with complete applicable
     feedback, no additional spend and coherent artifact delivery.
@@ -54,17 +53,13 @@ spec:
   relations:
   - type: authored-under
     target: std-0000
-    edition: 3.0.1
   - type: organized-by
     target: std-0001
-    edition: 2.0.0
   - type: see-also
     target: std-0002
-    edition: 0.1.0
     note: NDDev engineering execution; no proprietary corpus is imported into public runtime.
   - type: see-also
     target: std-0003
-    edition: 0.1.0
     note: NDDev GitHub workflow; CI/CD consumes the established integration model.
   must-understand: []
   item-history:
