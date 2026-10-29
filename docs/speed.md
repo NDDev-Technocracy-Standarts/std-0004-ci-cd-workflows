@@ -32,9 +32,16 @@ nothing.
 
 ## Checkout
 
-- **Fetch only what the job reads.** A sparse checkout without `filter: blob:none` still
-  downloads every blob of the tree. A cone sparse checkout plus `filter: blob:none` fetched 3–4 s
-  where the full tree (558 MB of store exports) took 150–600 s.
+- **Fetch only what the job reads.** A sparse checkout without a filter still downloads every
+  blob of the tree. A cone sparse checkout of a few files plus `filter: blob:none` fetched in
+  3–4 s, where the full tree (558 MB of store exports) took 150–600 s.
+- **Mind what `blob:none` defers.** The checkout then fetches every blob of the sparse set on
+  demand, as a second request. On one set of runners that request ran at a fraction of the normal
+  rate: 16 MB took 15–18 min, while single-pack fetches on the same runners took 2–3 s. When a
+  few large files are the problem, `blob:limit=<size>` brings every smaller blob in the one fetch
+  (54 MB instead of 264 MB in the measured repository). Excluding the larger files from the
+  sparse set then leaves the checkout nothing to fetch. Time the checkout step, not only the
+  fetch.
 - **A history scanner needs history, not a working tree.** A secret scan with `fetch-depth: 0`,
   `filter: blob:none` and a sparse checkout of the configuration files went from 294–350 s to
   about 40 s. Partial clones fetch missing blobs on demand, so a later step that widens the
@@ -82,6 +89,11 @@ nothing.
 - **Reuse an identical recovery archive.** When the previous release archived exactly the same
   image references, hard-link its archive and verify its recorded digest instead of saving the
   images again (30 s).
+- **Reload instead of waiting out a resolver cache.** A proxy that resolves upstream names at
+  run time (nginx with `resolver ... valid=10s`) keeps each worker's cached address. A reload
+  starts workers that resolve afresh, and the old ones stop accepting connections. Wait for the
+  new worker generation (about 0.5 s) instead of the cache lifetime: a rolling replacement
+  dropped two 12 s waits.
 - **Poll readiness yourself or set `start_interval`.** A deploy that waits on Docker's health
   status is bounded by the health `interval` (often 30 s). Running the health command directly
   every 1–2 s, or `start_interval` (recent Docker Engine and Compose), makes readiness visible at
