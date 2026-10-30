@@ -7,12 +7,116 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
-import time
 from pathlib import Path
 
 from .model import Invalid, atomic_json, identity
+
+
+def nds_environment(environment: dict) -> tuple[dict, dict] | None:
+    """Admit explicitly selected, digest-pinned native frontends without a second cache owner."""
+    selected = environment.get("NDDEV_CACHE_PROVIDER")
+    if not selected:
+        return None
+    if selected != "nds":
+        raise Invalid("Unsupported native cache provider")
+    if os.name == "nt":
+        raise Invalid("The selected NDS managed cache provider is qualified for Linux and macOS")
+    from .model import digest
+
+    paths = []
+    for key in ("NDS_CLEANER_BIN", "NDS_CLEANER_CONFIG"):
+        value = environment.get(key)
+        expected = environment.get(key + "_SHA256")
+        if (
+            not isinstance(value, str)
+            or not isinstance(expected, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", expected)
+        ):
+            raise Invalid("NDS cache requires explicit binary/configuration paths and SHA-256 pins")
+        path = Path(value)
+        if not path.is_absolute() or path.is_symlink() or not path.is_file():
+            raise Invalid("NDS cache binary/configuration does not match its admitted pin")
+        if key == "NDS_CLEANER_CONFIG" and path.stat().st_size > 16384:
+            raise Invalid("NDS cache configuration is not bounded")
+        if digest(path) != expected:
+            raise Invalid("NDS cache binary/configuration does not match its admitted pin")
+        paths.append(path)
+    binary, config = paths
+    try:
+        settings = json.loads(config.read_text())
+        root = Path(settings["root"])
+        prefix = Path(settings["frontends"])
+    except (ValueError, TypeError, KeyError) as error:
+        raise Invalid("NDS cache configuration is invalid") from error
+    retention = settings.get("retention_seconds")
+    if (
+        settings.get("schema") != 1
+        or type(retention) is not int
+        or not 86400 <= retention <= 365 * 86400
+        or retention % 86400
+    ):
+        raise Invalid("NDS cache requires an explicit supported whole-day idle policy")
+    if (
+        not root.is_absolute()
+        or root.is_symlink()
+        or root.resolve() != root
+        or not root.is_dir()
+        or (root / ".nds-cache").is_symlink()
+        or not (root / ".nds-cache").is_file()
+        or (root / ".nds-cache").stat().st_size > 128
+        or (root / ".nds-cache").read_bytes() != b"NDS managed rebuildable cache v1\n"
+    ):
+        raise Invalid("NDS cache root has no matching native ownership marker")
+    if os.name != "nt" and (root.stat().st_uid != os.geteuid() or root.stat().st_mode & 0o077):
+        raise Invalid("NDS cache root must belong privately to this execution account")
+    if (
+        not prefix.is_absolute()
+        or prefix.is_symlink()
+        or prefix.resolve() != prefix
+        or not prefix.is_dir()
+        or str(prefix) != environment.get("NDS_CACHE_FRONTENDS")
+    ):
+        raise Invalid("NDS cache frontend prefix differs from its admitted configuration")
+    for command in ("cargo", "uv", "bun"):
+        path = prefix / command
+        expected = (
+            "#!/bin/sh\n# NDS managed development cache frontend\nexec "
+            + shlex.join([str(binary), str(config), command])
+            + ' "$@"\n'
+        )
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or path.stat().st_size > 16384
+            or path.read_text() != expected
+        ):
+            raise Invalid("NDS cache frontends differ from the selected native owner")
+    try:
+        version = subprocess.check_output(
+            [str(binary), "--version"], text=True, env=environment, timeout=30
+        ).strip()
+    except (OSError, subprocess.SubprocessError, UnicodeError) as error:
+        raise Invalid("Selected NDS cache owner could not identify its qualified protocol") from error
+    if version != "nds-cleaner-cache 0.0.1-alpha.5":
+        raise Invalid("NDS cache artifact has no qualified protocol selection")
+    # Return only the preparation delta. Copying the callee's full environment
+    # into the caller contract would reintroduce its UV_PROJECT_ENVIRONMENT.
+    admitted = {"PATH": str(prefix) + os.pathsep + environment.get("PATH", "")}
+    observation = {
+        "schema": 1,
+        "provider": "nds",
+        "version": version,
+        "binary_sha256": environment["NDS_CLEANER_BIN_SHA256"],
+        "configuration_sha256": environment["NDS_CLEANER_CONFIG_SHA256"],
+        "retention_seconds": retention,
+        "managed_tools": ["cargo", "uv", "bun"],
+        "collection": "external_owner",
+        "hit_observed": False,
+    }
+    return admitted, observation
 
 
 @contextlib.contextmanager
@@ -146,42 +250,21 @@ def size(path: Path) -> int:
 
 
 def reclaim(root: Path, budget: int, min_free: int, ttl_seconds: int) -> list[str]:
+    """Retain opaque compiler payloads until a pinned native Cleaner owns them.
+
+    Namespace mtime, an unlocked library wrapper and storage pressure do not
+    prove completed native use or the absence of an inherited child/pin. This
+    compatibility entry point validates ownership without adopting/deleting
+    legacy data. Admission still enforces the caller's free-space reserve.
+    """
     if budget <= 0 or min_free < 0 or ttl_seconds < 1:
         raise Invalid("Explicit positive cache budget/TTL and available-disk reserve are required")
     owner = root / ".nddev-cache-owner.json"
     if (
         root.is_symlink()
         or not owner.exists()
+        or owner.is_symlink()
         or json.loads(owner.read_text()) != {"schema": 1, "owner": "nddev-cicd"}
     ):
         raise Invalid("No matching cache owner; nothing reclaimed")
-    removed = []
-    candidates = sorted(
-        (
-            p
-            for p in root.iterdir()
-            if p.is_dir() and not p.is_symlink() and re.fullmatch(r"[0-9a-f]{64}", p.name)
-        ),
-        key=lambda p: p.stat().st_mtime,
-    )
-    total = sum(size(p) for p in candidates)
-    for path in candidates:
-        if (
-            path.is_symlink()
-            or not (path / "identity.json").is_file()
-            or (path / ".sccache-active.json").exists()
-        ):
-            continue
-        expired = time.time() - path.stat().st_mtime > ttl_seconds
-        pressure = total > budget or shutil.disk_usage(root).free < min_free
-        if not expired and not pressure:
-            continue
-        try:
-            with lock(root / f"{path.name}.lock", blocking=False):
-                amount = size(path)
-                shutil.rmtree(path)  # only this producer's inactive identity namespace, never host-wide state
-                total -= amount
-                removed.append(path.name)
-        except (BlockingIOError, OSError):
-            continue
-    return removed
+    return []

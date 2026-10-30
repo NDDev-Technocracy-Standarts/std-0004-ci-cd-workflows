@@ -6,6 +6,149 @@ from nddev_cicd import cache
 from nddev_cicd.model import Invalid
 
 
+@pytest.fixture
+def nds_settings(tmp_path):
+    import hashlib
+    import json
+    import os
+    import shlex
+
+    if os.name == "nt":
+        pytest.skip("The native managed-cache protocol is qualified on Linux/macOS")
+    binary = tmp_path / "native-cleaner"
+    binary.write_text("#!/bin/sh\nprintf '%s\\n' 'nds-cleaner-cache 0.0.1-alpha.5'\n")
+    binary.chmod(0o755)
+    root = tmp_path / "native-root"
+    root.mkdir(mode=0o700)
+    (root / ".nds-cache").write_bytes(b"NDS managed rebuildable cache v1\n")
+    prefix = tmp_path / "native-frontends"
+    prefix.mkdir()
+    config = tmp_path / "native-config.json"
+    config.write_text(
+        json.dumps({"schema": 1, "root": str(root), "frontends": str(prefix), "retention_seconds": 86400})
+    )
+    for command in ("cargo", "uv", "bun"):
+        path = prefix / command
+        path.write_text(
+            "#!/bin/sh\n# NDS managed development cache frontend\nexec "
+            + shlex.join([str(binary), str(config), command])
+            + ' "$@"\n'
+        )
+        path.chmod(0o755)
+    return {
+        "NDDEV_CACHE_PROVIDER": "nds",
+        "NDS_CLEANER_BIN": str(binary),
+        "NDS_CLEANER_BIN_SHA256": hashlib.sha256(binary.read_bytes()).hexdigest(),
+        "NDS_CLEANER_CONFIG": str(config),
+        "NDS_CLEANER_CONFIG_SHA256": hashlib.sha256(config.read_bytes()).hexdigest(),
+        "NDS_CACHE_FRONTENDS": str(prefix),
+        "PATH": os.environ.get("PATH", ""),
+        "UV_PROJECT_ENVIRONMENT": "callee-library-environment",
+    }
+
+
+def test_native_provider_returns_only_caller_safe_environment_delta(nds_settings):
+    result = cache.nds_environment(nds_settings)
+    assert result is not None
+    delta, observed = result
+    assert set(delta) == {"PATH"}
+    assert delta["PATH"].startswith(nds_settings["NDS_CACHE_FRONTENDS"])
+    assert observed["provider"] == "nds" and observed["retention_seconds"] == 86400
+    assert observed["collection"] == "external_owner" and observed["hit_observed"] is False
+
+
+@pytest.mark.parametrize(
+    "changed", ["NDS_CLEANER_BIN_SHA256", "NDS_CLEANER_CONFIG_SHA256", "NDS_CACHE_FRONTENDS"]
+)
+def test_native_provider_rejects_changed_pins_before_execution(nds_settings, changed):
+    nds_settings[changed] = "mismatch"
+    with pytest.raises(Invalid):
+        cache.nds_environment(nds_settings)
+
+
+def test_native_provider_rejects_unrelated_frontend(nds_settings):
+    from pathlib import Path
+
+    (Path(nds_settings["NDS_CACHE_FRONTENDS"]) / "cargo").write_text("#!/bin/sh\nexit 0\n")
+    with pytest.raises(Invalid, match="frontends differ"):
+        cache.nds_environment(nds_settings)
+
+
+def test_native_provider_bypasses_legacy_targets_and_retains_caller_settings(
+    tmp_path, nds_settings, monkeypatch
+):
+    import json
+
+    from nddev_cicd import ci
+
+    contract = {
+        "profiles": ["rust"],
+        "environment": dict(
+            nds_settings,
+            UV_PROJECT_ENVIRONMENT="caller-project-environment",
+            CARGO_TARGET_DIR="caller-target",
+        ),
+    }
+    monkeypatch.setattr(cache, "namespace", lambda *a, **k: pytest.fail("second cache owner was selected"))
+
+    def execute(_root, selected, _output):
+        assert selected["environment"]["CARGO_TARGET_DIR"] == "caller-target"
+        assert selected["environment"]["UV_PROJECT_ENVIRONMENT"] == "caller-project-environment"
+        assert selected["environment"]["PATH"].startswith(nds_settings["NDS_CACHE_FRONTENDS"])
+        return {"status": "success"}
+
+    monkeypatch.setattr(ci, "_execute", execute)
+    assert ci._execute_cached(tmp_path, contract, tmp_path)["status"] == "success"
+    assert json.loads((tmp_path / "cache.json").read_text())["provider"] == "nds"
+
+
+@pytest.mark.parametrize("age", [0, 3 * 86400])
+def test_pressure_or_directory_age_cannot_authorize_opaque_payload_deletion(tmp_path, age):
+    import os
+    import time
+
+    root = tmp_path / "owned"
+    with cache.namespace(root, {"repository": "native-input"}) as payload:
+        data = payload / "retained-output"
+        data.write_bytes(b"x" * (2 * 1024**2))
+    os.utime(payload, (time.time() - age, time.time() - age))
+    assert cache.reclaim(root, 1024**2, 0, 86400) == []
+    assert data.read_bytes() == b"x" * (2 * 1024**2)
+
+
+def test_completed_wrapper_does_not_authorize_deletion_under_a_surviving_native_child(tmp_path):
+    import subprocess
+    import sys
+
+    root = tmp_path / "owned"
+    with cache.namespace(root, {"repository": "native-child"}) as payload:
+        data = payload / "native-output"
+        data.write_text("still in use")
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import pathlib,sys;print('ready',flush=True);sys.stdin.readline();print(pathlib.Path(sys.argv[1]).read_text())",
+                str(data),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        assert child.stdout is not None
+        assert child.stdout.readline().strip() == "ready"
+    try:
+        assert cache.reclaim(root, 1, 0, 86400) == []
+        output, error = child.communicate("continue\n", timeout=10)
+        assert child.returncode == 0, error
+        assert output.strip() == "still in use"
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.communicate(timeout=10)
+
+
 @pytest.mark.parametrize("existing_lock", [False, True])
 def test_foreign_cache_is_rejected_without_even_a_new_lock_file(tmp_path, existing_lock):
     foreign = tmp_path / "foreign"

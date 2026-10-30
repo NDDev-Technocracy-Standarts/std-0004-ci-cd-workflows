@@ -246,6 +246,21 @@ check. Keep shared immutable SDK inputs separate from mutable project and packag
 
 # Packages and owned caches
 
+Prepared Linux/macOS hosts can explicitly select `NDDEV_CACHE_PROVIDER=nds`.
+They supply absolute `NDS_CLEANER_BIN`, `NDS_CLEANER_CONFIG`, `NDS_CACHE_FRONTENDS`
+and the corresponding `NDS_CLEANER_BIN_SHA256`/`NDS_CLEANER_CONFIG_SHA256` pins.
+The currently qualified protocol selects Cleaner alpha.4 with an explicit whole-day
+`retention_seconds` policy. The library validates its pins, native ownership and
+argv-preserving frontends, then uses that preparation instead of creating a
+second Cargo target/cache owner. Its `cache.json` records the provider/policy and
+`collection: external_owner`; actual completed GC belongs to the owning native
+maintenance receipt. This record makes no hit claim. Explicit caller staging and
+project environment settings remain authoritative. A selected but missing,
+changed or unsupported provider fails instead of falling back to another store.
+This mode currently rejects separately selected ccache/sccache lifetime contracts;
+those require their own qualified integration. Public hosted callers remain
+independent of private bindings and credentials when no provider is selected.
+
 The Python consumer accepts a contained package.directory (default dist) and optional explicit
 package.imports for namespace/root-layout packages. It consumes the built wheel outside the checkout
 using the actual caller interpreter and locked runtime dependencies, separately from the library.
@@ -253,9 +268,12 @@ A failed build makes a dependent consumer/package test unavailable; stale output
 that the failed candidate built.
 
 Set NDDEV_CACHE_ROOT only for an owned Rust cache and declare cache_budget_bytes,
-cache_min_free_bytes, cache_ttl_seconds in the rust table. Reclamation touches only inactive matching
-namespaces, with a measured free-disk reserve. This is a retention budget and admission check, not a
-filesystem quota. Compiler stores, Cargo downloads/intermediates and retained final packages have
+cache_min_free_bytes, cache_ttl_seconds in the rust table. Opaque compiler namespace collection is
+deferred until a pinned native Cleaner has qualified ownership, completed-use, inherited-child and
+pin protection for that scope. Directory mtime and byte/free-space pressure do not authorize deletion.
+The library preserves legacy namespaces and reports `collection: deferred` in `cache.json`;
+the measured free-disk reserve still gates admission. These settings are policy/admission inputs,
+not a filesystem quota. Compiler stores, Cargo downloads/intermediates and retained final packages have
 distinct locations/controls. The default root Cargo package is staged into dist before cache cleanup;
 workspace/custom packaging uses its native project command.
 
@@ -284,7 +302,7 @@ stay shared across separate targets.
 
 Native Cargo target reuse works independently from optional sccache=true. Sccache disables Rust
 incremental compilation, holds the store lock for its complete server lifetime and stops that owned
-server before reclamation. Its compiler-store limit is half the declared budget, at most 2GiB.
+server before releasing the owned namespace. Its native compiler-store limit is half the declared budget, at most 2GiB.
 A failed stop protects the namespace for owner reconciliation. Windows uses the native Cargo cache;
 this local sccache mode currently requires Unix sockets. No shared-host prune or routine cargo clean
 is used. Native feature/MSRV/cross-target checks are selected native stage/extra commands.
@@ -296,8 +314,8 @@ a dedicated absolute `NDDEV_CCACHE_ROOT`, separately from Cargo storage. The Lin
 CMake C/C++ launcher variables select that binary; conflicting existing launchers fail rather than
 being overwritten. Native compiler-content keys and bounded owner namespaces preserve relevant
 toolchain, platform, configuration and trust context. The source result retains actual native
-hit/miss counters. A counter is evidence of cache behavior, not a promised speedup. Inactive cache
-reclamation follows the selected budget/reserve/TTL; published and rollback artifacts stay outside
+hit/miss counters. A counter is evidence of cache behavior, not a promised speedup. Opaque namespace
+collection remains deferred to the selected native owner; published and rollback artifacts stay outside
 compiler storage. Projects with other native build systems retain their explicit launcher commands.
 
 A caller-owned monorepo job can select an existing contained working-directory; the callee package
@@ -759,3 +777,6 @@ Failed, pending and cancelled pushes cannot advance that baseline. Missing histo
 selects every declared component. Shared inputs and dependency closure still apply. Superseding main
 CI can cancel obsolete source work; target mutations use their existing lock and recovery rules.
 A source-only repository has a package/documentation completion boundary and needs no invented server.
+
+The [native cache lifecycle](cache-lifecycle.md) describes placement, completed
+use, descendant protection and the qualification required before host adoption.
