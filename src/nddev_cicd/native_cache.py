@@ -127,7 +127,7 @@ def admit_environment(environment: dict) -> tuple[dict, dict] | None:
         central = central_index(environment)
     except InvalidUV as error:
         raise InvalidNativeCache(str(error)) from error
-    bridge = Path(__file__).parent / "native_frontends"
+    bridge = Path(__file__).resolve().parent / "native_frontends"
     admitted = {
         "PATH": os.pathsep.join(
             [*([str(bridge)] if central else []), str(prefix), environment.get("PATH", "")]
@@ -186,7 +186,7 @@ if __name__ == "__main__":
             os.execve(native, [native, *sys.argv[2:]], environment)
         if sys.argv[1:] != ["uv"]:
             raise InvalidNativeCache("Expected the native uv bootstrap selection")
-        print(str(Path(__file__).parent / "native_frontends/library-uv"))
+        print(str(Path(__file__).resolve().parent / "native_frontends/library-uv"))
     except subprocess.CalledProcessError as error:
         sys.exit(error.returncode)
     except (InvalidNativeCache, InvalidUV, OSError, UnicodeError) as error:
