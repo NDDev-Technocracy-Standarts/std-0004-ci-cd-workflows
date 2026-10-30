@@ -3,6 +3,12 @@ import subprocess
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolate_host_cache_provider(monkeypatch):
+    """Unit fixtures never borrow the executing host's private cache scope."""
+    monkeypatch.delenv("NDDEV_CACHE_PROVIDER", raising=False)
+
+
 @pytest.fixture
 def repository(tmp_path):
     root = tmp_path / "caller"

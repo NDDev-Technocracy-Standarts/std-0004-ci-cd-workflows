@@ -454,6 +454,19 @@ def execute(root: Path, contract: dict, output: Path) -> dict:
 
 
 def _execute_cached(root: Path, contract: dict, output: Path) -> dict:
+    from .cache import nds_environment
+
+    environment = {**os.environ, **{str(k): str(v) for k, v in contract.get("environment", {}).items()}}
+    native = nds_environment(environment)
+    if native is not None:
+        if "compiler_cache" in contract and {"c-cpp", "qt"} & set(selection(root, contract)[0]):
+            raise Invalid("The selected NDS provider has no qualified ccache namespace owner")
+        if contract.get("rust", {}).get("sccache"):
+            raise Invalid("The selected NDS provider has no qualified sccache lifetime selection")
+        admitted, observation = native
+        contract.setdefault("environment", {}).update(admitted)
+        atomic_json(output / "cache.json", observation)
+        return _execute(root, contract, output)
     if "compiler_cache" not in contract or not {"c-cpp", "qt"} & set(selection(root, contract)[0]):
         return _execute_with_rust_cache(root, contract, output)
     from .cache import compiler
@@ -564,6 +577,8 @@ def _execute_with_rust_cache(root: Path, contract: dict, output: Path) -> dict:
                 "downloads_present": downloads.is_dir(),
                 "downloads_shared": shared_downloads,
                 "sccache": bool(policy.get("sccache")),
+                "collection": "deferred",
+                "collection_reason": "qualified_native_cleaner_required",
             }
             atomic_json(output / "cache.json", observation)
             print(f"Cargo cache: {observation}", flush=True)
