@@ -23,9 +23,11 @@ runs:
         NDDEV_ACTION_PATH: ${{ github.action_path }}
         NDDEV_ROUTING_POLICY: ${{ inputs.policy }}
         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-admission-runtime
-        UV_CACHE_DIR: ${{ env.NDDEV_UV_CACHE_ROOT || format('{0}/nddev-downloads', runner.temp) }}
       run: |
         set -euo pipefail
+        if [[ -z "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+          export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        fi
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         library_uv="$(bash "$library/scripts/library-uv.sh")"
         printf '%s\n' "$NDDEV_ROUTING_POLICY" > "$RUNNER_TEMP/nddev-routing.json"

@@ -32,7 +32,9 @@ runs:
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         library_uv="$(bash "$library/scripts/library-uv.sh")"
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-rust-setup-runtime"
-        export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        if [[ -z "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+          export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        fi
         options=()
         case "$NDDEV_RUST_INSTALL" in
           true) ;;

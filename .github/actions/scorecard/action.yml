@@ -35,9 +35,11 @@ runs:
         NDDEV_ACTION_PATH: ${{ github.action_path }}
         NDDEV_REQUIRED_SCORES: ${{ inputs.required-scores }}
         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-assessment-runtime
-        UV_CACHE_DIR: ${{ runner.temp }}/nddev-assessment-downloads
       run: |
         set -euo pipefail
+        if [[ -z "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+          export UV_CACHE_DIR="$RUNNER_TEMP/nddev-assessment-downloads"
+        fi
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         library_uv="$(bash "$library/scripts/library-uv.sh")"
         "$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -c \

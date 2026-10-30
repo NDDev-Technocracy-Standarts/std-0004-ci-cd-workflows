@@ -1,5 +1,9 @@
 """Cache ownership/admission rejects mistakes before touching another producer's files."""
 
+import os
+import subprocess
+from pathlib import Path
+
 import pytest
 
 from nddev_cicd import cache
@@ -317,3 +321,41 @@ def test_opted_in_native_downloads_survive_independent_compiler_namespaces(tmp_p
     assert environments[-1]["CARGO_TARGET_DIR"] != environments[0]["CARGO_TARGET_DIR"]
     assert json.loads((output / "cache.json").read_text())["downloads_shared"] is False
     assert archive.read_bytes() == b"owner-provided native registry input"
+
+
+@pytest.mark.parametrize("changed", [None, "pin", "frontend", "provider"])
+def test_selected_bootstrap_uses_native_admission_without_public_fallback(tmp_path, nds_settings, changed):
+    # The bootstrap runs before package metadata exists; only native host Python is available.
+    marker = tmp_path / "public-request"
+    blocked = tmp_path / "blocked-network"
+    blocked.mkdir()
+    curl = blocked / "curl"
+    curl.write_text('#!/bin/sh\nprintf blocked > "$MARKER"\nexit 97\n')
+    curl.chmod(0o755)
+    environment = {
+        **nds_settings,
+        "PATH": str(blocked) + os.pathsep + os.environ["PATH"],
+        "RUNNER_TEMP": str(tmp_path),
+        "NDDEV_ARTIFACT_CACHE": str(tmp_path / "missing-prepared-store"),
+        "MARKER": str(marker),
+    }
+    if changed == "pin":
+        environment["NDS_CLEANER_CONFIG_SHA256"] = "0" * 64
+    elif changed == "frontend":
+        (Path(environment["NDS_CACHE_FRONTENDS"]) / "uv").write_text("#!/bin/sh\nexit 0\n")
+    elif changed == "provider":
+        environment["NDDEV_CACHE_PROVIDER"] = "unavailable"
+    result = subprocess.run(
+        ["bash", str(Path(__file__).parents[1] / "scripts/library-uv.sh")],
+        check=False,
+        env=environment,
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    assert result.returncode == (0 if changed is None else 2), result.stderr
+    assert result.stdout.strip() == (
+        str(Path(environment["NDS_CACHE_FRONTENDS"]) / "uv") if changed is None else ""
+    )
+    assert not marker.exists()
+    assert not list(tmp_path.glob("nddev-library-uv.*"))
