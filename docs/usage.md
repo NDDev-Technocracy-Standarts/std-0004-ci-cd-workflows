@@ -267,6 +267,33 @@ This mode currently rejects separately selected ccache/sccache lifetime contract
 those require their own qualified integration. Public hosted callers remain
 independent of private bindings and credentials when no provider is selected.
 
+Native store placement alone does not establish central network transport. An already admitted
+NDS host can additionally select `NDDEV_UV_CENTRAL_INDEX` with its existing central public PyPI
+index URL (HTTPS, or HTTP on loopback). The same shared bootstrap then returns the package-owned
+uv preparation bridge. Caller execution receives that bridge through the existing admission PATH
+delta; Cargo/Bun, native cache generations, installed environments and inherited leases retain
+their existing owner. No extra service, resolver, download cache or collector is installed.
+
+For project `uv sync` and `uv run`, native frozen exports select the requested groups, extras and
+workspace packages with the original hashes. Native uv prepares registry wheels and local
+`uv_build` or static Hatchling packages/build dependencies through the selected central index, then validates the
+original canonical lock with `uv sync --locked --offline`. Warm checks avoid reinstalling an
+already current environment; `uv run` keeps native inexact semantics unless `--exact` is selected.
+Explicit project environments and prepared Python selections are preserved. Final native uv uses
+CLI offline mode, so it does not impose `UV_OFFLINE` on the executed program's own environment.
+
+This bounded integration admits canonical public PyPI and local/workspace sources inside that
+workspace with qualified `uv_build` or static `hatchling.build` backends. Additional/private indexes, direct URL/VCS
+dependencies, external local paths, script/`--with` environments, registry source builds and other
+local backends/Hatch hooks or dynamic metadata need separate qualification and fail before online preparation. Native exports,
+pip wheel-consumer operations and build operations outside project sync/run consume offline inputs
+only; this bridge is not an online replacement for arbitrary uv commands. It never rewrites a
+manifest or lock to change its index. Index URLs cannot contain credentials; unsupported private
+closures fail instead of changing their native credential precedence. Public hosted CI without
+the explicit selection keeps its autonomous bootstrap. A central endpoint still requires its
+owner's actual cold/warm/fresh-offline/outage transport acceptance; the configured URL is not a
+cache-hit assertion or evidence of installation across hosts.
+
 The Python consumer accepts a contained package.directory (default dist) and optional explicit
 package.imports for namespace/root-layout packages. It consumes the built wheel outside the checkout
 using the actual caller interpreter and locked runtime dependencies, separately from the library.

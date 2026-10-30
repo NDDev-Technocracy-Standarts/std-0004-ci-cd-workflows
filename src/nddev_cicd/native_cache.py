@@ -10,6 +10,12 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING or __package__:
+    from .native_uv import InvalidUV, central_index, execute
+else:
+    from native_uv import InvalidUV, central_index, execute
 
 
 class InvalidNativeCache(ValueError):
@@ -28,6 +34,8 @@ def admit_environment(environment: dict) -> tuple[dict, dict] | None:
     """Admit explicitly selected, digest-pinned native frontends without a second cache owner."""
     selected = environment.get("NDDEV_CACHE_PROVIDER")
     if not selected:
+        if "NDDEV_UV_CENTRAL_INDEX" in environment:
+            raise InvalidNativeCache("Central uv preparation requires the explicit native cache provider")
         return None
     if selected != "nds":
         raise InvalidNativeCache("Unsupported native cache provider")
@@ -115,7 +123,16 @@ def admit_environment(environment: dict) -> tuple[dict, dict] | None:
         raise InvalidNativeCache("NDS cache artifact has no qualified protocol selection")
     # Return only the preparation delta. Copying the callee's full environment
     # into the caller contract would reintroduce its UV_PROJECT_ENVIRONMENT.
-    admitted = {"PATH": str(prefix) + os.pathsep + environment.get("PATH", "")}
+    try:
+        central = central_index(environment)
+    except InvalidUV as error:
+        raise InvalidNativeCache(str(error)) from error
+    bridge = Path(__file__).parent / "native_frontends"
+    admitted = {
+        "PATH": os.pathsep.join(
+            [*([str(bridge)] if central else []), str(prefix), environment.get("PATH", "")]
+        )
+    }
     observation = {
         "schema": 1,
         "provider": "nds",
@@ -126,18 +143,29 @@ def admit_environment(environment: dict) -> tuple[dict, dict] | None:
         "managed_tools": ["cargo", "uv", "bun"],
         "collection": "external_owner",
         "hit_observed": False,
+        "uv_transport": "central_preparation_then_locked_offline" if central else "native_store_only",
     }
     return admitted, observation
 
 
 if __name__ == "__main__":
     try:
-        if sys.argv[1:] != ["uv"]:
+        if not sys.argv[1:] or sys.argv[1] not in {"uv", "run-uv"}:
             raise InvalidNativeCache("Expected the native uv bootstrap selection")
         selection = admit_environment(dict(os.environ))
         if selection is None:
             raise InvalidNativeCache("Native bootstrap requires an explicit cache provider")
-        print(str(Path(os.environ["NDS_CACHE_FRONTENDS"]) / "uv"))
-    except (InvalidNativeCache, OSError, UnicodeError) as error:
+        if sys.argv[1] == "run-uv":
+            sys.exit(execute(sys.argv[2:], dict(os.environ)))
+        if sys.argv[1:] != ["uv"]:
+            raise InvalidNativeCache("Expected the native uv bootstrap selection")
+        print(
+            str(Path(__file__).parent / "native_frontends/uv")
+            if central_index(dict(os.environ))
+            else str(Path(os.environ["NDS_CACHE_FRONTENDS"]) / "uv")
+        )
+    except subprocess.CalledProcessError as error:
+        sys.exit(error.returncode)
+    except (InvalidNativeCache, InvalidUV, OSError, UnicodeError) as error:
         print(f"Native cache bootstrap unavailable: {error}", file=sys.stderr)
         sys.exit(2)
