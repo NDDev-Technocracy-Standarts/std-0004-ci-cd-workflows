@@ -6,11 +6,11 @@ Select a requirement to read its statement and applicability. Verification bindi
 mechanical coverage and do not replace semantic review.
 
 | ID | Principle |
-|---|---|
+| --- | --- |
 | [P-0001](../spec/intent.md) | Complete feedback at the smallest sufficient cost |
 
 | ID | Strength | Title | Applies | Verification | Verified by |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | [R-0001](../spec/foundation.md) | MUST | One public modular implementation | condition (item): The subject defines or distributes the reusable library. | review | None |
 | [R-0002](../spec/foundation.md) | MUST | Explicit legal ownership | condition (item): The subject publishes or redistributes library material. | review | None |
 | [R-0003](../spec/foundation.md) | MUST | Versioned and discoverable module contracts | condition (item): The subject supplies or adopts a module interface. | review | None |

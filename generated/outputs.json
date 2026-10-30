@@ -3,15 +3,15 @@
   "kind": "OutputLedger",
   "generator": {
     "name": "nddev-std0000",
-    "version": "1.3.4"
+    "version": "1.3.6"
   },
   "outputs": {
     "generated/corpus.json": {
-      "sha256": "7a8af0d10e67e4ed1c05cad11050aeb2c8e5219cb0200fa902ee69e9db898775",
+      "sha256": "1196ff6d29a0da1450bf28515804dc588d83e2ce057d7191827778ec969b9f87",
       "state": "current"
     },
     "generated/index.md": {
-      "sha256": "85d4b963b401a2338ae695cc52c0f963b97a371269128f212dec93d8a8075dc2",
+      "sha256": "dea264c8212d6c850512c80d32ca9b977d99e8eb698ffa2b3819f04211ab1486",
       "state": "current"
     }
   }

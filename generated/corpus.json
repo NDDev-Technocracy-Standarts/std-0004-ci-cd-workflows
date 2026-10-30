@@ -1,15 +1,15 @@
 {
-  "apiVersion": "std-0000.nddev.ai/v1alpha2",
+  "apiVersion": "std-0000.nddev.ai/v1alpha3",
   "kind": "Corpus",
   "compiler": {
     "name": "nddev-std0000",
-    "version": "1.3.4"
+    "version": "1.3.6"
   },
   "standard": {
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -35,24 +35,20 @@
     "relations": [
       {
         "type": "authored-under",
-        "target": "std-0000",
-        "edition": "3.0.1"
+        "target": "std-0000"
       },
       {
         "type": "organized-by",
-        "target": "std-0001",
-        "edition": "2.0.0"
+        "target": "std-0001"
       },
       {
         "type": "see-also",
         "target": "std-0002",
-        "edition": "0.1.0",
         "note": "NDDev engineering execution; no proprietary corpus is imported into public runtime."
       },
       {
         "type": "see-also",
         "target": "std-0003",
-        "edition": "0.1.0",
         "note": "NDDev GitHub workflow; CI/CD consumes the established integration model."
       }
     ]
@@ -92,11 +88,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "3d6d971589a6b06682894811fdb87ef0dde08ea56d3b4595e1838586f60d7bd0"
+      "sha256": "1e68b6658b119253c8a9e6c7446ea528d65065b4d8d5f190b330a9546dacf03a"
     }
   ],
   "listings": [],
-  "inputs-sha256": "6bc31bfc96502fca74cf99993efe974624879652f0514d80d0c65c1ebbc5eed6",
+  "inputs-sha256": "dc8edff72a7b46402abff119ece959215c520939e9c649ab876663a32502b758",
   "verification": [
     {
       "id": "runtime.advanced",
