@@ -30,9 +30,11 @@ runs:
         NDDEV_TRANSPORT_CONFIG: ${{ inputs.transport-config }}
         NDDEV_REMOTE_ENVIRONMENT: ${{ inputs.remote-environment }}
         UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-delivery-runtime
-        UV_CACHE_DIR: ${{ env.NDDEV_UV_CACHE_ROOT || format('{0}/nddev-downloads', runner.temp) }}
       run: |
         set -euo pipefail
+        if [[ -z "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+          export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        fi
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         library_uv="$(bash "$library/scripts/library-uv.sh")"
         transport=()
