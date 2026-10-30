@@ -3,7 +3,7 @@
 set -euo pipefail
 : "${RUNNER_TEMP:?Use an owned job temporary directory}"
 # An explicit native binding owns bootstrap too; a miss must not select public transport.
-if [[ -n "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+if [[ -n "${NDDEV_CACHE_PROVIDER:-}" || -n "${NDDEV_UV_CENTRAL_INDEX+x}" ]]; then
   if ! command -v python3 >/dev/null 2>&1; then
     echo 'Selected native cache bootstrap requires the prepared host Python' >&2
     exit 2
