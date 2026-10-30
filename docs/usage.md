@@ -149,7 +149,7 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 
 # Admission and delivery
 
-The draft standard permits an explicitly owner-selected project advisory exception; it is never a
+The selected standard permits an explicitly owner-selected project advisory exception; it is never a
 global ignore or a green CI result. The existing `eligible`/`deliver` path remains strict. A project
 that selects this exception implements its native admission adapter: verify the latest complete
 main attempt and successful scans, admit only known advisory-policy findings, bind report/artifact
