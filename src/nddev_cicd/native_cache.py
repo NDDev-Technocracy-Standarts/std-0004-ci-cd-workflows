@@ -10,8 +10,9 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-if __package__:
+if TYPE_CHECKING or __package__:
     from .native_uv import InvalidUV, central_index, execute
 else:
     from native_uv import InvalidUV, central_index, execute
