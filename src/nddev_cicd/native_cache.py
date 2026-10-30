@@ -148,22 +148,45 @@ def admit_environment(environment: dict) -> tuple[dict, dict] | None:
     return admitted, observation
 
 
+def bootstrap_environment(environment: dict) -> dict:
+    """Isolate the library callee without changing the caller's explicit project settings."""
+    child = {
+        key: value
+        for key, value in environment.items()
+        if key not in {"UV_PROJECT_ENVIRONMENT", "UV_PROJECT", "UV_WORKING_DIR", "VIRTUAL_ENV", "PYTHONPATH"}
+    }
+    if admit_environment(child) is None:
+        raise InvalidNativeCache("Native bootstrap requires an explicit cache provider")
+    settings = json.loads(Path(child["NDS_CLEANER_CONFIG"]).read_text())
+    root = settings.get("environment_root")
+    if not isinstance(root, str) or not Path(root).is_absolute():
+        raise InvalidNativeCache(
+            "Native library bootstrap requires the configured protected environment root"
+        )
+    # The pinned native owner validates/initializes its marker, ownership,
+    # filesystem and placement. Do not create or reproduce its environment hash.
+    return child
+
+
 if __name__ == "__main__":
     try:
-        if not sys.argv[1:] or sys.argv[1] not in {"uv", "run-uv"}:
+        if not sys.argv[1:] or sys.argv[1] not in {"uv", "library-uv", "run-uv"}:
             raise InvalidNativeCache("Expected the native uv bootstrap selection")
-        selection = admit_environment(dict(os.environ))
-        if selection is None:
-            raise InvalidNativeCache("Native bootstrap requires an explicit cache provider")
+        environment = dict(os.environ)
+        if sys.argv[1] in {"uv", "library-uv"}:
+            environment = bootstrap_environment(environment)
+        elif admit_environment(environment) is None:
+            raise InvalidNativeCache("Native cache execution requires an explicit cache provider")
         if sys.argv[1] == "run-uv":
-            sys.exit(execute(sys.argv[2:], dict(os.environ)))
+            sys.exit(execute(sys.argv[2:], environment))
+        if sys.argv[1] == "library-uv":
+            if central_index(environment):
+                sys.exit(execute(sys.argv[2:], environment))
+            native = str(Path(environment["NDS_CACHE_FRONTENDS"]) / "uv")
+            os.execve(native, [native, *sys.argv[2:]], environment)
         if sys.argv[1:] != ["uv"]:
             raise InvalidNativeCache("Expected the native uv bootstrap selection")
-        print(
-            str(Path(__file__).parent / "native_frontends/uv")
-            if central_index(dict(os.environ))
-            else str(Path(os.environ["NDS_CACHE_FRONTENDS"]) / "uv")
-        )
+        print(str(Path(__file__).parent / "native_frontends/library-uv"))
     except subprocess.CalledProcessError as error:
         sys.exit(error.returncode)
     except (InvalidNativeCache, InvalidUV, OSError, UnicodeError) as error:

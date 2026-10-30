@@ -258,7 +258,13 @@ maintenance receipt. This record makes no hit claim. Explicit caller staging and
 project environment settings remain authoritative. A selected but missing,
 changed or unsupported provider fails instead of falling back to another store.
 The shared bootstrap validates the same pinned owner before preparing the library,
-then returns its native uv frontend. A missing or invalid explicit selection fails
+then returns its package-owned library uv entrypoint. It requires the native
+configuration's protected `environment_root`, and removes inherited project,
+virtual-environment and import-path overrides only from the callee's child environment.
+This includes a composite's job-temporary `UV_PROJECT_ENVIRONMENT`: the native
+owner selects the library environment in its protected store instead. Caller
+admission retains its separate uv entrypoint and explicit project settings.
+No shared-host profile or caller environment is rewritten. A missing or invalid explicit selection fails
 without downloading a temporary public uv. Composite entrypoints preserve managed
 cache routing; their download defaults apply only without a selected provider.
 The prepared native host supplies Python for this admission. Interpreter, locked
