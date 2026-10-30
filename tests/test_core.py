@@ -148,7 +148,8 @@ def test_cache_ownership_actual_lock_and_budget(tmp_path):
         )
         assert result.returncode != 0
         assert cache.reclaim(root, 1, 0, 1) == []
-    assert cache.reclaim(root, 1, 0, 1) == [owned.name]
+    assert cache.reclaim(root, 1, 0, 1) == []
+    assert (owned / "data").read_bytes() == b"x" * 100
     alien = tmp_path / "alien"
     alien.mkdir()
     (alien / "valuable").write_text("keep")
@@ -411,7 +412,8 @@ def test_cache_reclamation_preserves_a_server_pending_reconciliation(tmp_path):
     assert cache.reclaim(root, 1, 0, 1) == []
     assert (owned / "data").read_bytes() == b"x" * 128
     (owned / ".sccache-active.json").unlink()
-    assert cache.reclaim(root, 1, 0, 1) == [owned.name]
+    assert cache.reclaim(root, 1, 0, 1) == []
+    assert (owned / "data").read_bytes() == b"x" * 128
 
 
 def test_deployment_rejects_foreign_release_owner_and_unscoped_waiver(repository, tmp_path):
