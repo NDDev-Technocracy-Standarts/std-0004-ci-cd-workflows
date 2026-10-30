@@ -29,7 +29,15 @@ def nds_settings(tmp_path):
     prefix.mkdir()
     config = tmp_path / "native-config.json"
     config.write_text(
-        json.dumps({"schema": 1, "root": str(root), "frontends": str(prefix), "retention_seconds": 86400})
+        json.dumps(
+            {
+                "schema": 1,
+                "root": str(root),
+                "frontends": str(prefix),
+                "retention_seconds": 86400,
+                "environment_root": str(tmp_path / "native-environments"),
+            }
+        )
     )
     for command in ("cargo", "uv", "bun"):
         path = prefix / command
@@ -355,7 +363,49 @@ def test_selected_bootstrap_uses_native_admission_without_public_fallback(tmp_pa
     )
     assert result.returncode == (0 if changed is None else 2), result.stderr
     assert result.stdout.strip() == (
-        str(Path(environment["NDS_CACHE_FRONTENDS"]) / "uv") if changed is None else ""
+        str(Path(__file__).parents[1] / "src/nddev_cicd/native_frontends/library-uv")
+        if changed is None
+        else ""
     )
     assert not marker.exists()
     assert not list(tmp_path.glob("nddev-library-uv.*"))
+
+
+def test_library_bootstrap_strips_only_callee_overrides_and_keeps_caller_input(nds_settings):
+    from nddev_cicd.native_cache import bootstrap_environment
+
+    original = dict(
+        nds_settings,
+        UV_PROJECT="caller-project",
+        UV_WORKING_DIR="caller-directory",
+        VIRTUAL_ENV="caller-active",
+        PYTHONPATH="caller-imports",
+        UV_PYTHON="3.13",
+    )
+    child = bootstrap_environment(original)
+    assert original["UV_PROJECT_ENVIRONMENT"] == "callee-library-environment"
+    assert original["UV_PROJECT"] == "caller-project"
+    assert (
+        not {"UV_PROJECT_ENVIRONMENT", "UV_PROJECT", "UV_WORKING_DIR", "VIRTUAL_ENV", "PYTHONPATH"}
+        & child.keys()
+    )
+    assert child["UV_PYTHON"] == "3.13"
+    admitted = cache.nds_environment(nds_settings)
+    assert admitted is not None and set(admitted[0]) == {"PATH"}
+
+
+def test_selected_library_bootstrap_refuses_missing_protected_environment_root(nds_settings):
+    import hashlib
+    import json
+
+    from nddev_cicd.native_cache import InvalidNativeCache, bootstrap_environment
+
+    path = Path(nds_settings["NDS_CLEANER_CONFIG"])
+    settings = json.loads(path.read_text())
+    settings.pop("environment_root")
+    path.write_text(json.dumps(settings))
+    nds_settings["NDS_CLEANER_CONFIG_SHA256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    with pytest.raises(InvalidNativeCache, match="protected environment root"):
+        bootstrap_environment(nds_settings)
+    # An explicit caller environment still has its independent native admission.
+    assert cache.nds_environment(nds_settings) is not None
