@@ -249,7 +249,7 @@ check. Keep shared immutable SDK inputs separate from mutable project and packag
 Prepared Linux/macOS hosts can explicitly select `NDDEV_CACHE_PROVIDER=nds`.
 They supply absolute `NDS_CLEANER_BIN`, `NDS_CLEANER_CONFIG`, `NDS_CACHE_FRONTENDS`
 and the corresponding `NDS_CLEANER_BIN_SHA256`/`NDS_CLEANER_CONFIG_SHA256` pins.
-The currently qualified protocol selects Cleaner alpha.4 with an explicit whole-day
+The currently qualified protocol selects Cleaner alpha.5 with an explicit whole-day
 `retention_seconds` policy. The library validates its pins, native ownership and
 argv-preserving frontends, then uses that preparation instead of creating a
 second Cargo target/cache owner. Its `cache.json` records the provider/policy and
@@ -257,6 +257,12 @@ second Cargo target/cache owner. Its `cache.json` records the provider/policy an
 maintenance receipt. This record makes no hit claim. Explicit caller staging and
 project environment settings remain authoritative. A selected but missing,
 changed or unsupported provider fails instead of falling back to another store.
+The shared bootstrap validates the same pinned owner before preparing the library,
+then returns its native uv frontend. A missing or invalid explicit selection fails
+without downloading a temporary public uv. Composite entrypoints preserve managed
+cache routing; their download defaults apply only without a selected provider.
+The prepared native host supplies Python for this admission. Interpreter, locked
+library environment preparation and real offline reuse still need host acceptance.
 This mode currently rejects separately selected ccache/sccache lifetime contracts;
 those require their own qualified integration. Public hosted callers remain
 independent of private bindings and credentials when no provider is selected.

@@ -2,6 +2,14 @@
 # Bootstrap only the callee's uv; never write caller PATH or shared-host packages.
 set -euo pipefail
 : "${RUNNER_TEMP:?Use an owned job temporary directory}"
+# An explicit native binding owns bootstrap too; a miss must not select public transport.
+if [[ -n "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo 'Selected native cache bootstrap requires the prepared host Python' >&2
+    exit 2
+  fi
+  exec python3 "$(dirname "${BASH_SOURCE[0]}")/../src/nddev_cicd/native_cache.py" uv
+fi
 case "$(uname -s):$(uname -m)" in
   Linux:x86_64) target=x86_64-unknown-linux-gnu; checksum=f68d291c75783122dad58ab77def0e13f3233f358731db5d6d7e8715603b928f ;;
   Linux:aarch64) target=aarch64-unknown-linux-gnu; checksum=4bb69cf95ed13f23713bb7bc09f241896ea0c75b7c557e615a20604b82f9c403 ;;

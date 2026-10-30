@@ -63,7 +63,9 @@ runs:
         export NDDEV_LIBRARY_REPOSITORY="${NDDEV_LIBRARY_REPOSITORY:-$GITHUB_REPOSITORY}"
         export NDDEV_LIBRARY_REF="${NDDEV_LIBRARY_REF:-$(git -C "$library" rev-parse HEAD)}"
         export UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/nddev-library-runtime"
-        export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        if [[ -z "${NDDEV_CACHE_PROVIDER:-}" ]]; then
+          export UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$RUNNER_TEMP/nddev-downloads}"
+        fi
         project_root="$("$library_uv" run --project "$library" --locked --no-dev --python 3.13 python -c \
           'import os; from pathlib import Path; from nddev_cicd.model import contained; print(contained(Path(os.environ["GITHUB_WORKSPACE"]),os.environ["NDDEV_WORKING_DIRECTORY"],exists=True))')"
         directory="$RUNNER_TEMP/nddev-source-$NDDEV_RESULT_KEY"
