@@ -41,16 +41,21 @@ strength: MUST
 basis: owner
 verification: review
 criteria: Check a supported caller, invalid input and compatible upgrade without a duplicated project
-  recipe.
+  recipe; inspect the caller's update channel and confirm every pinned source still resolves to a
+  maintained origin.
 sources:
 - gha-reuse
+- dependabot-options
 applies-when: The subject supplies or adopts a module interface.
 ```
 
 Each delivered module MUST expose its purpose, supported inputs, platform requirements, results and
 limits. Project manifests and lockfiles remain the source for project-specific dependencies and
 commands. Adopted workflow/action references identify immutable compatible source; updates are normal
-reviewed changes, not a mutable main reference silently changing every consumer. Standard edition,
+reviewed changes, not a mutable main reference silently changing every consumer. Each consumer keeps
+a scheduled update channel for those references, such as reviewed update proposals delayed by a
+release cooldown, so pins follow current compatible releases. A reference to a retired, transferred
+or unavailable source is a defect corrected by a reviewed migration, not a stable pin. Standard edition,
 implementation version, runtime schema and consumer product version remain separate identities.
 
 ## R-0004 Visibility and platform select execution

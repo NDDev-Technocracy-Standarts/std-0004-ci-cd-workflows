@@ -74,8 +74,8 @@ install_archive 'https://github.com/rhysd/actionlint/releases/download/v1.7.12/a
   '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8' actionlint
 install_archive 'https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-musl.tar.gz' \
   '73657a111819a30c47c08352896796f23d64e4eb2b3ed39b6d32149241566fc5' lychee
-install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.30.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
-  'e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a' zizmor
+install_archive 'https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-x86_64-unknown-linux-gnu.tar.gz' \
+  'd185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99' zizmor
 for capability in $unique; do
 if [[ "$capability" == rust || "$capability" == quality ]]; then
   install_archive 'https://github.com/bnjbvr/cargo-machete/releases/download/v0.9.2/cargo-machete-v0.9.2-x86_64-unknown-linux-musl.tar.gz' \
@@ -104,8 +104,14 @@ if [[ "$capability" == rust ]]; then
     '9f12ed4c49936e09b48bf862b595cde2fe64fcbd9d74dfacac6131ca824c8d5f' cargo-deny
   install_archive 'https://github.com/mozilla/sccache/releases/download/v0.18.0/sccache-v0.18.0-x86_64-unknown-linux-musl.tar.gz' \
     '45f1447fbe231e3037bde351ef70677dd212216c8d62ae7ca409fecc4d6acc89' sccache
+  install_archive 'https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.22.2/cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz' \
+    '7fb9497f8594b389e5fce5ef9b92db08432996895b2e0c5a0167a69ed445c428' cargo-audit
+  install_archive 'https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-0.9.149/cargo-nextest-0.9.149-x86_64-unknown-linux-musl.tar.gz' \
+    'd65c7f14bcb5c1566d1ecd534c5da8dedb81ba58586e478b0ab81c877d2bd8ad' cargo-nextest
   "$tools/cargo-deny" --version
   "$tools/sccache" --version
+  "$tools/cargo-audit" --version
+  "$tools/cargo-nextest" --version
 fi
 if [[ "$capability" == security ]]; then
   install_archive 'https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz' \
