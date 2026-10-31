@@ -17,7 +17,7 @@ jobs:
       actions: read # Read native run metadata only; no failed-run artifacts or checkout.
       issues: write # Publish deduplicated failure Issues for the owning agent.
     if: ${{ github.event_name == 'workflow_dispatch' || contains(fromJSON('["failure","timed_out","action_required","startup_failure","stale"]'), github.event.workflow_run.conclusion) }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/feedback@60f52ba1978b97343483a45d22edb6e338e0e3f5

@@ -9,7 +9,7 @@ from pathlib import Path
 from .model import Invalid, Unavailable
 
 PLATFORMS = {"linux", "windows", "macos"}
-STANDARD = {"linux": "ubuntu-24.04", "windows": "windows-2025", "macos": "macos-15"}
+STANDARD = {"linux": "ubuntu-26.04", "windows": "windows-2025", "macos": "macos-15"}
 
 
 def caller_policy(policy: dict) -> dict:

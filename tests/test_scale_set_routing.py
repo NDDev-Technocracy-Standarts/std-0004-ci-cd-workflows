@@ -60,4 +60,4 @@ def test_untrusted_source_and_ambiguous_classic_labels_are_refused():
 
 def test_public_route_never_uses_a_private_scale_set():
     result = routing.select("public", "linux", admission=policy())
-    assert result["runner"] == ["ubuntu-24.04"] and result["provider"] == "github"
+    assert result["runner"] == ["ubuntu-26.04"] and result["provider"] == "github"

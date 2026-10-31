@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   source:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -32,7 +32,7 @@ jobs:
     - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
   native:
     name: native (${{ matrix.profile }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -176,7 +176,7 @@ jobs:
     if: ${{ needs.impact-plan.outputs.native == 'true' }}
   impact-plan:
     name: Affected main validation
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -218,7 +218,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-        - ubuntu-24.04
+        - ubuntu-26.04
         - windows-2025
         - macos-15
     defaults:
@@ -283,7 +283,7 @@ jobs:
 
         '
   admission:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
       windows: ${{ steps.windows.outputs.runner }}
@@ -339,7 +339,7 @@ jobs:
       run: uv run --locked python tests/run_native.py swift --output "$RUNNER_TEMP/native-swift"
     if: ${{ needs.impact-plan.outputs.apple == 'true' }}
   delivery:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -358,7 +358,7 @@ jobs:
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.runtime == 'true' }}
   advanced-native:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
     - name: Select an owned job-local Cargo dependency cache
@@ -394,7 +394,7 @@ jobs:
   native-quality:
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.quality == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -435,7 +435,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, windows-2025, macos-15]
+        os: [ubuntu-26.04, windows-2025, macos-15]
     defaults:
       run:
         shell: bash
@@ -501,7 +501,7 @@ jobs:
   native-assessment:
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.assessment == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -518,7 +518,7 @@ jobs:
   native-clusterfuzz:
     needs: impact-plan
     if: ${{ needs.impact-plan.outputs.clusterfuzz == 'true' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -593,7 +593,7 @@ jobs:
     if: ${{ needs.impact-plan.outputs.runtime == 'true' }}
   online-refs:
     name: Native online action reference audit
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -626,7 +626,7 @@ jobs:
     - native-assessment
     - native-clusterfuzz
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
