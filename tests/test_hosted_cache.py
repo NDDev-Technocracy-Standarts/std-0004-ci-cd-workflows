@@ -15,7 +15,7 @@ def workspace(tmp_path: Path) -> Path:
     root = tmp_path / "workspace"
     (root / "app").mkdir(parents=True)
     (root / "app" / "Cargo.lock").write_text("version = 4\n")
-    (root / "app" / "uv.lock").write_text("version = 1\n")
+    (root / "app" / "go.sum").write_text("example.com/m v1.0.0 h1:x\n")
     (root / "app" / "web").mkdir()
     (root / "app" / "web" / "bun.lock").write_text("{}\n")
     (root / "app" / "node_modules" / "dep").mkdir(parents=True)
@@ -24,22 +24,17 @@ def workspace(tmp_path: Path) -> Path:
 
 
 def environment(workspace: Path, tmp_path: Path, **values: str) -> dict[str, str]:
-    library = tmp_path / "library"
-    library.mkdir(exist_ok=True)
-    (library / "uv.lock").write_text("library\n")
     base = {
         "GITHUB_WORKSPACE": str(workspace),
         "RUNNER_TEMP": str(tmp_path / "temp"),
         "RUNNER_OS": "Linux",
         "RUNNER_ARCH": "X64",
-        "NDDEV_LIBRARY_ROOT": str(library),
-        "NDDEV_LIBRARY_REF": "0123456789abcdef0123456789abcdef01234567",
         "NDDEV_RUNNER_ENVIRONMENT": "github-hosted",
         "NDDEV_EVENT": "pull_request",
         "NDDEV_REF": "refs/pull/7/merge",
         "NDDEV_DEFAULT_BRANCH": "main",
         "NDDEV_WORKING_DIRECTORY": "app",
-        "NDDEV_ECOSYSTEMS": "cargo uv bun",
+        "NDDEV_ECOSYSTEMS": "cargo bun go",
     }
     return {**base, **values}
 
@@ -50,11 +45,14 @@ def test_pull_requests_restore_without_saving(workspace: Path, tmp_path: Path) -
     assert outputs["cargo"] == "true" and outputs["cargo-workspaces"] == "app -> target"
     assert outputs["files"] == "true"
     assert outputs["key"].startswith(outputs["restore-keys"])
-    assert outputs["restore-keys"].startswith("nddev-hosted-v1-linux-x64-uv-bun-")
+    assert outputs["restore-keys"].startswith("nddev-hosted-v1-linux-x64-bun-go-")
     assert exports["CARGO_INCREMENTAL"] == "0"
-    assert exports["UV_CACHE_DIR"] == exports["NDDEV_UV_CACHE_ROOT"]
     assert Path(exports["BUN_INSTALL_CACHE_DIR"]).is_dir()
-    assert outputs["paths"].splitlines() == [exports["UV_CACHE_DIR"], exports["BUN_INSTALL_CACHE_DIR"]]
+    assert outputs["paths"].splitlines() == [
+        exports["BUN_INSTALL_CACHE_DIR"],
+        exports["GOMODCACHE"],
+        exports["GOCACHE"],
+    ]
 
 
 @pytest.mark.parametrize(
@@ -92,12 +90,10 @@ def test_key_follows_lock_content_and_ignores_vendored_locks(workspace: Path, tm
     assert second["key"] != first and second["restore-keys"] == hosted.plan(values)[0]["restore-keys"]
 
 
-def test_library_runtime_key_tracks_the_library_revision(workspace: Path, tmp_path: Path) -> None:
-    values = environment(workspace, tmp_path, NDDEV_ECOSYSTEMS="library")
-    outputs, exports = hosted.plan(values)
-    assert outputs["cargo"] == "false" and "NDDEV_UV_CACHE_ROOT" in exports
-    other = hosted.plan({**values, "NDDEV_LIBRARY_REF": "f" * 40})[0]
-    assert other["key"] != outputs["key"] and other["restore-keys"] == outputs["restore-keys"]
+@pytest.mark.parametrize("name", ["uv", "library"])
+def test_uv_caching_is_routed_to_setup_uv(workspace: Path, tmp_path: Path, name: str) -> None:
+    with pytest.raises(hosted.Invalid, match="astral-sh/setup-uv"):
+        hosted.plan(environment(workspace, tmp_path, NDDEV_ECOSYSTEMS=f"cargo {name}"))
 
 
 @pytest.mark.parametrize(
