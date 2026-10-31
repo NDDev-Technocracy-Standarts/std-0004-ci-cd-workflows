@@ -15,7 +15,7 @@ from nddev_cicd.process import run
 
 
 def test_routing_before_allocation():
-    assert routing.select("public", "linux")["runner"] == ["ubuntu-24.04"]
+    assert routing.select("public", "linux")["runner"] == ["ubuntu-26.04"]
     private = {"private_labels": ["self-hosted", "Linux", "X64", "fixture-linux"], "trusted": True}
     assert routing.select("private", "linux", **private)["provider"] == "self-hosted"
     with pytest.raises(Invalid):
