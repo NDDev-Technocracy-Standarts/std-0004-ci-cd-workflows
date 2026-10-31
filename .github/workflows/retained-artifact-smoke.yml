@@ -6,7 +6,7 @@ permissions:
 jobs:
   source:
     if: github.ref == 'refs/heads/main' && github.actor == 'rldyourmnd'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     outputs:
       artifact-id: ${{ steps.native.outputs.artifact-id }}
@@ -33,7 +33,7 @@ jobs:
   controlled:
     if: github.ref == 'refs/heads/main' && github.actor == 'rldyourmnd'
     needs: source
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     steps:
       - name: Fail only the first attempt to qualify the native failed-only rerun
@@ -46,7 +46,7 @@ jobs:
   retained:
     if: github.ref == 'refs/heads/main' && github.actor == 'rldyourmnd'
     needs: [source, controlled]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 2
     steps:
       - name: Require the retained native producer outputs
