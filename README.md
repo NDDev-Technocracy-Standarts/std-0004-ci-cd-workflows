@@ -33,7 +33,7 @@ the caller checkout. The [impact planner](.github/actions/impact/action.yml) exp
 before dependent jobs allocate capacity. The [failure publisher](.github/actions/feedback/action.yml)
 returns bounded native run feedback to an owning Issue without executing candidate code.
 Public callers on GitHub-hosted runners add the [hosted cache](.github/actions/hosted-cache/action.yml)
-for lockfile-keyed dependency caches that only default-branch pushes save.
+for lockfile-keyed Cargo, Bun, npm, Pub and Go caches that only default-branch pushes save.
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to

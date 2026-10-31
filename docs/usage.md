@@ -151,23 +151,29 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 
 Public callers run on standard GitHub-hosted runners and have no owned host cache. The
 [hosted cache composite](../.github/actions/hosted-cache/action.yml) restores lockfile-keyed native
-caches for the selected `ecosystems`: `cargo`, `uv`, `bun`, `npm`, `pub`, `go` and `library` (this
-library's own runtime downloads). Select it after the toolchain setup and before the native commands.
-Each selected ecosystem needs a committed lockfile under `working-directory`; `cargo` needs the
-workspace `Cargo.lock` there. A missing lockfile or unknown ecosystem fails instead of caching an
-unkeyed tree.
+caches for the selected `ecosystems`: `cargo`, `bun`, `npm`, `pub` and `go`. Select it after the
+toolchain setup and before the native commands. Each selected ecosystem needs a committed lockfile
+under `working-directory`; `cargo` needs the workspace `Cargo.lock` there. A missing lockfile or
+unknown ecosystem fails instead of caching an unkeyed tree.
 
 Every event restores. Only a `push` or `workflow_dispatch` on the default branch saves, so pull
 requests, forks and privileged events never write the cache that later trusted runs restore.
 Keys include the runner OS and architecture, the selected ecosystems, the working directory and
-the lockfile contents; `library` also binds this library's lockfiles and action revision. A changed
-lock restores the nearest earlier entry and lets the native tool verify and complete it. Cargo uses
-[rust-cache](https://github.com/Swatinem/rust-cache) with a shared key across jobs, so pull-request
-gates reuse the dependency builds of the latest `main` validation; cached Cargo binaries are not
-retained. The other ecosystems use the native
+the lockfile contents. A changed lock restores the nearest earlier entry and lets the native tool
+verify and complete it. Cargo uses [rust-cache](https://github.com/Swatinem/rust-cache) with a
+shared key across jobs, so pull-request gates reuse the dependency builds of the latest `main`
+validation; cached Cargo binaries are not retained. The other ecosystems use the native
 [GitHub cache](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
-and export the native cache variables (`UV_CACHE_DIR` with `NDDEV_UV_CACHE_ROOT`,
-`BUN_INSTALL_CACHE_DIR`, `npm_config_cache`, `PUB_CACHE`, `GOMODCACHE` and `GOCACHE`).
+and export the native cache variables (`BUN_INSTALL_CACHE_DIR`, `npm_config_cache`, `PUB_CACHE`,
+`GOMODCACHE` and `GOCACHE`).
+
+uv is cached by [setup-uv](https://github.com/astral-sh/setup-uv#enable-caching) instead: set
+`enable-cache: 'true'`, `cache-dependency-glob` to the `uv.lock` paths, `prune-cache: 'true'` and
+`save-cache` to a default-branch-push expression. Pruning runs
+[`uv cache prune --ci`](https://docs.astral.sh/uv/concepts/cache/#caching-in-continuous-integration)
+before saving, which keeps only source-built wheels; an unpruned uv cache grew to 2.5 GB on a public
+caller and restored slower than a fresh download. The composite refuses `uv` and points to these
+inputs, because a composite cannot prune after the caller's steps.
 
 A cache hit accelerates downloads and dependency compilation only; it is not a passed check. The
 repository's free cache allowance, least-recently-used eviction and seven-day inactivity expiry bound

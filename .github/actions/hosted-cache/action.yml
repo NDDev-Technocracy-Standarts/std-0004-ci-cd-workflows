@@ -2,7 +2,7 @@ name: Hosted dependency cache
 description: Restore lockfile-keyed native caches on GitHub-hosted runners; save only from default-branch pushes.
 inputs:
   ecosystems:
-    description: Space/comma-separated cargo, uv, bun, npm, pub, go or library (this library's own runtime)
+    description: Space/comma-separated cargo, bun, npm, pub or go; cache uv through astral-sh/setup-uv
     required: true
   working-directory:
     description: Contained project directory holding the selected lockfiles; cargo uses its Cargo.lock here
@@ -38,12 +38,11 @@ runs:
         NDDEV_EVENT: ${{ github.event_name }}
         NDDEV_REF: ${{ github.ref }}
         NDDEV_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        NDDEV_LIBRARY_REF: ${{ github.action_ref }}
       run: |
         set -euo pipefail
         library="$(cd "$NDDEV_ACTION_PATH/../../.." && pwd)"
         python="$(command -v python3 || command -v python)"
-        NDDEV_LIBRARY_ROOT="$library" "$python" "$library/scripts/hosted-cache.py"
+        "$python" "$library/scripts/hosted-cache.py"
     - name: Restore Cargo registry and dependency builds
       id: cargo
       if: ${{ steps.plan.outputs.cargo == 'true' }}
