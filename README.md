@@ -34,6 +34,8 @@ before dependent jobs allocate capacity. The [failure publisher](.github/actions
 returns bounded native run feedback to an owning Issue without executing candidate code.
 Public callers on GitHub-hosted runners add the [hosted cache](.github/actions/hosted-cache/action.yml)
 for lockfile-keyed Cargo, Bun, npm, Pub and Go caches that only default-branch pushes save.
+Public routing selects only the free standard GitHub-hosted labels, and `nddev-cicd runners-check`
+refuses floating, retiring, larger or unknown labels ([usage](docs/usage.md#free-standard-runners)).
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to

@@ -9,7 +9,59 @@ from pathlib import Path
 from .model import Invalid, Unavailable
 
 PLATFORMS = {"linux", "windows", "macos"}
-STANDARD = {"linux": "ubuntu-26.04", "windows": "windows-2025", "macos": "macos-15"}
+# Standard GitHub-hosted runners that GitHub lists for public repositories, where they run without
+# charge; larger runners are billed per minute even there (STD-0004 R-0004/R-0005). Exact images, never
+# a floating -latest label. Keyed by platform and architecture.
+PUBLIC_STANDARD = {
+    ("linux", "x64"): "ubuntu-26.04",
+    ("linux", "arm64"): "ubuntu-26.04-arm",
+    ("windows", "x64"): "windows-2025",
+    ("windows", "arm64"): "windows-11-arm",
+    ("macos", "arm64"): "macos-15",
+    ("macos", "x64"): "macos-15-intel",
+}
+DEFAULT_ARCHITECTURE = {"linux": "x64", "windows": "x64", "macos": "arm64"}
+STANDARD = {platform: PUBLIC_STANDARD[(platform, arch)] for platform, arch in DEFAULT_ARCHITECTURE.items()}
+# Every label in GitHub's public-repository table on 2026-11-01; the ones being retired are flagged.
+PUBLIC_LABELS = frozenset(
+    {
+        "ubuntu-slim",
+        "ubuntu-22.04",
+        "ubuntu-24.04",
+        "ubuntu-26.04",
+        "ubuntu-22.04-arm",
+        "ubuntu-24.04-arm",
+        "ubuntu-26.04-arm",
+        "windows-2022",
+        "windows-2025",
+        "windows-2025-vs2026",
+        "windows-11-arm",
+        "windows-11-vs2026-arm",
+        "macos-14",
+        "macos-15",
+        "macos-26",
+        "macos-15-intel",
+        "macos-26-intel",
+    }
+)
+RETIRING = {
+    "macos-14": "unsupported from 2026-11-02 (actions/runner-images#13518)",
+    "ubuntu-22.04": "unsupported from 2027-04-17 (actions/runner-images#14254)",
+    "ubuntu-22.04-arm": "unsupported from 2027-04-17 (actions/runner-images#14254)",
+}
+
+
+def public_label(label: str) -> tuple[str, str]:
+    """Classify a GitHub-hosted runs-on label for a public repository: (verdict, reason)."""
+    if label.endswith("-latest"):
+        return "floating", "names whatever image GitHub moves the label to; select the exact image"
+    if label in RETIRING:
+        return "retiring", RETIRING[label]
+    if label in PUBLIC_LABELS:
+        return "standard", "standard GitHub-hosted runner, free in public repositories"
+    if any(part in label for part in ("-large", "-xlarge", "-cores", "gpu")):
+        return "larger", "larger runner, billed per minute even in public repositories"
+    return "unknown", "not a standard GitHub-hosted label for public repositories"
 
 
 def caller_policy(policy: dict) -> dict:
@@ -74,12 +126,11 @@ def select(
         if not isinstance(policy, dict) or type(policy.get("enabled", False)) is not bool:
             raise Invalid("Capacity admission enabled must be a boolean")
     if visibility == "public":
-        if architecture != ("arm64" if platform == "macos" else "x64"):
-            raise Unavailable("Declare a verified compatible standard GitHub runner separately")
+        runner = PUBLIC_STANDARD[(platform, architecture)]
         github = choices.get("github", {})
-        if github.get("enabled") and github.get("runners", {}).get(platform) != [STANDARD[platform]]:
+        if github.get("enabled") and github.get("runners", {}).get(platform) != [runner]:
             raise Invalid("Public capacity must use the compatible standard GitHub runner")
-        return {"provider": "github", "runner": [STANDARD[platform]], "basis": "standard-public"}
+        return {"provider": "github", "runner": [runner], "basis": "standard-public"}
     if platform == "linux":
         if not trusted:
             raise Unavailable("Untrusted/fork code cannot schedule private self-hosted capacity")
@@ -164,8 +215,62 @@ def select(
         if not isinstance(runner, list) or not runner or not all(isinstance(x, str) for x in runner):
             raise Invalid("Admission must resolve a known runner before scheduling")
         if policy.get("guarantee") == "standard-public" and (
-            runner != [STANDARD[platform]] or architecture != ("arm64" if platform == "macos" else "x64")
+            runner != [PUBLIC_STANDARD[(platform, architecture)]]
         ):
             raise Invalid("Standard public admission cannot allocate larger or incompatible runners")
         return {"provider": provider, "runner": runner, "basis": policy["reference"]}
     raise Unavailable("No confirmed compatible no-overage route; paid-capable dispatch remains disabled")
+
+
+def workflow_labels(root) -> list[dict]:
+    """Classify every literal GitHub-hosted runs-on label (including matrix values) in .github/workflows."""
+    import re
+    from pathlib import Path
+
+    import yaml
+
+    findings: list[dict] = []
+    directory = Path(root) / ".github" / "workflows"
+    for path in sorted([*directory.glob("*.yml"), *directory.glob("*.yaml")]):
+        document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for job_id, job in (document.get("jobs") or {}).items():
+            if not isinstance(job, dict) or "uses" in job:
+                continue
+            runs_on = job.get("runs-on")
+            values = runs_on if isinstance(runs_on, list) else [runs_on]
+            labels: list[str] = []
+            for value in values:
+                if not isinstance(value, str):
+                    continue
+                if "${{" in value:
+                    matrix = ((job.get("strategy") or {}).get("matrix")) or {}
+                    candidates = (
+                        [*matrix.values(), *(matrix.get("include") or [])] if isinstance(matrix, dict) else []
+                    )
+                    for item in candidates:
+                        items = (
+                            item.values()
+                            if isinstance(item, dict)
+                            else item
+                            if isinstance(item, list)
+                            else []
+                        )
+                        labels += [
+                            x for x in items if isinstance(x, str) and re.match(r"(ubuntu|windows|macos)-", x)
+                        ]
+                else:
+                    labels.append(value)
+            if any(label in {"self-hosted"} for label in labels):
+                continue
+            for label in dict.fromkeys(labels):
+                verdict, reason = public_label(label)
+                findings.append(
+                    {
+                        "workflow": path.name,
+                        "job": job_id,
+                        "label": label,
+                        "verdict": verdict,
+                        "reason": reason,
+                    }
+                )
+    return findings

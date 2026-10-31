@@ -48,6 +48,37 @@ sources:
   url: https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency
   supports: Concurrency groups and cancellation are repository-scoped coordination mechanisms.
   limits: A deployment-attempt key does not serialize one target; no cross-repository lock is implied.
+- key: gha-hosted-runners
+  title: 'GitHub: GitHub-hosted runners reference'
+  url: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+  supports: The labels GitHub lists as standard GitHub-hosted runners for public repositories, with their
+    images and specifications, including ubuntu-26.04, ubuntu-26.04-arm, windows-2025, macos-15 and macos-26.
+  limits: The label set and specifications change with GitHub's image lifecycle. Read the table when a label
+    is selected.
+- key: gha-larger-runners
+  title: 'GitHub: larger runners'
+  url: https://docs.github.com/en/actions/concepts/runners/larger-runners
+  supports: Larger runners are billed at the per-minute rate, including usage in public repositories.
+  limits: Availability and labels depend on plan and organization configuration.
+- key: gha-limits
+  title: 'GitHub: Actions limits'
+  url: https://docs.github.com/en/actions/reference/limits
+  supports: Concurrency per plan for standard hosted runners (GitHub Free 20 jobs, 5 of them macOS), the
+    6-hour hosted job limit and storage allowances.
+  limits: Numbers are plan- and time-dependent; they are not a perpetual guarantee.
+- key: gha-dependency-caching
+  title: 'GitHub: dependency caching reference'
+  url: https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching
+  supports: Default 10 GB cache limit per repository with billing beyond it, eviction of entries unused for
+    7 days, eviction under pressure and branch-scoped restore rules.
+  limits: The limit can be raised by administrators at a cost. Restore scoping does not by itself bound
+    pull-request writes.
+- key: runner-images
+  title: 'actions/runner-images: available images and announcements'
+  url: https://github.com/actions/runner-images
+  supports: Current image labels, `-latest` migrations (ubuntu-latest to Ubuntu 26.04 by 2026-11-19) and
+    retirements with scheduled brownouts (macOS 14 unsupported from 2026-11-02).
+  limits: Announcements are time-bound; dates must be read from the current notice.
 - key: gha-artifacts
   title: 'GitHub: upload-artifact'
   url: https://github.com/actions/upload-artifact
