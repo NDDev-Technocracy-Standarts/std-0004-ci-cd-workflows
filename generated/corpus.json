@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.5",
+    "version": "0.3.6",
     "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "2ea8c913c23bdb242319830003fce25446818947648b5032dff81c7b92a3a200"
+      "sha256": "023339424d6924e26029105b76d3dc587a845e0f8585887b5d6b9b23aac61c3c"
     },
     {
       "path": "spec/intent.md",
@@ -76,11 +76,11 @@
     },
     {
       "path": "spec/performance.md",
-      "sha256": "adf66744b0fec2b2964b83519ee020905f630bc3079f9d75682789e6cba97aea"
+      "sha256": "51245ce7ea6d18937d9ca0b52120ba6e67feb5fc2adfaf532df06a52c757b9c4"
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "c9e1d74a84c6f9be648200f4d00ebe1a6ad40ec23ce2c0f93e3ed3e71098fff8"
+      "sha256": "4f56a117727fc00eaacf83e445d597123d9fd217c4adc6fdf081884fb4bf2341"
     },
     {
       "path": "spec/verification.yaml",
@@ -88,11 +88,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "7d190cefc6ea89dab532969191d0f3c91fe79fb7395a099c9093fe0131e4b7e0"
+      "sha256": "a74dd7b33743749678151893f6bfe2fd96393306e8c95fed4111cf6abbf7ffde"
     }
   ],
   "listings": [],
-  "inputs-sha256": "017505197b6cc762f5d3586bd9f54f846def7d24b52ea6a35840d410ef29b5a8",
+  "inputs-sha256": "56dbca6cf06b8093e70ffaaacc10b30c8fe586548a679093e7aee364eeba7409",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -379,11 +379,39 @@
       "limits": "A deployment-attempt key does not serialize one target; no cross-repository lock is implied."
     },
     {
+      "key": "gha-dependency-caching",
+      "title": "GitHub: dependency caching reference",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching",
+      "supports": "Default 10 GB cache limit per repository with billing beyond it, eviction of entries unused for 7 days, eviction under pressure and branch-scoped restore rules.",
+      "limits": "The limit can be raised by administrators at a cost. Restore scoping does not by itself bound pull-request writes."
+    },
+    {
       "key": "gha-events",
       "title": "GitHub: workflow events",
       "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
       "supports": "PR contexts, merge refs and downstream event semantics differ.",
       "limits": "An event or successful old run alone does not prove the integrated artifact is eligible."
+    },
+    {
+      "key": "gha-hosted-runners",
+      "title": "GitHub: GitHub-hosted runners reference",
+      "url": "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+      "supports": "The labels GitHub lists as standard GitHub-hosted runners for public repositories, with their images and specifications, including ubuntu-26.04, ubuntu-26.04-arm, windows-2025, macos-15 and macos-26.",
+      "limits": "The label set and specifications change with GitHub's image lifecycle. Read the table when a label is selected."
+    },
+    {
+      "key": "gha-larger-runners",
+      "title": "GitHub: larger runners",
+      "url": "https://docs.github.com/en/actions/concepts/runners/larger-runners",
+      "supports": "Larger runners are billed at the per-minute rate, including usage in public repositories.",
+      "limits": "Availability and labels depend on plan and organization configuration."
+    },
+    {
+      "key": "gha-limits",
+      "title": "GitHub: Actions limits",
+      "url": "https://docs.github.com/en/actions/reference/limits",
+      "supports": "Concurrency per plan for standard hosted runners (GitHub Free 20 jobs, 5 of them macOS), the 6-hour hosted job limit and storage allowances.",
+      "limits": "Numbers are plan- and time-dependent; they are not a perpetual guarantee."
     },
     {
       "key": "gha-reuse",
@@ -426,6 +454,13 @@
       "url": "https://docs.python.org/3/library/doctest.html",
       "supports": "Executable examples can be checked against actual program output.",
       "limits": "Only executed examples are established; adjacent prose is not mechanically certified."
+    },
+    {
+      "key": "runner-images",
+      "title": "actions/runner-images: available images and announcements",
+      "url": "https://github.com/actions/runner-images",
+      "supports": "Current image labels, `-latest` migrations (ubuntu-latest to Ubuntu 26.04 by 2026-11-19) and retirements with scheduled brownouts (macOS 14 unsupported from 2026-11-02).",
+      "limits": "Announcements are time-bound; dates must be read from the current notice."
     },
     {
       "key": "sccache-local",
@@ -546,7 +581,10 @@
       "basis": "owner",
       "sources": [
         "gha-reuse",
-        "blacksmith-runners"
+        "blacksmith-runners",
+        "gha-hosted-runners",
+        "gha-larger-runners",
+        "runner-images"
       ],
       "verification": "partial",
       "verified-by": [
@@ -554,12 +592,12 @@
       ],
       "criteria": "Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.",
       "since": "0.1.0",
-      "revised": "0.2.0",
+      "revised": "0.3.6",
       "condition": {
         "from": "item",
         "text": "A job selects an execution provider or runner."
       },
-      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
+      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.\n\nOn GitHub, public work selects only labels that GitHub lists as standard GitHub-hosted runners for\npublic repositories, which run without charge there. GitHub bills larger runners per minute even in\npublic repositories, so public work never selects them. Larger runners include `-large`, `-xlarge`,\nmulti-core (`-N-cores`) and GPU labels, and custom runner groups. Every job names an exact supported\nimage, such as `ubuntu-26.04`, `windows-2025` or `macos-15`, instead of a floating `-latest` label,\nwhich changes image without a reviewed change. Linux release builds run on the image whose system\nlibraries match the systems they ship to. A label that GitHub announces for retirement is replaced\nbefore its scheduled brownouts, because those brownouts already fail jobs.",
       "source": {
         "path": "spec/foundation.md",
         "line": 61
@@ -576,19 +614,22 @@
         "blacksmith-pricing",
         "blacksmith-runners",
         "blacksmith-settings",
-        "gha-billing"
+        "gha-billing",
+        "gha-limits",
+        "gha-dependency-caching"
       ],
       "verification": "review",
       "criteria": "Verify account-level cost enforcement and concurrent-run handling before any paid-capable dispatch.",
       "since": "0.1.0",
+      "revised": "0.3.6",
       "condition": {
         "from": "item",
         "text": "An invocation can consume provider or storage allowance."
       },
-      "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
+      "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.\nFree capacity has concurrency limits per plan; on GitHub Free these are 20 concurrent standard jobs,\n5 of them macOS. Work beyond the limit waits in the queue: a queue is not a reason to select paid\ncapacity or to remove checks. Storage stays inside the free allowances. The repository's hosted cache\nallowance is not raised, because use beyond it is billed.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 82
+        "line": 94
       }
     },
     {
@@ -616,7 +657,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 104
+        "line": 122
       }
     },
     {
@@ -905,7 +946,8 @@
         "docker-cache",
         "cargo-cache",
         "sccache-local",
-        "sccache-rust"
+        "sccache-rust",
+        "gha-dependency-caching"
       ],
       "verification": "partial",
       "verified-by": [
@@ -913,11 +955,12 @@
       ],
       "criteria": "Check cache compatibility, simultaneous runners and pressure cleanup without losing active/recovery data.",
       "since": "0.1.0",
+      "revised": "0.3.6",
       "condition": {
         "from": "item",
         "text": "The subject reads, writes or reclaims acceleration state."
       },
-      "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.",
+      "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.\nOn GitHub-hosted runners, every event may restore a cache, but only a trusted push or manual run on\nthe default branch writes one. Pull-request runs never write. This also covers setup actions that\ncache by default, such as language toolchain setups with built-in caching. Jobs that build the same\nlockfile differently keep separate entries, because cache entries are immutable. Saved content is\npruned to what restores faster than a fresh download. The total stays inside the repository's free\ncache allowance, so that eviction does not discard the default branch's entries.",
       "source": {
         "path": "spec/performance.md",
         "line": 40
@@ -946,7 +989,7 @@
       "statement": "Run diagnostics and artifacts MUST have an identified use, appropriate retention and safe contents.\nGitHub logs/summaries serve small feedback; large artifacts are not duplicated merely to create a\nreport. Permissions, executable bits and hidden inputs needed by an actual package are preserved by\nits packaging method. Credentials and private customer data never enter a public artifact, SBOM,\ncache or log. A cancelled run's useful diagnostics remain identifiable without retaining its entire\nworkspace indefinitely.",
       "source": {
         "path": "spec/performance.md",
-        "line": 64
+        "line": 71
       }
     },
     {

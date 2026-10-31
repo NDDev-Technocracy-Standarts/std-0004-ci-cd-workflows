@@ -38,5 +38,6 @@ jobs:
           uv run --locked python scripts/check-runtime-lock.py
           uv run --locked python -c 'from pathlib import Path; from nddev_cicd import config,documentation; documentation.check(Path.cwd(),config.load(Path.cwd()).get("documentation"))'
           actionlint
+          uv run --locked python -m nddev_cicd runners-check
           uv run --locked zizmor --offline --no-progress .github
           uv run --locked python -m nddev_cicd secrets-check --output "$RUNNER_TEMP/pr-secrets"

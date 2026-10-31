@@ -52,6 +52,7 @@ sources:
 - cargo-cache
 - sccache-local
 - sccache-rust
+- gha-dependency-caching
 applies-when: The subject reads, writes or reclaims acceleration state.
 ```
 
@@ -60,6 +61,12 @@ Their keys and access boundaries account for relevant dependency, toolchain, pla
 inputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and
 reclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive
 cleanup of the shared host or cargo clean before every run is not the default optimization.
+On GitHub-hosted runners, every event may restore a cache, but only a trusted push or manual run on
+the default branch writes one. Pull-request runs never write. This also covers setup actions that
+cache by default, such as language toolchain setups with built-in caching. Jobs that build the same
+lockfile differently keep separate entries, because cache entries are immutable. Saved content is
+pruned to what restores faster than a fresh download. The total stays inside the repository's free
+cache allowance, so that eviction does not discard the default branch's entries.
 
 ## R-0019 Reports remain useful without storage duplication
 

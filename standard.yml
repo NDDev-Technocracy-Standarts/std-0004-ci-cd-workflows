@@ -6,7 +6,7 @@ metadata:
   owner: rldyourmnd
 spec:
   edition:
-    version: 0.3.5
+    version: 0.3.6
     status: published
   purpose: Define a public modular CI/CD contract and reusable implementation with complete applicable
     feedback, no additional spend and coherent artifact delivery.
@@ -75,9 +75,10 @@ spec:
       revised: 0.3.5
     R-0004:
       since: 0.1.0
-      revised: 0.2.0
+      revised: 0.3.6
     R-0005:
       since: 0.1.0
+      revised: 0.3.6
     R-0006:
       since: 0.1.0
       revised: 0.3.1
@@ -107,6 +108,7 @@ spec:
       since: 0.1.0
     R-0018:
       since: 0.1.0
+      revised: 0.3.6
     R-0019:
       since: 0.1.0
     R-0020:

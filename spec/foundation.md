@@ -69,6 +69,9 @@ criteria: Inspect the full job graph for public/private Linux and Windows/macOS,
 sources:
 - gha-reuse
 - blacksmith-runners
+- gha-hosted-runners
+- gha-larger-runners
+- runner-images
 applies-when: A job selects an execution provider or runner.
 ```
 
@@ -78,6 +81,15 @@ work never selects Blacksmith or private self-hosted capacity. Private Linux wor
 existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS
 work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.
 The repository that supplies a public workflow does not change the caller's billing or trust context.
+
+On GitHub, public work selects only labels that GitHub lists as standard GitHub-hosted runners for
+public repositories, which run without charge there. GitHub bills larger runners per minute even in
+public repositories, so public work never selects them. Larger runners include `-large`, `-xlarge`,
+multi-core (`-N-cores`) and GPU labels, and custom runner groups. Every job names an exact supported
+image, such as `ubuntu-26.04`, `windows-2025` or `macos-15`, instead of a floating `-latest` label,
+which changes image without a reviewed change. Linux release builds run on the image whose system
+libraries match the systems they ship to. A label that GitHub announces for retirement is replaced
+before its scheduled brownouts, because those brownouts already fail jobs.
 
 ## R-0005 Execution remains within zero additional spend
 
@@ -91,6 +103,8 @@ sources:
 - blacksmith-runners
 - blacksmith-settings
 - gha-billing
+- gha-limits
+- gha-dependency-caching
 applies-when: An invocation can consume provider or storage allowance.
 ```
 
@@ -100,6 +114,10 @@ static estimate alone is not proof of a hard stop on charges. When free admissio
 established, the paid-capable route remains disabled; a genuinely free compatible route may be used.
 No job buys resources, increases a spending limit or enables a paid add-on. The standards do not
 require account churn, duplicate organizations or misrepresentation to obtain allowances.
+Free capacity has concurrency limits per plan; on GitHub Free these are 20 concurrent standard jobs,
+5 of them macOS. Work beyond the limit waits in the queue: a queue is not a reason to select paid
+capacity or to remove checks. Storage stays inside the free allowances. The repository's hosted cache
+allowance is not raised, because use beyond it is billed.
 
 ## R-0006 Runner selection precedes affected execution
 
