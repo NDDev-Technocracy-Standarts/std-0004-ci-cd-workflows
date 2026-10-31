@@ -105,6 +105,12 @@ jobs:
     - name: Prepare pinned native Rust policy tools
       if: ${{ matrix.profile == 'rust' }}
       run: scripts/prepare-linux-tools.sh rust
+    - name: Exercise the hosted Cargo cache path
+      if: ${{ matrix.profile == 'rust' }}
+      uses: ./.github/actions/hosted-cache # zizmor: ignore[self-repository] actionlint 1.7.12 rejects $/
+      with:
+        ecosystems: cargo
+        working-directory: tests/native/rust
     - name: Prepare native source security tools
       if: ${{ matrix.profile == 'security' }}
       run: scripts/prepare-linux-tools.sh security
@@ -229,6 +235,11 @@ jobs:
         enable-cache: 'false'
     - name: Capture the caller's executable
       run: command -v uv > "$RUNNER_TEMP/caller-uv-path"
+    - id: hosted-cache
+      uses: ./.github/actions/hosted-cache # zizmor: ignore[self-repository] actionlint 1.7.12 rejects $/
+      with:
+        ecosystems: library uv
+        working-directory: tests/native/python
     - id: positive
       uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/ci@60f52ba1978b97343483a45d22edb6e338e0e3f5
       with:
@@ -256,8 +267,14 @@ jobs:
         NEGATIVE: ${{ steps.negative.outputs.result-directory }}
         NEVER: ${{ steps.never.outputs.result-directory }}
         NEGATIVE_OUTCOME: ${{ steps.negative.outcome }}
+        HOSTED_ENABLED: ${{ steps.hosted-cache.outputs.enabled }}
+        HOSTED_SAVE: ${{ steps.hosted-cache.outputs.save }}
         GH_TOKEN: ${{ github.token }}
       run: 'test "$(command -v uv)" = "$(cat "$RUNNER_TEMP/caller-uv-path")"
+
+        test "$HOSTED_ENABLED" = true && test "$HOSTED_SAVE" = true
+
+        test "$UV_CACHE_DIR" = "$NDDEV_UV_CACHE_ROOT" && test -n "$(ls -A "$UV_CACHE_DIR")"
 
         uv --version | grep ''^uv 0[.]12[.]24 ''
 

@@ -147,6 +147,37 @@ The manifest binds bytes/modes, caller source/merge tree, lock/contract identiti
 code identity. The upload policy and bounded retention belong to the action inputs. Caches and credentials
 are rejected. This is content/provenance binding, not a claim of signed SLSA attestation.
 
+## Public repositories on GitHub-hosted runners
+
+Public callers run on standard GitHub-hosted runners and have no owned host cache. The
+[hosted cache composite](../.github/actions/hosted-cache/action.yml) restores lockfile-keyed native
+caches for the selected `ecosystems`: `cargo`, `uv`, `bun`, `npm`, `pub`, `go` and `library` (this
+library's own runtime downloads). Select it after the toolchain setup and before the native commands.
+Each selected ecosystem needs a committed lockfile under `working-directory`; `cargo` needs the
+workspace `Cargo.lock` there. A missing lockfile or unknown ecosystem fails instead of caching an
+unkeyed tree.
+
+Every event restores. Only a `push` or `workflow_dispatch` on the default branch saves, so pull
+requests, forks and privileged events never write the cache that later trusted runs restore.
+Keys include the runner OS and architecture, the selected ecosystems, the working directory and
+the lockfile contents; `library` also binds this library's lockfiles and action revision. A changed
+lock restores the nearest earlier entry and lets the native tool verify and complete it. Cargo uses
+[rust-cache](https://github.com/Swatinem/rust-cache) with a shared key across jobs, so pull-request
+gates reuse the dependency builds of the latest `main` validation; cached Cargo binaries are not
+retained. The other ecosystems use the native
+[GitHub cache](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)
+and export the native cache variables (`UV_CACHE_DIR` with `NDDEV_UV_CACHE_ROOT`,
+`BUN_INSTALL_CACHE_DIR`, `npm_config_cache`, `PUB_CACHE`, `GOMODCACHE` and `GOCACHE`).
+
+A cache hit accelerates downloads and dependency compilation only; it is not a passed check. The
+repository's free cache allowance, least-recently-used eviction and seven-day inactivity expiry bound
+the storage; no paid cache expansion is selected. On a self-hosted runner the composite reports
+`enabled: false` and selects nothing, so private callers keep their owned caches.
+
+Provision tools from verified prebuilt binaries through the `tools` action rather than compiling them
+in each job. Keep every external `uses:` on a reviewed full commit SHA with its version comment and
+let a scheduled update proposal, such as Dependabot with a cooldown, keep those pins current.
+
 # Admission and delivery
 
 The selected standard permits an explicitly owner-selected project advisory exception; it is never a
@@ -694,7 +725,8 @@ its own bootstrap uses an absolute verified executable outside caller PATH.
 The Linux `tools` action accepts a space/comma-separated capability list, for example
 `capability: security shell container`. Workflow tools include actionlint, lychee and zizmor;
 security adds Gitleaks, OSV-Scanner and the locked Python SAST toolchain; quality adds isolated
-Semgrep/mutmut plus typos and cargo-machete; compiler adds ccache; shell adds Bats and ShellCheck. The native script validates
+Semgrep/mutmut plus typos and cargo-machete; rust adds cargo-deny, cargo-audit, cargo-nextest,
+cargo-machete and sccache; compiler adds ccache; shell adds Bats and ShellCheck. The native script validates
 capabilities and verified owned binaries before reuse. SDKs and system libraries such as libmagic
 belong to the runner owner or an explicit job-local caller setup. A caller setup verifies downloaded
 packages against its trusted native package metadata and supplies only that job's library paths;
