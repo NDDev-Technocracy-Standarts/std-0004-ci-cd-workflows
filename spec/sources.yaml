@@ -8,6 +8,13 @@ sources:
     workflow composition.
   limits: Provider limits and access rules are version-sensitive. This is not proof of a specific cross-organization
     installation.
+- key: dependabot-options
+  title: 'GitHub: Dependabot options reference'
+  url: https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference
+  supports: Scheduled version updates for GitHub Actions and package ecosystems, grouping, and a cooldown
+    that delays proposals for newly published releases.
+  limits: An update proposal is not a reviewed or tested change, and an absent proposal does not prove
+    that a pinned source is current or still maintained.
 - key: gha-composite
   title: 'GitHub: composite actions'
   url: https://docs.github.com/en/actions/tutorials/create-actions/create-a-composite-action

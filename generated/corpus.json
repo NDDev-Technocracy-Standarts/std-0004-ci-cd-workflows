@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "75cef70fa686f1881f5b91970eac0fcf11de3a3160f0f2f58cad90dea85f7981"
+      "sha256": "2ea8c913c23bdb242319830003fce25446818947648b5032dff81c7b92a3a200"
     },
     {
       "path": "spec/intent.md",
@@ -80,7 +80,7 @@
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "94dd88762fb5b65172142997e1de53db3822c8a3d534d826e4fd7f512346eb50"
+      "sha256": "c9e1d74a84c6f9be648200f4d00ebe1a6ad40ec23ce2c0f93e3ed3e71098fff8"
     },
     {
       "path": "spec/verification.yaml",
@@ -88,11 +88,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "1e68b6658b119253c8a9e6c7446ea528d65065b4d8d5f190b330a9546dacf03a"
+      "sha256": "7d190cefc6ea89dab532969191d0f3c91fe79fb7395a099c9093fe0131e4b7e0"
     }
   ],
   "listings": [],
-  "inputs-sha256": "dc8edff72a7b46402abff119ece959215c520939e9c649ab876663a32502b758",
+  "inputs-sha256": "017505197b6cc762f5d3586bd9f54f846def7d24b52ea6a35840d410ef29b5a8",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -323,6 +323,13 @@
       "limits": "Configuration defaults and availability must match the selected Cargo version."
     },
     {
+      "key": "dependabot-options",
+      "title": "GitHub: Dependabot options reference",
+      "url": "https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference",
+      "supports": "Scheduled version updates for GitHub Actions and package ecosystems, grouping, and a cooldown that delays proposals for newly published releases.",
+      "limits": "An update proposal is not a reviewed or tested change, and an absent proposal does not prove that a pinned source is current or still maintained."
+    },
+    {
       "key": "dependency-cruiser",
       "title": "dependency-cruiser",
       "url": "https://github.com/sverweij/dependency-cruiser",
@@ -513,16 +520,18 @@
       "strength": "MUST",
       "basis": "owner",
       "sources": [
-        "gha-reuse"
+        "gha-reuse",
+        "dependabot-options"
       ],
       "verification": "review",
-      "criteria": "Check a supported caller, invalid input and compatible upgrade without a duplicated project recipe.",
+      "criteria": "Check a supported caller, invalid input and compatible upgrade without a duplicated project recipe; inspect the caller's update channel and confirm every pinned source still resolves to a maintained origin.",
       "since": "0.1.0",
+      "revised": "0.3.5",
       "condition": {
         "from": "item",
         "text": "The subject supplies or adopts a module interface."
       },
-      "statement": "Each delivered module MUST expose its purpose, supported inputs, platform requirements, results and\nlimits. Project manifests and lockfiles remain the source for project-specific dependencies and\ncommands. Adopted workflow/action references identify immutable compatible source; updates are normal\nreviewed changes, not a mutable main reference silently changing every consumer. Standard edition,\nimplementation version, runtime schema and consumer product version remain separate identities.",
+      "statement": "Each delivered module MUST expose its purpose, supported inputs, platform requirements, results and\nlimits. Project manifests and lockfiles remain the source for project-specific dependencies and\ncommands. Adopted workflow/action references identify immutable compatible source; updates are normal\nreviewed changes, not a mutable main reference silently changing every consumer. Each consumer keeps\na scheduled update channel for those references, such as reviewed update proposals delayed by a\nrelease cooldown, so pins follow current compatible releases. A reference to a retired, transferred\nor unavailable source is a defect corrected by a reviewed migration, not a stable pin. Standard edition,\nimplementation version, runtime schema and consumer product version remain separate identities.",
       "source": {
         "path": "spec/foundation.md",
         "line": 37
@@ -553,7 +562,7 @@
       "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 56
+        "line": 61
       }
     },
     {
@@ -579,7 +588,7 @@
       "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 77
+        "line": 82
       }
     },
     {
@@ -607,7 +616,7 @@
       "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 99
+        "line": 104
       }
     },
     {
