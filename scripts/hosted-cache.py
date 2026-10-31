@@ -12,15 +12,21 @@ import os
 import sys
 from pathlib import Path
 
-ECOSYSTEMS = ("cargo", "uv", "bun", "npm", "pub", "go", "library")
+ECOSYSTEMS = ("cargo", "bun", "npm", "pub", "go")
+# uv stores every downloaded wheel; without `uv cache prune --ci` before saving (which a composite
+# cannot run after the caller's steps) the entry grows to gigabytes and restores slower than a fresh
+# download. astral-sh/setup-uv prunes and saves conditionally, so uv caching belongs there.
+RETIRED = {
+    "uv": "use astral-sh/setup-uv with enable-cache, cache-dependency-glob, prune-cache: 'true' and "
+    "save-cache limited to default-branch pushes",
+    "library": "the library runtime shares uv's download cache; cache uv through astral-sh/setup-uv",
+}
 LOCKS = {
-    "uv": ("uv.lock",),
     "bun": ("bun.lock", "bun.lockb"),
     "npm": ("package-lock.json", "npm-shrinkwrap.json"),
     "pub": ("pubspec.lock",),
     "go": ("go.sum", "go.mod"),
 }
-LIBRARY_LOCKS = ("uv.lock", ".github/native-tools/uv.lock", "tools/security/uv.lock")
 SKIPPED = {".git", "node_modules", "target", ".venv", ".dart_tool", ".pub-cache"}
 TRUSTED_EVENTS = {"push", "workflow_dispatch"}
 VERSION = "v1"
@@ -34,6 +40,9 @@ def selected(raw: str) -> list[str]:
     names = [name for name in raw.replace(",", " ").split() if name]
     if not names:
         raise Invalid("Select at least one ecosystem")
+    for name in names:
+        if name in RETIRED:
+            raise Invalid(f"{name} is not cached here: {RETIRED[name]}")
     unknown = sorted(set(names) - set(ECOSYSTEMS))
     if unknown:
         raise Invalid(f"Unknown ecosystem: {', '.join(unknown)}")
@@ -110,16 +119,6 @@ def plan(environment: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
         if not found:
             raise Invalid(f"{name} needs a committed lockfile ({' or '.join(LOCKS[name])})")
         inputs += [(f"{name}:{p.relative_to(working).as_posix()}", p.read_bytes()) for p in found]
-    if "library" in ecosystems:
-        library = Path(environment["NDDEV_LIBRARY_ROOT"])
-        inputs += [
-            (f"library:{n}", (library / n).read_bytes()) for n in LIBRARY_LOCKS if (library / n).is_file()
-        ]
-        inputs.append(("library:ref", environment.get("NDDEV_LIBRARY_REF", "").encode()))
-    if "uv" in ecosystems or "library" in ecosystems:
-        uv = root / "uv"
-        paths.append(uv)
-        exports.update(UV_CACHE_DIR=str(uv), NDDEV_UV_CACHE_ROOT=str(uv))
     if "bun" in ecosystems:
         paths.append(root / "bun")
         exports["BUN_INSTALL_CACHE_DIR"] = str(root / "bun")
