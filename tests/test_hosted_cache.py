@@ -90,6 +90,24 @@ def test_key_follows_lock_content_and_ignores_vendored_locks(workspace: Path, tm
     assert second["key"] != first and second["restore-keys"] == hosted.plan(values)[0]["restore-keys"]
 
 
+def test_profile_key_separates_jobs_that_build_differently(workspace: Path, tmp_path: Path) -> None:
+    shared = hosted.plan(environment(workspace, tmp_path))[0]
+    clippy = hosted.plan(environment(workspace, tmp_path, NDDEV_KEY="clippy"))[0]
+    tests = hosted.plan(environment(workspace, tmp_path, NDDEV_KEY="test"))[0]
+    assert len({shared["cargo-key"], clippy["cargo-key"], tests["cargo-key"]}) == 3
+    assert clippy["cargo-key"] == shared["cargo-key"] + ".clippy"
+    assert clippy["key"].startswith(clippy["restore-keys"])
+    # actions/cache restore-keys match by prefix: no profile may restore another one's entry.
+    nested = hosted.plan(environment(workspace, tmp_path, NDDEV_KEY="test_race"))[0]
+    plans = [shared, clippy, tests, nested]
+    for restoring in plans:
+        for saved in plans:
+            if restoring is not saved:
+                assert not saved["key"].startswith(restoring["restore-keys"])
+    blank = hosted.plan(environment(workspace, tmp_path, NDDEV_KEY="  "))[0]
+    assert blank["cargo-key"] == shared["cargo-key"] and blank["key"] == shared["key"]
+
+
 @pytest.mark.parametrize("name", ["uv", "library"])
 def test_uv_caching_is_routed_to_setup_uv(workspace: Path, tmp_path: Path, name: str) -> None:
     with pytest.raises(hosted.Invalid, match="astral-sh/setup-uv"):
@@ -107,6 +125,10 @@ def test_uv_caching_is_routed_to_setup_uv(workspace: Path, tmp_path: Path, name:
         ({"NDDEV_WORKING_DIRECTORY": "missing"}, "does not exist"),
         ({"NDDEV_ECOSYSTEMS": "npm"}, "npm needs a committed lockfile"),
         ({"NDDEV_ECOSYSTEMS": "cargo", "NDDEV_WORKING_DIRECTORY": "app/web"}, "Cargo.lock"),
+        ({"NDDEV_KEY": "a,b"}, "key must be"),
+        ({"NDDEV_KEY": "a.b"}, "key must be"),
+        ({"NDDEV_KEY": "a-b"}, "key must be"),
+        ({"NDDEV_KEY": "x" * 41}, "key must be"),
     ],
 )
 def test_invalid_selection_fails_explicitly(

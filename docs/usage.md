@@ -167,6 +167,12 @@ validation; cached Cargo binaries are not retained. The other ecosystems use the
 and export the native cache variables (`BUN_INSTALL_CACHE_DIR`, `npm_config_cache`, `PUB_CACHE`,
 `GOMODCACHE` and `GOCACHE`).
 
+Jobs that build the same lockfile differently, such as `cargo clippy` beside the tests or Go
+`-race` beside a plain build, set `key` to a short profile (letters, digits, `_`). Cache entries are
+immutable, so without it the first job to save the shared entry wins and the others restore an
+unrelated build. Each profile gets its own entry and restore prefix; jobs that only download
+packages share one entry and leave `key` empty.
+
 uv is cached by [setup-uv](https://github.com/astral-sh/setup-uv#enable-caching) instead: set
 `enable-cache: 'true'`, `cache-dependency-glob` to the `uv.lock` paths, `prune-cache: 'true'` and
 `save-cache` to a default-branch-push expression. Pruning runs

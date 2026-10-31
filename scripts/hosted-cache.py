@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -30,6 +31,11 @@ LOCKS = {
 SKIPPED = {".git", "node_modules", "target", ".venv", ".dart_tool", ".pub-cache"}
 TRUSTED_EVENTS = {"push", "workflow_dispatch"}
 VERSION = "v1"
+# Jobs that build differently (clippy against tests, `-race` against plain Go builds) need separate
+# entries: cache keys are immutable, so the first job to save a shared key wins and the others
+# restore an unrelated build. rust-cache drops its job key once a shared key is set. The profile
+# follows the scope after a dot and holds no dot or dash, so no restore prefix reaches another one.
+PROFILE = re.compile(r"[A-Za-z0-9_]{1,40}")
 
 
 class Invalid(Exception):
@@ -83,6 +89,9 @@ def plan(environment: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
     save_policy = environment.get("NDDEV_SAVE", "auto")
     if save_policy not in {"auto", "never"}:
         raise Invalid("save must be auto or never")
+    profile = environment.get("NDDEV_KEY", "").strip()
+    if profile and not PROFILE.fullmatch(profile):
+        raise Invalid("key must be 1-40 letters, digits or underscores")
     workspace = Path(environment["GITHUB_WORKSPACE"])
     working = contained(workspace, environment.get("NDDEV_WORKING_DIRECTORY", ".") or ".")
     relative = working.relative_to(workspace.resolve()).as_posix() or "."
@@ -98,7 +107,7 @@ def plan(environment: dict[str, str]) -> tuple[dict[str, str], dict[str, str]]:
         and environment.get("NDDEV_REF") == f"refs/heads/{default_branch}"
     )
     platform = f"{environment['RUNNER_OS']}-{environment['RUNNER_ARCH']}".lower()
-    scope = hashlib.sha256(relative.encode()).hexdigest()[:8]
+    scope = hashlib.sha256(relative.encode()).hexdigest()[:8] + (f".{profile}" if profile else "")
     root = Path(environment["RUNNER_TEMP"]) / "nddev-hosted-cache"
     outputs = {**disabled, "enabled": "true", "save": str(save).lower(), "reason": ""}
     exports: dict[str, str] = {}
