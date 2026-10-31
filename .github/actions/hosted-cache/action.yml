@@ -10,6 +10,9 @@ inputs:
   save:
     description: auto saves only on push or workflow_dispatch to the default branch; never always restores only
     default: auto
+  key:
+    description: Optional profile (letters, digits, _) separating jobs that build differently, such as clippy and tests or Go -race; empty shares one entry per directory
+    default: ''
 outputs:
   enabled:
     description: true on GitHub-hosted runners; false on self-hosted runners, which keep their owned caches
@@ -34,6 +37,7 @@ runs:
         NDDEV_ECOSYSTEMS: ${{ inputs.ecosystems }}
         NDDEV_WORKING_DIRECTORY: ${{ inputs.working-directory }}
         NDDEV_SAVE: ${{ inputs.save }}
+        NDDEV_KEY: ${{ inputs.key }}
         NDDEV_RUNNER_ENVIRONMENT: ${{ runner.environment }}
         NDDEV_EVENT: ${{ github.event_name }}
         NDDEV_REF: ${{ github.ref }}

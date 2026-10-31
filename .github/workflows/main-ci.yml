@@ -111,6 +111,7 @@ jobs:
       with:
         ecosystems: cargo
         working-directory: tests/native/rust
+        key: native_rust
     - name: Prepare native source security tools
       if: ${{ matrix.profile == 'security' }}
       run: scripts/prepare-linux-tools.sh security
