@@ -80,12 +80,24 @@ runs:
       print("release inputs validated before checkout")
       PY
     shell: bash
-  - name: Checkout
-    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-    with:
-      fetch-depth: 0
-      ref: refs/tags/${{ inputs.version }}
-      persist-credentials: false
+  - name: Require the caller's checkout of the exact tag
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    shell: bash
+    run: |
+      set -euo pipefail
+      # The caller checks out refs/tags/<version> with full history and no persisted
+      # credentials; the action never checks out code itself.
+      tag_commit="$(git rev-parse --verify "refs/tags/${RELEASE_VERSION}^{commit}")"
+      head_commit="$(git rev-parse --verify HEAD)"
+      if [ "$tag_commit" != "$head_commit" ]; then
+        echo "check out refs/tags/${RELEASE_VERSION} (fetch-depth: 0) before source-release" >&2
+        exit 1
+      fi
+      if [ "$(git rev-parse --is-shallow-repository)" = true ]; then
+        echo "source-release needs the full history (fetch-depth: 0)" >&2
+        exit 1
+      fi
   - name: Validate checked-out release contract
     env:
       RELEASE_VERSION: ${{ inputs.version }}
