@@ -69,6 +69,8 @@ jobs:
     runs-on: ubuntu-24.04
   lane:
     runs-on: ${{{{ vars.RUNNER_LANE || 'nddev-linux-standart' }}}}
+  pool:
+    runs-on: curestry-new-deploy
   edited:
     runs-on: ${{{{ fromJSON(vars.NDDEV_ROUTE_LABELS || '{{}}')['self/nddev-linux'] || 'nddev-linux' }}}}
   reuse:
@@ -82,6 +84,7 @@ jobs:
         "mac": "hosted",
         "linux-hosted": "invalid",
         "lane": "fixed",
+        "pool": "fixed",
         "edited": "invalid",
     }
 

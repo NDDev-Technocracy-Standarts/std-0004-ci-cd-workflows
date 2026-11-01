@@ -356,7 +356,9 @@ def private_jobs(root) -> list[dict]:
                     findings.append({**item, "verdict": "fixed", "reason": "expression-selected runner"})
                 continue
             labels = [value for value in values if isinstance(value, str)]
-            if "self-hosted" in labels or any(label.startswith("nddev-") for label in labels):
+            hosted = [label for label in labels if label.startswith(("ubuntu-", "windows-", "macos-"))]
+            if "self-hosted" in labels or not hosted:
+                # Explicit self-hosted capacity, including custom pools such as `curestry-new-deploy`.
                 findings.append({**item, "verdict": "fixed", "labels": labels})
             elif any(label.startswith("ubuntu-") for label in labels):
                 findings.append(
