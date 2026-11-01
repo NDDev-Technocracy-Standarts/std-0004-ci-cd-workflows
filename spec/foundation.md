@@ -148,6 +148,7 @@ sources:
 - gha-reuse
 - gha-composite
 - gha-runs-on-contexts
+- gha-variables
 applies-when: The implementation schedules a job or chooses execution capacity.
 ```
 
@@ -158,9 +159,12 @@ workflow access is insufficient; it may call a public composite implementation. 
 selection and execution context cannot be controlled by untrusted payload fields. A declared runner
 name is not evidence of its actual OS, architecture, toolchain or account entitlement.
 
-A private job's runs-on is the canonical route expression, which reads only the controller's
-organization variables (`NDDEV_ROUTE_LABELS`, `NDDEV_RUN_ROUTES`). A run without a route keeps its
-class, so a manual re-run of an unmoved run stays on self-hosted capacity. `nddev-cicd runners-check
+A private job's runs-on is the canonical route expression, which reads only the repository variables
+`NDDEV_ROUTE_LABELS` and `NDDEV_RUN_ROUTES`. The fleet controller writes them in a repository right
+before it moves one of that repository's runs. Organization variables are not visible to private
+repositories on GitHub Free, so the controller does not use them. A repository never defines these
+names itself. A run without a route keeps its class, so a manual re-run of an unmoved run stays on
+self-hosted capacity. `nddev-cicd runners-check
 --visibility private` refuses hosted Linux labels and route expressions that differ from the canonical
 one.
 
