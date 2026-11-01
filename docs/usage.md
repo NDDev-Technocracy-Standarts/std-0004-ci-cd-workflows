@@ -580,7 +580,8 @@ refused. Existing systemd service secrets remain in their native target-owned en
 The [source release composite](../.github/actions/source-release/action.yml) publishes a numeric tag
 (`X.Y.Z`, equal to the tag and the repository's VERSION file) as one immutable GitHub Release. It
 replaces the retired ci-workflows `release-supply-chain` reusable workflow, which some repositories
-still called. It checks out the tag itself and produces:
+still called. The caller checks out `refs/tags/<version>` with full history and without persisted
+credentials. The action refuses any other checkout and never checks out code itself. It produces:
 
 - a deterministic tracked-source archive of the selected `archive-paths`;
 - an optional runtime bundle of `runtime-paths`, which must be a subset of the archive;
@@ -612,6 +613,11 @@ jobs:
       attestations: write
       artifact-metadata: write
     steps:
+      - uses: actions/checkout@<sha> # <release>
+        with:
+          ref: refs/tags/${{ needs.resolve.outputs.version }}
+          fetch-depth: 0
+          persist-credentials: false
       - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/source-release@<sha> # nddev-cicd-v<version>
         with:
           version: ${{ needs.resolve.outputs.version }}
