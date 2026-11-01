@@ -324,9 +324,9 @@ def private_jobs(root) -> list[dict]:
     """Classify the runner of every job in a private repository's .github/workflows (R-0004).
 
     routed   the canonical route expression with a known class: the controller may move it after waiting
-    fixed    explicit self-hosted labels: stays on that capacity (lane SDKs, devices); never moved
+    fixed    explicit self-hosted labels, or a matrix/inputs/variable expression: never moved
     hosted   a GitHub-hosted label: Linux is refused (private Linux is self-hosted); Windows/macOS reported
-    invalid  an expression that is not the canonical route, or a route with an unknown class
+    invalid  hosted Linux, or an altered route expression (reads the route variables non-canonically)
     """
     from pathlib import Path
 
@@ -346,15 +346,19 @@ def private_jobs(root) -> list[dict]:
                 runner_class = _route_class(values[0])
                 if runner_class:
                     findings.append({**item, "verdict": "routed", "class": runner_class})
-                elif "matrix." in values[0]:
-                    findings.append({**item, "verdict": "fixed", "reason": "matrix-selected runner"})
+                elif "NDDEV_ROUTE_LABELS" in values[0] or "NDDEV_RUN_ROUTES" in values[0]:
+                    # A route that differs from the canonical one would read the controller's
+                    # variables differently from what the controller writes.
+                    findings.append({**item, "verdict": "invalid", "reason": "altered route expression"})
                 else:
-                    findings.append(
-                        {**item, "verdict": "invalid", "reason": "not the canonical route expression"}
-                    )
+                    # matrix, inputs or a repository variable select the runner; the controller
+                    # never moves such a job, so it stays on whatever capacity it selects.
+                    findings.append({**item, "verdict": "fixed", "reason": "expression-selected runner"})
                 continue
             labels = [value for value in values if isinstance(value, str)]
-            if "self-hosted" in labels or any(label.startswith("nddev-") for label in labels):
+            hosted = [label for label in labels if label.startswith(("ubuntu-", "windows-", "macos-"))]
+            if "self-hosted" in labels or not hosted:
+                # Explicit self-hosted capacity, including custom pools such as `curestry-new-deploy`.
                 findings.append({**item, "verdict": "fixed", "labels": labels})
             elif any(label.startswith("ubuntu-") for label in labels):
                 findings.append(

@@ -67,8 +67,12 @@ jobs:
     runs-on: macos-15
   linux-hosted:
     runs-on: ubuntu-24.04
+  lane:
+    runs-on: ${{{{ vars.RUNNER_LANE || 'nddev-linux-standart' }}}}
+  pool:
+    runs-on: curestry-new-deploy
   edited:
-    runs-on: ${{{{ vars.MY_RUNNER }}}}
+    runs-on: ${{{{ fromJSON(vars.NDDEV_ROUTE_LABELS || '{{}}')['self/nddev-linux'] || 'nddev-linux' }}}}
   reuse:
     uses: ./.github/workflows/other.yml
 """
@@ -79,6 +83,8 @@ jobs:
         "sdk": "fixed",
         "mac": "hosted",
         "linux-hosted": "invalid",
+        "lane": "fixed",
+        "pool": "fixed",
         "edited": "invalid",
     }
 
