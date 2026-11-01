@@ -172,8 +172,10 @@ in `with:`.
 
 How the fallback works:
 
-- **Who decides.** The fleet controller, not the workflow. It owns two organization variables that
-  the expression only reads:
+- **Who decides.** The fleet controller, not the workflow. It owns two repository variables that the
+  expression only reads, and writes them in a repository right before it moves one of that
+  repository's runs. Organization variables are not visible to private repositories on GitHub Free.
+  A repository never defines these names itself:
   - `NDDEV_ROUTE_LABELS` maps `<tier>/<class>` to a label, for example
     `blacksmith/nddev-linux-small` to `blacksmith-2vcpu-ubuntu-2404`;
   - `NDDEV_RUN_ROUTES` maps the run id of a run it moved to `blacksmith` or `hosted`.

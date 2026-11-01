@@ -1,6 +1,6 @@
 [project]
 name = "nddev-cicd"
-version = "0.6.19"
+version = "0.6.20"
 description = "Native shared CI/CD operations for thin GitHub workflows and composite actions"
 readme = "README.md"
 license = "AGPL-3.0-only"

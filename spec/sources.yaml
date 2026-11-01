@@ -85,6 +85,12 @@ sources:
   supports: jobs.<job_id>.runs-on may use the github, needs, strategy, matrix, vars and inputs contexts, so a
     runner label can be resolved from organization variables at job evaluation.
   limits: The label of a queued job cannot change; a different label needs a new run attempt.
+- key: gha-variables
+  title: 'GitHub: Store information in variables'
+  url: https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables
+  supports: Configuration variables at repository, environment and organization level, and that organization-level
+    variables are not accessible by private repositories for GitHub Free.
+  limits: Variable precedence and plan availability follow the current GitHub plan; re-read when the plan changes.
 - key: gha-rerun
   title: 'GitHub: Re-running workflows and jobs'
   url: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs

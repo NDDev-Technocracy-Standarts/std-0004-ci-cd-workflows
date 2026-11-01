@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "9eb78c4d220144465f45e0fd4168c16c02dc35bdd41e0bd9ed1b22037be32d4c"
+      "sha256": "6e904323eea64e2a4c649feae8871e0d5129afcd6b61504da8a7bd3aebc6dc14"
     },
     {
       "path": "spec/intent.md",
@@ -80,7 +80,7 @@
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "b708ef2207314e1b88306ecf2b4b69f53ffe7b1993a22a4079c451258130afd1"
+      "sha256": "e890173cb6a556814ed7a338a59dd65d8dcaa58b1bc1c7890266d73ece1c4351"
     },
     {
       "path": "spec/verification.yaml",
@@ -88,11 +88,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "63d4ca0a7a9879edab7f40a22d06788e172667c1835ddfcf674647d46af476e7"
+      "sha256": "cfbf656e8d6254e97df03d88f92aa14fa82f2060a4582f6b16c9448164ed9d07"
     }
   ],
   "listings": [],
-  "inputs-sha256": "70b3d3f8bd155dabee499b260c6af5de7451e09f41ad1da6109f72fdba75d34f",
+  "inputs-sha256": "4cad8960ae11dd63df0a8cd6568bf0acf87c3de590a308d5991ac6e54978f309",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -456,6 +456,13 @@
       "limits": "The implementation needs appropriate concrete controls, not a claim that every container is isolated."
     },
     {
+      "key": "gha-variables",
+      "title": "GitHub: Store information in variables",
+      "url": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-variables",
+      "supports": "Configuration variables at repository, environment and organization level, and that organization-level variables are not accessible by private repositories for GitHub Free.",
+      "limits": "Variable precedence and plan availability follow the current GitHub plan; re-read when the plan changes."
+    },
+    {
       "key": "import-linter",
       "title": "Import Linter",
       "url": "https://import-linter.readthedocs.io/en/latest/index.html",
@@ -666,7 +673,8 @@
       "sources": [
         "gha-reuse",
         "gha-composite",
-        "gha-runs-on-contexts"
+        "gha-runs-on-contexts",
+        "gha-variables"
       ],
       "verification": "partial",
       "verified-by": [
@@ -674,12 +682,12 @@
       ],
       "criteria": "Check unknown-label and cross-organization paths without accidentally scheduling a billed or private job.",
       "since": "0.1.0",
-      "revised": "0.3.7",
+      "revised": "0.3.8",
       "condition": {
         "from": "item",
         "text": "The implementation schedules a job or chooses execution capacity."
       },
-      "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nA private job's runs-on is the canonical route expression, which reads only the controller's\norganization variables (`NDDEV_ROUTE_LABELS`, `NDDEV_RUN_ROUTES`). A run without a route keeps its\nclass, so a manual re-run of an unmoved run stays on self-hosted capacity. `nddev-cicd runners-check\n--visibility private` refuses hosted Linux labels and route expressions that differ from the canonical\none.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
+      "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nA private job's runs-on is the canonical route expression, which reads only the repository variables\n`NDDEV_ROUTE_LABELS` and `NDDEV_RUN_ROUTES`. The fleet controller writes them in a repository right\nbefore it moves one of that repository's runs. Organization variables are not visible to private\nrepositories on GitHub Free, so the controller does not use them. A repository never defines these\nnames itself. A run without a route keeps its class, so a manual re-run of an unmoved run stays on\nself-hosted capacity. `nddev-cicd runners-check\n--visibility private` refuses hosted Linux labels and route expressions that differ from the canonical\none.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
       "source": {
         "path": "spec/foundation.md",
         "line": 138
