@@ -67,6 +67,10 @@ cache by default, such as language toolchain setups with built-in caching. Jobs 
 lockfile differently keep separate entries, because cache entries are immutable. Saved content is
 pruned to what restores faster than a fresh download. The total stays inside the repository's free
 cache allowance, so that eviction does not discard the default branch's entries.
+The NDDev network cache and lane caches serve self-hosted runs. A run moved to Blacksmith or a
+GitHub-hosted runner (R-0004) has neither, so every library step treats them as optional: without
+them it downloads from the pinned source. It fails only when an integrity check (digest, lock or
+signature) fails.
 
 ## R-0019 Reports remain useful without storage duplication
 
