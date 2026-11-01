@@ -575,6 +575,50 @@ inside private SSH staging and applied only to the authenticated adapter process
 in release files or receipts. Runner GitHub/SSH authority and interpreter/search-path controls are
 refused. Existing systemd service secrets remain in their native target-owned environment mechanism.
 
+## Source releases for tagged repositories
+
+The [source release composite](../.github/actions/source-release/action.yml) publishes a numeric tag
+(`X.Y.Z`, equal to the tag and the repository's VERSION file) as one immutable GitHub Release. It
+replaces the retired ci-workflows `release-supply-chain` reusable workflow, which some repositories
+still called. It checks out the tag itself and produces:
+
+- a deterministic tracked-source archive of the selected `archive-paths`;
+- an optional runtime bundle of `runtime-paths`, which must be a subset of the archive;
+- an SPDX SBOM of the exact archive payload (Syft, digest-verified download);
+- canonical release notes, from `notes-file` or the matching CHANGELOG section;
+- a release manifest and `SHA256SUMS`.
+
+All assets are attached in a single `gh release create --verify-tag`. The action refuses an existing
+release and never clobbers one.
+
+Attestations (SLSA build provenance for the archive and runtime bundle, plus an SBOM attestation)
+follow `attest`:
+
+- `auto` (default) attests in public repositories only, because private repositories on GitHub
+  Free, Pro or Team cannot store artifact attestations;
+- `true` forces attestations;
+- `false` skips them.
+
+The caller job runs on Linux and grants `contents: write`; for attestations it also grants
+`id-token: write`, `attestations: write` and `artifact-metadata: write`.
+
+```yaml
+jobs:
+  release:
+    runs-on: ubuntu-26.04 # or a private runner class route
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/actions/source-release@<sha> # nddev-cicd-v<version>
+        with:
+          version: ${{ needs.resolve.outputs.version }}
+          package-name: my-package
+          archive-paths: README.md LICENSE VERSION CHANGELOG.md scripts
+```
+
 ## Public security and release modules
 
 `public-security.yml` is a public source-analysis reusable module for main pushes and explicit legacy PR callers. It executes pinned native CodeQL,
