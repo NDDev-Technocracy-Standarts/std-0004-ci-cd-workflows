@@ -277,8 +277,9 @@ def workflow_labels(root) -> list[dict]:
 
 
 # Private self-hosted runner classes (R-0004). A private job names its class once through the route
-# expression. The fleet controller owns the fallback chain and writes two organization variables that
-# the expression only reads:
+# expression. The fleet controller owns the fallback chain and writes two repository variables, in a
+# repository right before it moves one of its runs, that the expression only reads (organization
+# variables are not visible to private repositories on GitHub Free; repositories never set these):
 #   NDDEV_ROUTE_LABELS  static and flat, "<tier>/<class>" -> label, e.g. "blacksmith/nddev-linux-small"
 #   NDDEV_RUN_ROUTES    "<run_id>" -> "blacksmith" | "hosted" for a run it moved after waiting
 # A run without an entry keeps its class, so a manual re-run of an unmoved run stays self-hosted. A moved
