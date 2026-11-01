@@ -41,3 +41,9 @@ def test_release_is_created_once_with_a_verified_tag():
     assert "--verify-tag" in runs
     assert "--clobber" not in runs
     assert "ci-workflows" not in runs
+
+
+def test_the_action_never_checks_out_code_itself():
+    steps = _action()["runs"]["steps"]
+    assert not any(str(step.get("uses", "")).startswith("actions/checkout@") for step in steps)
+    assert any("refs/tags/${RELEASE_VERSION}^{commit}" in step.get("run", "") for step in steps)
