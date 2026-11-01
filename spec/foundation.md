@@ -72,14 +72,24 @@ sources:
 - gha-hosted-runners
 - gha-larger-runners
 - runner-images
+- gha-runs-on-contexts
+- gha-rerun
 applies-when: A job selects an execution provider or runner.
 ```
 
 Every library job MUST follow the owner's execution routing, including routing, reporting and other
 small helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public
-work never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared
-existing NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS
-work prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.
+work never selects Blacksmith or private self-hosted capacity. Private work runs on the declared
+NDDev self-hosted capacity. A private job names that capacity once, as a runner class (for example
+`nddev-linux-small`, `nddev-linux`, `nddev-linux-arm-small` or `nddev-macos-small`), through the
+library's route expression (`nddev-cicd route-expression <class>`), never as a hosted fallback label.
+When a routed job has waited ten minutes for that capacity, the fleet controller moves its run to the
+compatible Blacksmith runner. If Blacksmith does not start it or has no free allowance left, the
+controller moves the run to the compatible standard GitHub-hosted runner. If that is refused as well,
+the run waits for the self-hosted capacity again. Each move happens only under R-0005. The controller
+owns the decision, the per-tier labels and the receipts; the workflow only reads them. A job that needs
+the lane's own SDK, device or network keeps explicit self-hosted labels and is never moved. A failed
+test is not retried on a different provider to obtain a passing result.
 The repository that supplies a public workflow does not change the caller's billing or trust context.
 
 On GitHub, public work selects only labels that GitHub lists as standard GitHub-hosted runners for
@@ -105,6 +115,7 @@ sources:
 - gha-billing
 - gha-limits
 - gha-dependency-caching
+- blacksmith-usage
 applies-when: An invocation can consume provider or storage allowance.
 ```
 
@@ -118,6 +129,11 @@ Free capacity has concurrency limits per plan; on GitHub Free these are 20 concu
 5 of them macOS. Work beyond the limit waits in the queue: a queue is not a reason to select paid
 capacity or to remove checks. Storage stays inside the free allowances. The repository's hosted cache
 allowance is not raised, because use beyond it is billed.
+The private fallback of R-0004 is bounded the same way. Blacksmith states no hard stop for charges,
+so the controller moves runs there only while the organization's measured usage stays inside
+Blacksmith's free allowance. It moves runs to GitHub-hosted runners only while the organization's
+included private minutes are not exhausted and usage beyond them is refused. Otherwise the run waits
+for self-hosted capacity.
 
 ## R-0006 Runner selection precedes affected execution
 
@@ -131,6 +147,7 @@ criteria: Check unknown-label and cross-organization paths without accidentally 
 sources:
 - gha-reuse
 - gha-composite
+- gha-runs-on-contexts
 applies-when: The implementation schedules a job or chooses execution capacity.
 ```
 
@@ -140,6 +157,12 @@ silent ubuntu-latest defaults. The caller owns its runner/job when cross-organiz
 workflow access is insufficient; it may call a public composite implementation. Workflow source
 selection and execution context cannot be controlled by untrusted payload fields. A declared runner
 name is not evidence of its actual OS, architecture, toolchain or account entitlement.
+
+A private job's runs-on is the canonical route expression, which reads only the controller's
+organization variables (`NDDEV_ROUTE_LABELS`, `NDDEV_RUN_ROUTES`). A run without a route keeps its
+class, so a manual re-run of an unmoved run stays on self-hosted capacity. `nddev-cicd runners-check
+--visibility private` refuses hosted Linux labels and route expressions that differ from the canonical
+one.
 
 The routing helper validates configured labels and trust but does not query the native runner
 inventory, job access or live queue. Its private self-hosted result reports this limitation

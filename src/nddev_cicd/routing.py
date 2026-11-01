@@ -274,3 +274,96 @@ def workflow_labels(root) -> list[dict]:
                     }
                 )
     return findings
+
+
+# Private self-hosted runner classes (R-0004). A private job names its class once through the route
+# expression. The fleet controller owns the fallback chain and writes two organization variables that
+# the expression only reads:
+#   NDDEV_ROUTE_LABELS  static and flat, "<tier>/<class>" -> label, e.g. "blacksmith/nddev-linux-small"
+#   NDDEV_RUN_ROUTES    "<run_id>" -> "blacksmith" | "hosted" for a run it moved after waiting
+# A run without an entry keeps its class, so a manual re-run of an unmoved run stays self-hosted. A moved
+# run is cancelled and re-run; runs-on is evaluated again for that attempt and resolves to the tier label.
+RUNNER_CLASSES = (
+    "nddev-linux-small",
+    "nddev-linux",
+    "nddev-linux-standart",
+    "nddev-linux-arm-small",
+    "nddev-macos-small",
+)
+_ROUTE = (
+    "${{{{ fromJSON(vars.NDDEV_ROUTE_LABELS || '{{}}')[format('{{0}}/{{1}}', "
+    "fromJSON(vars.NDDEV_RUN_ROUTES || '{{}}')[github.run_id] || 'self', {cls})] || {cls} }}}}"
+)
+
+
+def route_expression(runner_class: str, *, reusable: bool = False) -> str:
+    """The canonical runs-on value for a private job of `runner_class`.
+
+    With `reusable`, the class comes from the caller as `inputs.runner-class`; the caller still names it
+    literally in `with:`, which is how the controller recognizes an adopted workflow.
+    """
+    if reusable:
+        return _ROUTE.format(cls="inputs.runner-class")
+    if runner_class not in RUNNER_CLASSES:
+        raise Invalid(f"Unknown runner class {runner_class!r}; known: {', '.join(RUNNER_CLASSES)}")
+    return _ROUTE.format(cls=f"'{runner_class}'")
+
+
+def _route_class(value: str) -> str | None:
+    """The class of a canonical route expression, or None when `value` is not one."""
+    for runner_class in RUNNER_CLASSES:
+        if value.strip() == route_expression(runner_class):
+            return runner_class
+    if value.strip() == route_expression("", reusable=True):
+        return "inputs.runner-class"
+    return None
+
+
+def private_jobs(root) -> list[dict]:
+    """Classify the runner of every job in a private repository's .github/workflows (R-0004).
+
+    routed   the canonical route expression with a known class: the controller may move it after waiting
+    fixed    explicit self-hosted labels: stays on that capacity (lane SDKs, devices); never moved
+    hosted   a GitHub-hosted label: Linux is refused (private Linux is self-hosted); Windows/macOS reported
+    invalid  an expression that is not the canonical route, or a route with an unknown class
+    """
+    from pathlib import Path
+
+    import yaml
+
+    findings: list[dict] = []
+    directory = Path(root) / ".github" / "workflows"
+    for path in sorted([*directory.glob("*.yml"), *directory.glob("*.yaml")]):
+        document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for job_id, job in (document.get("jobs") or {}).items():
+            if not isinstance(job, dict) or "uses" in job or "runs-on" not in job:
+                continue
+            runs_on = job["runs-on"]
+            values = runs_on if isinstance(runs_on, list) else [runs_on]
+            item = {"workflow": path.name, "job": job_id}
+            if len(values) == 1 and isinstance(values[0], str) and "${{" in values[0]:
+                runner_class = _route_class(values[0])
+                if runner_class:
+                    findings.append({**item, "verdict": "routed", "class": runner_class})
+                elif "matrix." in values[0]:
+                    findings.append({**item, "verdict": "fixed", "reason": "matrix-selected runner"})
+                else:
+                    findings.append(
+                        {**item, "verdict": "invalid", "reason": "not the canonical route expression"}
+                    )
+                continue
+            labels = [value for value in values if isinstance(value, str)]
+            if "self-hosted" in labels or any(label.startswith("nddev-") for label in labels):
+                findings.append({**item, "verdict": "fixed", "labels": labels})
+            elif any(label.startswith("ubuntu-") for label in labels):
+                findings.append(
+                    {
+                        **item,
+                        "verdict": "invalid",
+                        "labels": labels,
+                        "reason": "private Linux work runs on self-hosted capacity; route it by class",
+                    }
+                )
+            else:
+                findings.append({**item, "verdict": "hosted", "labels": labels})
+    return findings

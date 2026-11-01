@@ -36,6 +36,9 @@ Public callers on GitHub-hosted runners add the [hosted cache](.github/actions/h
 for lockfile-keyed Cargo, Bun, npm, Pub and Go caches that only default-branch pushes save.
 Public routing selects only the free standard GitHub-hosted labels, and `nddev-cicd runners-check`
 refuses floating, retiring, larger or unknown labels ([usage](docs/usage.md#free-standard-runners)).
+Private jobs name a self-hosted runner class through one route expression (`nddev-cicd route-expression`);
+the fleet controller moves a run that waited ten minutes to Blacksmith, then to GitHub-hosted runners, within
+the free allowances ([usage](docs/usage.md#private-repositories-runner-classes-and-the-fallback)).
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
 The [generated profile reference](docs/profiles.md) summarizes selectable operations and points to

@@ -147,6 +147,53 @@ The manifest binds bytes/modes, caller source/merge tree, lock/contract identiti
 code identity. The upload policy and bounded retention belong to the action inputs. Caches and credentials
 are rejected. This is content/provenance binding, not a claim of signed SLSA attestation.
 
+## Private repositories: runner classes and the fallback
+
+Private work runs on the NDDev self-hosted fleet (STD-0004 R-0004). A job names its capacity once, as
+a **runner class**, through the canonical route expression. It never names a hosted fallback label
+itself:
+
+```yaml
+jobs:
+  check:
+    runs-on: ${{ fromJSON(vars.NDDEV_ROUTE_LABELS || '{}')[format('{0}/{1}', fromJSON(vars.NDDEV_RUN_ROUTES || '{}')[github.run_id] || 'self', 'nddev-linux-small')] || 'nddev-linux-small' }}
+```
+
+`nddev-cicd route-expression nddev-linux-small` prints that value for a class; `--reusable` prints the
+form that reads `inputs.runner-class` for a reusable workflow, whose caller names the class literally
+in `with:`.
+
+| Class | Self-hosted capacity |
+| --- | --- |
+| `nddev-linux-small` | light Linux x64 lane |
+| `nddev-linux` / `nddev-linux-standart` | standard Linux x64 lane |
+| `nddev-linux-arm-small` | Linux arm64 guest |
+| `nddev-macos-small` | macOS arm64 lane |
+
+How the fallback works:
+
+- **Who decides.** The fleet controller, not the workflow. It owns two organization variables that
+  the expression only reads:
+  - `NDDEV_ROUTE_LABELS` maps `<tier>/<class>` to a label, for example
+    `blacksmith/nddev-linux-small` to `blacksmith-2vcpu-ubuntu-2404`;
+  - `NDDEV_RUN_ROUTES` maps the run id of a run it moved to `blacksmith` or `hosted`.
+- **When a run moves.** When a routed job has waited ten minutes and none of the run's jobs is
+  running, the controller cancels the run and re-runs it. The new attempt resolves to the Blacksmith
+  label.
+  - If Blacksmith does not start the run within three minutes, or its free allowance is spent, the
+    controller moves the run on to the standard GitHub-hosted label.
+  - If that is refused too, the run goes back to waiting for the self-hosted lane.
+  - Every move stays within the free allowances of R-0005.
+- **What stays put.** A run without an entry keeps its class, so a manual re-run of an unmoved run stays
+  self-hosted. A job that needs the lane's own SDK, device or network keeps explicit self-hosted labels
+  and is never moved.
+- **Caches.** Blacksmith and GitHub-hosted runs have neither the NDDev network cache nor lane caches.
+  Library steps fall back to the pinned download sources and fail only on integrity checks (R-0018).
+
+`nddev-cicd runners-check --visibility private --root .` reports every job as routed, fixed
+(self-hosted labels), hosted (Windows/macOS GitHub-hosted labels) or invalid. It fails on hosted Linux
+labels and on route expressions that differ from the canonical one.
+
 ## Public repositories on GitHub-hosted runners
 
 ### Free standard runners
@@ -173,7 +220,7 @@ matrix values included:
 - a larger runner (`-large`, `-xlarge`, `-N-cores`, GPU);
 - an unknown label.
 
-Self-hosted jobs are outside this check.
+Self-hosted jobs are outside this check; private repositories use `--visibility private` (above).
 
 The free capacity has limits, and the standard handles them by waiting, never by paying
 ([Actions limits](https://docs.github.com/en/actions/reference/limits)):
