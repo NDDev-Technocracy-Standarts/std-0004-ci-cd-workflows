@@ -149,6 +149,50 @@ are rejected. This is content/provenance binding, not a claim of signed SLSA att
 
 ## Public repositories on GitHub-hosted runners
 
+### Free standard runners
+
+GitHub runs its [standard GitHub-hosted runners](https://docs.github.com/en/actions/reference/runners/github-hosted-runners#standard-github-hosted-runners-for-public-repositories)
+in public repositories [without charge](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+[Larger runners](https://docs.github.com/en/actions/concepts/runners/larger-runners) are billed per minute
+even there. Public routing (`nddev-cicd route`) therefore selects only these exact labels (STD-0004
+R-0004/R-0005):
+
+| Platform | Architecture | Label | Runner |
+| --- | --- | --- | --- |
+| Linux | x64 | `ubuntu-26.04` | 4 vCPU, 16 GB RAM, 14 GB SSD |
+| Linux | arm64 | `ubuntu-26.04-arm` | 4 vCPU, 16 GB RAM, 14 GB SSD |
+| Windows | x64 | `windows-2025` | 4 vCPU, 16 GB RAM, 14 GB SSD |
+| Windows | arm64 | `windows-11-arm` | 4 vCPU, 16 GB RAM, 14 GB SSD |
+| macOS | arm64 | `macos-15` (`macos-26` where the product needs it) | 3 M1 cores, 7 GB RAM, 14 GB SSD |
+| macOS | x64 | `macos-15-intel` (`macos-26-intel`) | 4 vCPU, 14 GB RAM, 14 GB SSD |
+
+`nddev-cicd runners-check --root .` refuses any other GitHub-hosted label in a repository's workflows,
+matrix values included:
+- a floating `-latest` label, which changes image without a reviewed change;
+- a retiring image, such as `macos-14`, unsupported from 2026-11-02, or `ubuntu-22.04`, unsupported from 2027-04-17;
+- a larger runner (`-large`, `-xlarge`, `-N-cores`, GPU);
+- an unknown label.
+
+Self-hosted jobs are outside this check.
+
+The free capacity has limits, and the standard handles them by waiting, never by paying
+([Actions limits](https://docs.github.com/en/actions/reference/limits)):
+
+- **Concurrency.** GitHub Free allows 20 concurrent standard jobs, 5 of them macOS. Extra jobs queue.
+- **Job time.** A hosted job runs for at most 6 hours.
+- **Disk.** Each runner has a 14 GB SSD. Large Rust workspaces split lint and test jobs and drop CI
+  debuginfo (`CARGO_PROFILE_DEV_DEBUG=0`) rather than outgrow it.
+- **Cache.** A repository holds 10 GB of [dependency cache](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching),
+  and entries unused for 7 days are evicted. Use beyond the limit is billed, so the limit is never raised.
+  Only default-branch pushes write (`hosted-cache` below).
+
+Linux release binaries are built on the image whose glibc matches the systems they ship to:
+`ubuntu-26.04` since the owner's decision of 2026-11-01. The pinned actionlint release predates the 26.04 labels
+([rhysd/actionlint#682](https://github.com/rhysd/actionlint/issues/682)), so callers declare them in
+`.github/actionlint.yaml`, as this repository does.
+
+### Hosted caches
+
 Public callers run on standard GitHub-hosted runners and have no owned host cache. The
 [hosted cache composite](../.github/actions/hosted-cache/action.yml) restores lockfile-keyed native
 caches for the selected `ecosystems`: `cargo`, `bun`, `npm`, `pub` and `go`. Select it after the

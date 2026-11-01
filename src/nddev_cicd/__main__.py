@@ -82,6 +82,11 @@ def parser() -> argparse.ArgumentParser:
     secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
     secret.add_argument("--root", type=Path, default=Path.cwd())
     secret.add_argument("--output", type=Path)
+    runners = sub.add_parser(
+        "runners-check",
+        help="Refuse floating, retiring, larger or unknown GitHub-hosted labels in a public repository",
+    )
+    runners.add_argument("--root", type=Path, default=Path.cwd())
     route = sub.add_parser("route", help="Choose admitted capacity before the affected job is allocated")
     route.add_argument("--policy", type=Path, required=True)
     pack = sub.add_parser("pack", help="Package exact selected files with source identity")
@@ -229,6 +234,19 @@ def main(argv=None) -> int:
             result = check(root, config.load(root, args.contract).get("documentation"))
             print(json.dumps(result))
             return 0
+        if args.operation == "runners-check":
+            findings = routing.workflow_labels(args.root.resolve())
+            rejected = [item for item in findings if item["verdict"] != "standard"]
+            print(
+                json.dumps(
+                    {
+                        "status": "failure" if rejected else "success",
+                        "rejected": rejected,
+                        "checked": len(findings),
+                    }
+                )
+            )
+            return 1 if rejected else 0
         if args.operation == "secrets-check":
             root = args.root.resolve()
             output = (
