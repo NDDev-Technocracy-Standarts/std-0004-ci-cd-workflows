@@ -193,8 +193,11 @@ How the fallback works:
   Library steps fall back to the pinned download sources and fail only on integrity checks (R-0018).
 
 `nddev-cicd runners-check --visibility private --root .` reports every job as routed, fixed
-(self-hosted labels), hosted (Windows/macOS GitHub-hosted labels) or invalid. It fails on hosted Linux
-labels and on route expressions that differ from the canonical one.
+(self-hosted labels, or a runner chosen by a matrix, input or repository variable such as
+`${{ vars.RUNNER_LANE || 'nddev-linux-standart' }}`), hosted (Windows/macOS GitHub-hosted labels) or
+invalid. It fails on hosted Linux labels and on an altered route expression, one that reads
+`NDDEV_ROUTE_LABELS`/`NDDEV_RUN_ROUTES` differently from the canonical form. The controller never
+moves a fixed job; deploy jobs belong there.
 
 ## Public repositories on GitHub-hosted runners
 
