@@ -9,7 +9,7 @@
     "id": "std-0004",
     "title": "NDDev CI/CD Workflows",
     "owner": "rldyourmnd",
-    "version": "0.3.6",
+    "version": "0.3.7",
     "status": "published",
     "purpose": "Define a public modular CI/CD contract and reusable implementation with complete applicable feedback, no additional spend and coherent artifact delivery.",
     "applies-to": [
@@ -64,7 +64,7 @@
     },
     {
       "path": "spec/foundation.md",
-      "sha256": "023339424d6924e26029105b76d3dc587a845e0f8585887b5d6b9b23aac61c3c"
+      "sha256": "9eb78c4d220144465f45e0fd4168c16c02dc35bdd41e0bd9ed1b22037be32d4c"
     },
     {
       "path": "spec/intent.md",
@@ -76,11 +76,11 @@
     },
     {
       "path": "spec/performance.md",
-      "sha256": "51245ce7ea6d18937d9ca0b52120ba6e67feb5fc2adfaf532df06a52c757b9c4"
+      "sha256": "be165c6b259fb4122704aff540eea045f9e41ea1e81767a3e2196ac3f214b85d"
     },
     {
       "path": "spec/sources.yaml",
-      "sha256": "4f56a117727fc00eaacf83e445d597123d9fd217c4adc6fdf081884fb4bf2341"
+      "sha256": "b708ef2207314e1b88306ecf2b4b69f53ffe7b1993a22a4079c451258130afd1"
     },
     {
       "path": "spec/verification.yaml",
@@ -88,11 +88,11 @@
     },
     {
       "path": "standard.yml",
-      "sha256": "a74dd7b33743749678151893f6bfe2fd96393306e8c95fed4111cf6abbf7ffde"
+      "sha256": "63d4ca0a7a9879edab7f40a22d06788e172667c1835ddfcf674647d46af476e7"
     }
   ],
   "listings": [],
-  "inputs-sha256": "56dbca6cf06b8093e70ffaaacc10b30c8fe586548a679093e7aee364eeba7409",
+  "inputs-sha256": "70b3d3f8bd155dabee499b260c6af5de7451e09f41ad1da6109f72fdba75d34f",
   "verification": [
     {
       "id": "runtime.advanced",
@@ -309,6 +309,13 @@
       "limits": "An email alert after exceeding a threshold is not evidence of zero-overage enforcement."
     },
     {
+      "key": "blacksmith-usage",
+      "title": "Blacksmith: CLI usage",
+      "url": "https://docs.blacksmith.sh/blacksmith-cli/usage",
+      "supports": "Billable minutes and estimated cost per organization through the Blacksmith CLI.",
+      "limits": "There is no hard spend cap; the free allowance is enforced by the caller's own budget."
+    },
+    {
       "key": "cargo-cache",
       "title": "Cargo: build cache",
       "url": "https://doc.rust-lang.org/cargo/reference/build-cache.html",
@@ -414,11 +421,25 @@
       "limits": "Numbers are plan- and time-dependent; they are not a perpetual guarantee."
     },
     {
+      "key": "gha-rerun",
+      "title": "GitHub: Re-running workflows and jobs",
+      "url": "https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs",
+      "supports": "A re-run uses the same commit and ref, increments the run attempt, and is limited to 50 re-runs per run within 30 days.",
+      "limits": "Whether a re-run reads configuration variables again was established by a fleet probe (re-runs resolved the new route), not by this page."
+    },
+    {
       "key": "gha-reuse",
       "title": "GitHub: reuse workflow configurations",
       "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations",
       "supports": "Caller context, permission propagation and self-hosted runner visibility constrain reusable workflow composition.",
       "limits": "Provider limits and access rules are version-sensitive. This is not proof of a specific cross-organization installation."
+    },
+    {
+      "key": "gha-runs-on-contexts",
+      "title": "GitHub: Contexts reference (context availability)",
+      "url": "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts",
+      "supports": "jobs.<job_id>.runs-on may use the github, needs, strategy, matrix, vars and inputs contexts, so a runner label can be resolved from organization variables at job evaluation.",
+      "limits": "The label of a queued job cannot change; a different label needs a new run attempt."
     },
     {
       "key": "gha-secrets",
@@ -584,7 +605,9 @@
         "blacksmith-runners",
         "gha-hosted-runners",
         "gha-larger-runners",
-        "runner-images"
+        "runner-images",
+        "gha-runs-on-contexts",
+        "gha-rerun"
       ],
       "verification": "partial",
       "verified-by": [
@@ -592,12 +615,12 @@
       ],
       "criteria": "Inspect the full job graph for public/private Linux and Windows/macOS, not only the build job.",
       "since": "0.1.0",
-      "revised": "0.3.6",
+      "revised": "0.3.7",
       "condition": {
         "from": "item",
         "text": "A job selects an execution provider or runner."
       },
-      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private Linux work uses the declared\nexisting NDDev Linux self-hosted capacity, without hosted or Blacksmith overflow. Private Windows/macOS\nwork prefers compatible Blacksmith capacity and then compatible standard GitHub capacity only under R-0005. A failed test is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.\n\nOn GitHub, public work selects only labels that GitHub lists as standard GitHub-hosted runners for\npublic repositories, which run without charge there. GitHub bills larger runners per minute even in\npublic repositories, so public work never selects them. Larger runners include `-large`, `-xlarge`,\nmulti-core (`-N-cores`) and GPU labels, and custom runner groups. Every job names an exact supported\nimage, such as `ubuntu-26.04`, `windows-2025` or `macos-15`, instead of a floating `-latest` label,\nwhich changes image without a reviewed change. Linux release builds run on the image whose system\nlibraries match the systems they ship to. A label that GitHub announces for retirement is replaced\nbefore its scheduled brownouts, because those brownouts already fail jobs.",
+      "statement": "Every library job MUST follow the owner's execution routing, including routing, reporting and other\nsmall helper jobs. Public Linux, Windows and macOS work uses compatible standard free GitHub-hosted runners; public\nwork never selects Blacksmith or private self-hosted capacity. Private work runs on the declared\nNDDev self-hosted capacity. A private job names that capacity once, as a runner class (for example\n`nddev-linux-small`, `nddev-linux`, `nddev-linux-arm-small` or `nddev-macos-small`), through the\nlibrary's route expression (`nddev-cicd route-expression <class>`), never as a hosted fallback label.\nWhen a routed job has waited ten minutes for that capacity, the fleet controller moves its run to the\ncompatible Blacksmith runner. If Blacksmith does not start it or has no free allowance left, the\ncontroller moves the run to the compatible standard GitHub-hosted runner. If that is refused as well,\nthe run waits for the self-hosted capacity again. Each move happens only under R-0005. The controller\nowns the decision, the per-tier labels and the receipts; the workflow only reads them. A job that needs\nthe lane's own SDK, device or network keeps explicit self-hosted labels and is never moved. A failed\ntest is not retried on a different provider to obtain a passing result.\nThe repository that supplies a public workflow does not change the caller's billing or trust context.\n\nOn GitHub, public work selects only labels that GitHub lists as standard GitHub-hosted runners for\npublic repositories, which run without charge there. GitHub bills larger runners per minute even in\npublic repositories, so public work never selects them. Larger runners include `-large`, `-xlarge`,\nmulti-core (`-N-cores`) and GPU labels, and custom runner groups. Every job names an exact supported\nimage, such as `ubuntu-26.04`, `windows-2025` or `macos-15`, instead of a floating `-latest` label,\nwhich changes image without a reviewed change. Linux release builds run on the image whose system\nlibraries match the systems they ship to. A label that GitHub announces for retirement is replaced\nbefore its scheduled brownouts, because those brownouts already fail jobs.",
       "source": {
         "path": "spec/foundation.md",
         "line": 61
@@ -616,20 +639,21 @@
         "blacksmith-settings",
         "gha-billing",
         "gha-limits",
-        "gha-dependency-caching"
+        "gha-dependency-caching",
+        "blacksmith-usage"
       ],
       "verification": "review",
       "criteria": "Verify account-level cost enforcement and concurrent-run handling before any paid-capable dispatch.",
       "since": "0.1.0",
-      "revised": "0.3.6",
+      "revised": "0.3.7",
       "condition": {
         "from": "item",
         "text": "An invocation can consume provider or storage allowance."
       },
-      "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.\nFree capacity has concurrency limits per plan; on GitHub Free these are 20 concurrent standard jobs,\n5 of them macOS. Work beyond the limit waits in the queue: a queue is not a reason to select paid\ncapacity or to remove checks. Storage stays inside the free allowances. The repository's hosted cache\nallowance is not raised, because use beyond it is billed.",
+      "statement": "A scheduled run MUST use a demonstrably free allowance or an existing self-hosted resource. Provider\nquotas are interpreted in their actual billing units and ownership scope. An alert, card absence or\nstatic estimate alone is not proof of a hard stop on charges. When free admission cannot be\nestablished, the paid-capable route remains disabled; a genuinely free compatible route may be used.\nNo job buys resources, increases a spending limit or enables a paid add-on. The standards do not\nrequire account churn, duplicate organizations or misrepresentation to obtain allowances.\nFree capacity has concurrency limits per plan; on GitHub Free these are 20 concurrent standard jobs,\n5 of them macOS. Work beyond the limit waits in the queue: a queue is not a reason to select paid\ncapacity or to remove checks. Storage stays inside the free allowances. The repository's hosted cache\nallowance is not raised, because use beyond it is billed.\nThe private fallback of R-0004 is bounded the same way. Blacksmith states no hard stop for charges,\nso the controller moves runs there only while the organization's measured usage stays inside\nBlacksmith's free allowance. It moves runs to GitHub-hosted runners only while the organization's\nincluded private minutes are not exhausted and usage beyond them is refused. Otherwise the run waits\nfor self-hosted capacity.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 94
+        "line": 104
       }
     },
     {
@@ -641,7 +665,8 @@
       "basis": "owner",
       "sources": [
         "gha-reuse",
-        "gha-composite"
+        "gha-composite",
+        "gha-runs-on-contexts"
       ],
       "verification": "partial",
       "verified-by": [
@@ -649,15 +674,15 @@
       ],
       "criteria": "Check unknown-label and cross-organization paths without accidentally scheduling a billed or private job.",
       "since": "0.1.0",
-      "revised": "0.3.1",
+      "revised": "0.3.7",
       "condition": {
         "from": "item",
         "text": "The implementation schedules a job or chooses execution capacity."
       },
-      "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
+      "statement": "Routing MUST select only configured and available runner capabilities before the relevant job is\nscheduled. Unknown platforms, malformed labels and missing capacity remain explicit outcomes, not\nsilent ubuntu-latest defaults. The caller owns its runner/job when cross-organization reusable\nworkflow access is insufficient; it may call a public composite implementation. Workflow source\nselection and execution context cannot be controlled by untrusted payload fields. A declared runner\nname is not evidence of its actual OS, architecture, toolchain or account entitlement.\n\nA private job's runs-on is the canonical route expression, which reads only the controller's\norganization variables (`NDDEV_ROUTE_LABELS`, `NDDEV_RUN_ROUTES`). A run without a route keeps its\nclass, so a manual re-run of an unmoved run stays on self-hosted capacity. `nddev-cicd runners-check\n--visibility private` refuses hosted Linux labels and route expressions that differ from the canonical\none.\n\nThe routing helper validates configured labels and trust but does not query the native runner\ninventory, job access or live queue. Its private self-hosted result reports this limitation\nexplicitly. Actual availability remains a caller-owned prerequisite established through the\nexisting runner inventory; label selection alone does not verify R-0006.",
       "source": {
         "path": "spec/foundation.md",
-        "line": 122
+        "line": 138
       }
     },
     {
@@ -955,12 +980,12 @@
       ],
       "criteria": "Check cache compatibility, simultaneous runners and pressure cleanup without losing active/recovery data.",
       "since": "0.1.0",
-      "revised": "0.3.6",
+      "revised": "0.3.7",
       "condition": {
         "from": "item",
         "text": "The subject reads, writes or reclaims acceleration state."
       },
-      "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.\nOn GitHub-hosted runners, every event may restore a cache, but only a trusted push or manual run on\nthe default branch writes one. Pull-request runs never write. This also covers setup actions that\ncache by default, such as language toolchain setups with built-in caching. Jobs that build the same\nlockfile differently keep separate entries, because cache entries are immutable. Saved content is\npruned to what restores faster than a fresh download. The total stays inside the repository's free\ncache allowance, so that eviction does not discard the default branch's entries.",
+      "statement": "Caches MUST be acceleration state rather than proof of testing or the sole copy of release data.\nTheir keys and access boundaries account for relevant dependency, toolchain, platform and trust\ninputs. Concurrent writers follow the backend's actual contract. Storage has bounded ownership and\nreclamation that preserves active runs, releases and needed recovery artifacts. A broad destructive\ncleanup of the shared host or cargo clean before every run is not the default optimization.\nOn GitHub-hosted runners, every event may restore a cache, but only a trusted push or manual run on\nthe default branch writes one. Pull-request runs never write. This also covers setup actions that\ncache by default, such as language toolchain setups with built-in caching. Jobs that build the same\nlockfile differently keep separate entries, because cache entries are immutable. Saved content is\npruned to what restores faster than a fresh download. The total stays inside the repository's free\ncache allowance, so that eviction does not discard the default branch's entries.\nThe NDDev network cache and lane caches serve self-hosted runs. A run moved to Blacksmith or a\nGitHub-hosted runner (R-0004) has neither, so every library step treats them as optional: without\nthem it downloads from the pinned source. It fails only when an integrity check (digest, lock or\nsignature) fails.",
       "source": {
         "path": "spec/performance.md",
         "line": 40
@@ -989,7 +1014,7 @@
       "statement": "Run diagnostics and artifacts MUST have an identified use, appropriate retention and safe contents.\nGitHub logs/summaries serve small feedback; large artifacts are not duplicated merely to create a\nreport. Permissions, executable bits and hidden inputs needed by an actual package are preserved by\nits packaging method. Credentials and private customer data never enter a public artifact, SBOM,\ncache or log. A cancelled run's useful diagnostics remain identifiable without retaining its entire\nworkspace indefinitely.",
       "source": {
         "path": "spec/performance.md",
-        "line": 71
+        "line": 75
       }
     },
     {

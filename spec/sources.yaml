@@ -79,6 +79,24 @@ sources:
   supports: Current image labels, `-latest` migrations (ubuntu-latest to Ubuntu 26.04 by 2026-11-19) and
     retirements with scheduled brownouts (macOS 14 unsupported from 2026-11-02).
   limits: Announcements are time-bound; dates must be read from the current notice.
+- key: gha-runs-on-contexts
+  title: 'GitHub: Contexts reference (context availability)'
+  url: https://docs.github.com/en/actions/reference/workflows-and-actions/contexts
+  supports: jobs.<job_id>.runs-on may use the github, needs, strategy, matrix, vars and inputs contexts, so a
+    runner label can be resolved from organization variables at job evaluation.
+  limits: The label of a queued job cannot change; a different label needs a new run attempt.
+- key: gha-rerun
+  title: 'GitHub: Re-running workflows and jobs'
+  url: https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs
+  supports: A re-run uses the same commit and ref, increments the run attempt, and is limited to 50 re-runs
+    per run within 30 days.
+  limits: Whether a re-run reads configuration variables again was established by a fleet probe (re-runs
+    resolved the new route), not by this page.
+- key: blacksmith-usage
+  title: 'Blacksmith: CLI usage'
+  url: https://docs.blacksmith.sh/blacksmith-cli/usage
+  supports: Billable minutes and estimated cost per organization through the Blacksmith CLI.
+  limits: There is no hard spend cap; the free allowance is enforced by the caller's own budget.
 - key: gha-artifacts
   title: 'GitHub: upload-artifact'
   url: https://github.com/actions/upload-artifact

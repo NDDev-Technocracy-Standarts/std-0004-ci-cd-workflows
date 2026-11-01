@@ -84,9 +84,19 @@ def parser() -> argparse.ArgumentParser:
     secret.add_argument("--output", type=Path)
     runners = sub.add_parser(
         "runners-check",
-        help="Refuse floating, retiring, larger or unknown GitHub-hosted labels in a public repository",
+        help=(
+            "Public: refuse floating, retiring, larger or unknown GitHub-hosted labels. Private: refuse "
+            "hosted Linux and non-canonical route expressions; report routed and fixed self-hosted jobs"
+        ),
     )
     runners.add_argument("--root", type=Path, default=Path.cwd())
+    runners.add_argument("--visibility", choices=["public", "private"], default="public")
+    expression = sub.add_parser(
+        "route-expression",
+        help="Print the canonical runs-on expression for a private runner class (R-0004)",
+    )
+    expression.add_argument("runner_class", nargs="?", choices=routing.RUNNER_CLASSES)
+    expression.add_argument("--reusable", action="store_true", help="Read the class from inputs.runner-class")
     route = sub.add_parser("route", help="Choose admitted capacity before the affected job is allocated")
     route.add_argument("--policy", type=Path, required=True)
     pack = sub.add_parser("pack", help="Package exact selected files with source identity")
@@ -234,6 +244,27 @@ def main(argv=None) -> int:
             result = check(root, config.load(root, args.contract).get("documentation"))
             print(json.dumps(result))
             return 0
+        if args.operation == "route-expression":
+            if not args.reusable and not args.runner_class:
+                raise Invalid("Name a runner class, or pass --reusable")
+            print(routing.route_expression(args.runner_class or "", reusable=args.reusable))
+            return 0
+        if args.operation == "runners-check" and args.visibility == "private":
+            findings = routing.private_jobs(args.root.resolve())
+            rejected = [item for item in findings if item["verdict"] == "invalid"]
+            print(
+                json.dumps(
+                    {
+                        "status": "failure" if rejected else "success",
+                        "rejected": rejected,
+                        "routed": [item for item in findings if item["verdict"] == "routed"],
+                        "fixed": [item for item in findings if item["verdict"] == "fixed"],
+                        "hosted": [item for item in findings if item["verdict"] == "hosted"],
+                        "checked": len(findings),
+                    }
+                )
+            )
+            return 1 if rejected else 0
         if args.operation == "runners-check":
             findings = routing.workflow_labels(args.root.resolve())
             rejected = [item for item in findings if item["verdict"] != "standard"]
