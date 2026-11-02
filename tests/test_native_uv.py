@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from nddev_cicd.native_uv import InvalidUV, central_index, invocation, qualified_lock
+from nddev_cicd.native_uv import InvalidUV, build_constraints, central_index, invocation, qualified_lock
 
 
 @pytest.mark.parametrize(
@@ -218,3 +218,75 @@ def test_bridge_delimits_program_options_without_leaking_offline_environment(tmp
         )
     ]
     assert "UV_OFFLINE" not in environment
+
+
+def test_static_hatch_packages_mapping_is_qualified(tmp_path):
+    package = tmp_path / "src/probe"
+    package.mkdir(parents=True)
+    lock_project(
+        tmp_path,
+        'registry="https://pypi.org/simple"',
+        'build-backend="hatchling.build"\nrequires=["hatchling==1.29.0"]\n'
+        '[tool.hatch.build.targets.wheel]\npackages=["src/probe"]',
+    )
+    assert tmp_path / "pyproject.toml" in qualified_lock(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "setting",
+    [
+        "[tool.hatch.build.hooks.custom]",
+        '[tool.hatch.build.targets.wheel]\npackages=["../outside"]',
+        "[tool.hatch.build.targets.wheel]\npackages=[]",
+        '[tool.hatch.build.targets.wheel]\npackages=["src/probe"]\nonly-include=["other"]',
+    ],
+)
+def test_hatch_configuration_does_not_admit_hooks_or_outside_inputs(tmp_path, setting):
+    (tmp_path / "src/probe").mkdir(parents=True)
+    lock_project(
+        tmp_path,
+        'registry="https://pypi.org/simple"',
+        'build-backend="hatchling.build"\nrequires=["hatchling==1.29.0"]\n' + setting,
+    )
+    with pytest.raises(InvalidUV):
+        qualified_lock(tmp_path)
+
+
+def test_registry_source_builds_are_explicit_native_hash_constrained(tmp_path):
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.uv]\nrequire-build-hashes=true\n"
+        'build-constraint-dependencies=[{requirement="wheel==0.48.0",hashes=["sha256:' + "a" * 64 + '"]}]\n'
+    )
+    assert build_constraints(tmp_path) == "wheel==0.48.0 --hash=sha256:" + "a" * 64 + "\n"
+
+
+@pytest.mark.parametrize(
+    "constraints",
+    [
+        "[]",
+        '["wheel==0.48.0"]',
+        '[{requirement="wheel>=0.48",hashes=["sha256:' + "a" * 64 + '"]}]',
+        '[{requirement="wheel==0.48.0",hashes=[]}]',
+        '[{requirement="wheel @ https://example.test/wheel.whl",hashes=["sha256:' + "a" * 64 + '"]}]',
+        '[{requirement="wheel==0.48.0",hashes=["not-a-digest"]}]',
+    ],
+)
+def test_incomplete_or_foreign_build_constraints_refuse(tmp_path, constraints):
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.uv]\nrequire-build-hashes=true\nbuild-constraint-dependencies=" + constraints + "\n"
+    )
+    with pytest.raises(InvalidUV):
+        build_constraints(tmp_path)
+
+
+def test_default_transport_stays_wheels_only(tmp_path):
+    (tmp_path / "pyproject.toml").write_text('[project]\nname="probe"\nversion="0.0.0"\n')
+    assert build_constraints(tmp_path) is None
+
+
+@pytest.mark.parametrize(
+    "key", ["UV_BUILD_CONSTRAINT", "UV_NO_BUILD_ISOLATION", "UV_NO_BUILD_ISOLATION_PACKAGE"]
+)
+def test_build_environment_overrides_cannot_weaken_native_hash_preparation(key):
+    with pytest.raises(InvalidUV, match="overrides"):
+        central_index({"NDDEV_UV_CENTRAL_INDEX": "https://cache.example.test/simple/", key: "foreign"})

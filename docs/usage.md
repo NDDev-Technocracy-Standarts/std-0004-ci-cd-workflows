@@ -424,13 +424,17 @@ workspace packages with the original hashes. Native uv prepares registry wheels 
 `uv_build` or static Hatchling packages/build dependencies through the selected central index, then validates the
 original canonical lock with `uv sync --locked --offline`. Warm checks avoid reinstalling an
 already current environment; `uv run` keeps native inexact semantics unless `--exact` is selected.
+If the requested prepared interpreter changes, native uv recreates the identified virtual environment
+before preparing dependencies, so the final offline check uses the same interpreter.
 Explicit project environments and prepared Python selections are preserved. Final native uv uses
 CLI offline mode, so it does not impose `UV_OFFLINE` on the executed program's own environment.
 
 This bounded integration admits canonical public PyPI and local/workspace sources inside that
 workspace with qualified `uv_build` or static `hatchling.build` backends. Additional/private indexes, direct URL/VCS
-dependencies, external local paths, script/`--with` environments, registry source builds and other
-local backends/Hatch hooks or dynamic metadata need separate qualification and fail before online preparation. Native exports,
+dependencies, external local paths, script/`--with` environments and other local backends/Hatch hooks
+or dynamic metadata need separate qualification and fail before online preparation. The static Hatchling
+subset additionally admits a nonempty wheel `packages` list of existing directories inside the workspace;
+other Hatchling configuration remains outside this subset. Native exports,
 pip wheel-consumer operations and build operations outside project sync/run consume offline inputs
 only; this bridge is not an online replacement for arbitrary uv commands. It never rewrites a
 manifest or lock to change its index. Index URLs cannot contain credentials; unsupported private
@@ -438,6 +442,17 @@ closures fail instead of changing their native credential precedence. Public hos
 the explicit selection keeps its autonomous bootstrap. A central endpoint still requires its
 owner's actual cold/warm/fresh-offline/outage transport acceptance; the configured URL is not a
 cache-hit assertion or evidence of installation across hosts.
+
+Registry packages use wheels by default. A workspace can explicitly select native isolated source
+builds with `tool.uv.require-build-hashes = true` and nonempty `build-constraint-dependencies` tables.
+Each table supplies an exact `name==version` requirement and SHA-256 hashes for every admitted build
+dependency, including transitive build dependencies. The bridge forwards those inputs to native uv
+with `--build-constraint` and `--require-build-hashes`; runtime requirements retain their exported lock
+hashes. Missing or mismatched hashes fail. Build isolation stays enabled and no cache layout is edited.
+This uv feature is experimental in the selected stable tool; native target/compiler and backend
+acceptance remains necessary. An arbitrary backend can perform its own I/O, so this path alone does
+not establish central-only execution: the consumer retains its qualified egress boundary and actual
+cold/warm/offline/outage evidence. A canonical lock still identifies its original public sources.
 
 The Python consumer accepts a contained package.directory (default dist) and optional explicit
 package.imports for namespace/root-layout packages. It consumes the built wheel outside the checkout
