@@ -93,11 +93,11 @@ if [[ "$capability" == quality ]]; then
   "$tools/cargo-machete" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
-  UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/quality-downloads}" \
-    "$library_uv" sync --locked --group quality --project "$library/.github/native-tools" --python 3.13
+  quality_runtime="$(UV_PROJECT_ENVIRONMENT="$tools/quality-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/quality-downloads}" \
+    bash "$library/scripts/prepare-python-tool-runtime.sh" "$library_uv" "$library/.github/native-tools" --group quality)"
   SEMGREP_APP_TOKEN='' SEMGREP_SEND_METRICS=off SEMGREP_ENABLE_VERSION_CHECK=0 OTEL_SDK_DISABLED=true \
-    SEMGREP_SETTINGS_FILE="$tools/quality-semgrep-settings.yml" "$tools/quality-runtime/bin/semgrep" --version
-  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/quality-runtime/bin" >> "$GITHUB_PATH"; fi
+    SEMGREP_SETTINGS_FILE="$tools/quality-semgrep-settings.yml" "$quality_runtime/bin/semgrep" --version
+  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$quality_runtime/bin" >> "$GITHUB_PATH"; fi
 fi
 if [[ "$capability" == rust ]]; then
   install_archive 'https://github.com/EmbarkStudios/cargo-deny/releases/download/0.20.2/cargo-deny-0.20.2-x86_64-unknown-linux-musl.tar.gz' \
@@ -122,10 +122,10 @@ if [[ "$capability" == security ]]; then
   "$tools/osv-scanner" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
-  UV_PROJECT_ENVIRONMENT="$tools/security-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/security-downloads}" \
-    "$library_uv" sync --locked --no-dev --project "$library/tools/security" --python 3.13
-  "$tools/security-runtime/bin/bandit" --version
-  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$tools/security-runtime/bin" >> "$GITHUB_PATH"; fi
+  security_runtime="$(UV_PROJECT_ENVIRONMENT="$tools/security-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/security-downloads}" \
+    bash "$library/scripts/prepare-python-tool-runtime.sh" "$library_uv" "$library/tools/security" --no-dev)"
+  "$security_runtime/bin/bandit" --version
+  if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "$security_runtime/bin" >> "$GITHUB_PATH"; fi
 fi
 if [[ "$capability" == shell ]]; then
   install_archive 'https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz' \
