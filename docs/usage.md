@@ -406,6 +406,15 @@ admission retains its separate uv entrypoint and explicit project settings.
 No shared-host profile or caller environment is rewritten. A missing or invalid explicit selection fails
 without downloading a temporary public uv. Composite entrypoints preserve managed
 cache routing; their download defaults apply only without a selected provider.
+Quality and security tool preparation ask the original uv runtime for its actual
+`sys.prefix` after locked synchronization, then execute and export that runtime's
+`bin` directory. The probe retains the same project, groups and Python selection
+and uses `run --locked --no-sync`; it does not resolve a second environment.
+A native owner can therefore keep the tool callee in its protected environment
+store, while an unselected caller keeps the existing job-temporary placement.
+Caller project and environment overrides are not restored into the native
+library callee. Failed preparation or runtime discovery fails the tool step.
+
 The prepared native host supplies Python for this admission. Interpreter, locked
 library environment preparation and real offline reuse still need host acceptance.
 This mode currently rejects separately selected ccache/sccache lifetime contracts;
