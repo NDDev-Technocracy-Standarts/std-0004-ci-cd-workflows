@@ -50,6 +50,9 @@ def central_index(environment: dict) -> str | None:
             "UV_PROJECT",
             "UV_WORKING_DIR",
             "UV_NO_SOURCES",
+            "UV_BUILD_CONSTRAINT",
+            "UV_NO_BUILD_ISOLATION",
+            "UV_NO_BUILD_ISOLATION_PACKAGE",
         )
     ):
         raise InvalidUV("Central uv preparation does not admit additional index, source or project overrides")
@@ -176,6 +179,55 @@ def _local(root: Path, value: str, base: Path | None = None) -> Path:
     return path
 
 
+def _static_hatch(root: Path, settings: dict) -> bool:
+    """Admit the existing package-directory mapping, without hooks or dynamic inputs."""
+    if not settings:
+        return True
+    if set(settings) != {"build"}:
+        return False
+    build = settings["build"]
+    if not isinstance(build, dict) or set(build) != {"targets"}:
+        return False
+    targets = build["targets"]
+    if not isinstance(targets, dict) or set(targets) != {"wheel"}:
+        return False
+    wheel = targets["wheel"]
+    if not isinstance(wheel, dict) or set(wheel) != {"packages"}:
+        return False
+    packages = wheel["packages"]
+    if not isinstance(packages, list) or not packages:
+        return False
+    return all(isinstance(value, str) and _local(root, value).is_dir() for value in packages)
+
+
+def build_constraints(root: Path) -> str | None:
+    """Forward explicit native build hashes; uv owns isolated backend resolution."""
+    settings = _toml(root / "pyproject.toml").get("tool", {}).get("uv", {})
+    if settings.get("require-build-hashes") is not True:
+        return None
+    constraints = settings.get("build-constraint-dependencies")
+    if not isinstance(constraints, list) or not constraints:
+        raise InvalidUV("Central source builds require exact native build constraints with hashes")
+    lines = []
+    for item in constraints:
+        if not isinstance(item, dict) or set(item) != {"requirement", "hashes"}:
+            raise InvalidUV("Central build constraints require explicit pinned requirements and hashes")
+        requirement, hashes = item["requirement"], item["hashes"]
+        if (
+            not isinstance(requirement, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*==[0-9][A-Za-z0-9.!+_-]*", requirement)
+            or not isinstance(hashes, list)
+            or not hashes
+            or any(
+                not isinstance(value, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", value)
+                for value in hashes
+            )
+        ):
+            raise InvalidUV("Central build constraints require exact versions and SHA-256 hashes")
+        lines.append(requirement + " " + " ".join("--hash=" + value for value in hashes))
+    return "\n".join(lines) + "\n"
+
+
 def qualified_lock(root: Path) -> dict[Path, bytes]:
     """Admit public PyPI plus qualified in-workspace backends before any online operation.
 
@@ -214,7 +266,10 @@ def qualified_lock(root: Path) -> dict[Path, bytes]:
                 )
                 or (
                     backend == "hatchling"
-                    and (project.get("tool", {}).get("hatch") or project.get("project", {}).get("dynamic"))
+                    and (
+                        not _static_hatch(path, project.get("tool", {}).get("hatch", {}))
+                        or project.get("project", {}).get("dynamic")
+                    )
                 )
             ):
                 raise InvalidUV(
@@ -246,6 +301,7 @@ def prepare(frontend: Path, request: Invocation, environment: dict, index: str) 
     workspace = native("workspace", "dir", "--offline", "--project", str(request.project), capture=True)
     root = Path(workspace.stdout.strip()).resolve()
     originals = qualified_lock(root)
+    constraints = build_constraints(root)
     context = ["--project", str(request.project)]
     try:
         # Native export owns extras/groups/workspace membership and retains all lock hashes.
@@ -308,11 +364,32 @@ def prepare(frontend: Path, request: Invocation, environment: dict, index: str) 
         canonical = ["sync", "--locked", "--offline", *context, *sync_selection, "--python", selected_python]
         if request.inexact:
             canonical.append("--inexact")
-        # This check is read-only and also lets a warm environment work when central is unavailable.
-        if native(*canonical, "--check", capture=True, check=False).returncode == 0:
+        exists = (target / "pyvenv.cfg").exists()
+        compatible = False
+        if exists:
+            base = subprocess.run(
+                [str(target / "bin/python"), "-I", "-c", "import sys; print(sys._base_executable)"],
+                env=native_environment,
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
+            if base.returncode or not base.stdout.strip():
+                raise InvalidUV("Existing project interpreter could not be identified")
+            compatible = Path(base.stdout.strip()).resolve() == Path(selected_python).resolve()
+        # Keep warm outage reuse only for the requested interpreter. Native uv owns recreation.
+        if compatible and native(*canonical, "--check", capture=True, check=False).returncode == 0:
             return
-        if not (target / "pyvenv.cfg").exists():
-            native("venv", "--offline", "--python", selected_python, str(target))
+        if not compatible:
+            native(
+                "venv",
+                *(["--clear"] if exists else []),
+                "--offline",
+                "--python",
+                selected_python,
+                str(target),
+            )
         python = str(target / "bin/python")
         # Anonymous native pip preparation ignores config discovery; lock qualification above
         # refuses private sources instead of stealing their credential/index precedence.
@@ -322,6 +399,10 @@ def prepare(frontend: Path, request: Invocation, environment: dict, index: str) 
         with tempfile.TemporaryDirectory(prefix="nddev-central-uv-") as directory:
             requirements = Path(directory) / "requirements.txt"
             requirements.write_text(exported)
+            if constraints is not None:
+                build_file = Path(directory) / "build-constraints.txt"
+                build_file.write_text(constraints)
+                transport.extend(["--build-constraint", str(build_file), "--require-build-hashes"])
             operation = ["pip", "install", "--requirements"] if request.inexact else ["pip", "sync"]
             native(
                 *operation,
@@ -329,19 +410,18 @@ def prepare(frontend: Path, request: Invocation, environment: dict, index: str) 
                 "--python",
                 python,
                 "--require-hashes",
-                "--only-binary",
-                ":all:",
+                *(["--only-binary", ":all:"] if constraints is None else []),
                 *transport,
             )
-        for package in local_plan.get("packages", []):
-            if "directory" not in package:
-                continue
-            item = package["directory"]
-            source = _local(root, item["path"], request.directory)
-            args = ["pip", "install", "--python", python, "--no-deps", *transport]
-            if item.get("editable"):
-                args.append("--editable")
-            native(*args, str(source))
+            for package in local_plan.get("packages", []):
+                if "directory" not in package:
+                    continue
+                item = package["directory"]
+                source = _local(root, item["path"], request.directory)
+                args = ["pip", "install", "--python", python, "--no-deps", *transport]
+                if item.get("editable"):
+                    args.append("--editable")
+                native(*args, str(source))
         native(*canonical)
     finally:
         if any(path.read_bytes() != original for path, original in originals.items()):
