@@ -4,7 +4,7 @@ RUN apk add --no-cache --upgrade \
     brotli-libs=1.2.1-r0 \
     curl=8.23.0-r0 \
     libcurl=8.23.0-r0 \
-    libexpat=2.9.0-r0 \
+    libexpat=2.10.0-r0 \
     libx11=1.8.14-r0
 LABEL org.nddev.fixture="std0004-native-container"
 COPY --chmod=0644 index.html /usr/share/nginx/html/index.html
