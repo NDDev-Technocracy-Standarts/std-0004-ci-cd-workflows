@@ -81,3 +81,21 @@ Unsupported package indexes, compiler-store lifetimes, OCI cache exports and
 SDK-specific routes stay explicit gaps. A registry pull proxy does not prove a
 BuildKit cache exporter, and one native fixture does not qualify an entire fleet.
 [BuildKit registry cache](https://docs.docker.com/build/cache/backends/registry/).
+
+
+## Rust setup and following-step path priority
+
+With an admitted native cache provider, Rust setup preserves that owner's
+frontend prefixes ahead of the exact SDK proxy directory in following GitHub
+steps. It uses the existing native admission and does not select another owner.
+The exact toolchain and native Cargo download selection keep their prior roles;
+explicit caller target/build directories are not replaced.
+
+GitHub accumulates file-command entries and prepends the later entries first.
+The exporter therefore writes the admitted priority in reverse, preserving the
+SDK as the fallback for compiler/proxy tools:
+[runner file-command processing](https://github.com/actions/runner/blob/main/src/Runner.Worker/FileCommandManager.cs),
+[runner path preparation](https://github.com/actions/runner/blob/main/src/Runner.Worker/Handlers/Handler.cs).
+An unavailable provider or malformed path fails before exporting a partial SDK
+fallback. Hosted/non-provider callers retain the original single SDK entry.
+Unit lookup tests and real target/cache observations remain separate evidence.

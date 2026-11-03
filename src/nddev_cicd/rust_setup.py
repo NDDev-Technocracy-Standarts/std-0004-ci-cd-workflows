@@ -149,6 +149,17 @@ def prepare(
 
 def export(result: dict) -> None:
     """Native file commands affect following steps, without changing a shared default."""
+    paths = [result["proxy_directory"]]
+    if os.environ.get("GITHUB_PATH"):
+        from .cache import nds_environment
+
+        # Request only the SDK plus the admitted owner's prefixes. GitHub keeps
+        # the caller's existing PATH independently; do not copy it into this file.
+        native_cache = nds_environment({**os.environ, "PATH": result["proxy_directory"]})
+        if native_cache is not None:
+            paths = native_cache[0]["PATH"].split(os.pathsep)
+        if any(not path or any(c in path for c in "\r\n") for path in paths):
+            raise Invalid("Native tool paths require nonempty file-command-safe entries")
     if os.environ.get("GITHUB_ENV"):
         with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
             stream.write(f"RUSTUP_TOOLCHAIN={result['toolchain']}\nRUSTUP_AUTO_INSTALL=0\n")
@@ -157,4 +168,5 @@ def export(result: dict) -> None:
                 stream.write(f"NDDEV_RUSTSEC_CACHE_ROOT={result['rustsec_cache']}\n")
     if os.environ.get("GITHUB_PATH"):
         with Path(os.environ["GITHUB_PATH"]).open("a") as stream:
-            stream.write(result["proxy_directory"] + "\n")
+            # The runner prepends later file entries first.
+            stream.writelines(path + "\n" for path in reversed(paths))
