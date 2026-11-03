@@ -1,4 +1,7 @@
+import os
 import subprocess
+from pathlib import Path
+from shutil import which as native_which
 
 import pytest
 
@@ -132,6 +135,80 @@ def test_native_file_commands_select_exact_proxies_without_changing_shared_defau
     rust_setup.export(result)
     assert environment.read_text() == "RUSTUP_TOOLCHAIN=1.99.1\nRUSTUP_AUTO_INSTALL=0\n"
     assert path.read_text() == result["proxy_directory"] + "\n"
+
+
+def test_native_cache_stays_before_sdk_in_actual_following_step_lookup(installed, tmp_path, monkeypatch):
+    from nddev_cicd import cache
+
+    environment, path = tmp_path / "env", tmp_path / "path"
+    monkeypatch.setenv("GITHUB_ENV", str(environment))
+    monkeypatch.setenv("GITHUB_PATH", str(path))
+    monkeypatch.setenv("NDDEV_CACHE_PROVIDER", "nds")
+    result = rust_setup.prepare("1.99.1", [], [])
+    proxy = Path(result["proxy_directory"])
+    frontends, bridge = tmp_path / "native-bin", tmp_path / "bridge"
+    frontends.mkdir()
+    bridge.mkdir()
+    suffix = ".cmd" if os.name == "nt" else ""
+    for folder, tool, label in (
+        (frontends, "cargo", "managed"),
+        (proxy, "cargo", "sdk"),
+        (proxy, "rustc", "exact-sdk"),
+    ):
+        executable = folder / (tool + suffix)
+        executable.write_text(
+            "@echo off\n@echo " + label + "\n"
+            if os.name == "nt"
+            else "#!/bin/sh\nprintf '%s\\n' " + label + "\n"
+        )
+        executable.chmod(0o755)
+
+    def admitted(values):
+        assert values["PATH"] == str(proxy)
+        assert values["NDDEV_CACHE_PROVIDER"] == "nds"
+        return ({"PATH": os.pathsep.join(map(str, (bridge, frontends, proxy)))}, {})
+
+    monkeypatch.setattr(cache, "nds_environment", admitted)
+    rust_setup.export(result)
+    # GITHUB_PATH is processed in order and the runner prepends its list in reverse.
+    following_path = os.pathsep.join(reversed(path.read_text().splitlines()))
+    cargo = native_which("cargo", path=following_path)
+    assert cargo is not None
+    assert Path(cargo) == frontends / ("cargo" + suffix)
+    compiler = native_which("rustc", path=following_path)
+    assert compiler is not None and Path(compiler) == proxy / ("rustc" + suffix)
+    if os.name != "nt":
+        assert subprocess.check_output([cargo], text=True).strip() == "managed"
+    assert environment.read_text() == "RUSTUP_TOOLCHAIN=1.99.1\nRUSTUP_AUTO_INSTALL=0\n"
+
+
+def test_unavailable_native_provider_does_not_export_partial_sdk_fallback(installed, tmp_path, monkeypatch):
+    from nddev_cicd import cache
+
+    environment, path = tmp_path / "env", tmp_path / "path"
+    monkeypatch.setenv("GITHUB_ENV", str(environment))
+    monkeypatch.setenv("GITHUB_PATH", str(path))
+    result = rust_setup.prepare("1.99.1", [], [])
+
+    def unavailable(_):
+        raise Invalid("Selected native cache unavailable")
+
+    monkeypatch.setattr(cache, "nds_environment", unavailable)
+    with pytest.raises(Invalid, match="native cache unavailable"):
+        rust_setup.export(result)
+    assert not environment.exists() and not path.exists()
+
+
+def test_native_path_separator_injection_is_refused_before_file_commands(installed, tmp_path, monkeypatch):
+    from nddev_cicd import cache
+
+    environment, path = tmp_path / "env", tmp_path / "path"
+    monkeypatch.setenv("GITHUB_ENV", str(environment))
+    monkeypatch.setenv("GITHUB_PATH", str(path))
+    monkeypatch.setattr(cache, "nds_environment", lambda _: ({"PATH": "/native\n/untrusted"}, {}))
+    with pytest.raises(Invalid, match="file-command-safe"):
+        rust_setup.export(rust_setup.prepare("1.99.1", [], []))
+    assert not environment.exists() and not path.exists()
 
 
 def test_shared_downloads_are_explicit_and_keep_advisory_state_separate(installed, tmp_path, monkeypatch):
