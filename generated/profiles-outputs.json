@@ -1,7 +1,7 @@
 {
   "generator": "native-profile-reference",
   "inputs": {
-    "src/nddev_cicd/profiles.json": "738d0740c22430523fe3876e4d8ba156a657af3f2a39a917a304a53af6260727"
+    "src/nddev_cicd/profiles.json": "d07f23a2c02f1cb5427d40c6257068fa1de978dc3e4f4e034fa087ccc5560a52"
   },
   "outputs": {
     "docs/profiles.md": {

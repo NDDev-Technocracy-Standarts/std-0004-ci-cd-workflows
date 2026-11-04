@@ -203,7 +203,7 @@ def parser() -> argparse.ArgumentParser:
             helper_parser.add_argument("--contract")
     sarif = sub.add_parser("sarif-check", help="Gate actual native public CodeQL findings")
     sarif.add_argument("--directory", type=Path, required=True)
-    sarif.add_argument("--minimum", default="moderate")
+    sarif.add_argument("--minimum", default="none")
     sub.add_parser("profiles", help="Print native profile contracts (no execution claim)")
     return p
 

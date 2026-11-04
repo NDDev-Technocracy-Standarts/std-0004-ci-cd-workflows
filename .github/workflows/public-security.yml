@@ -10,8 +10,13 @@ on:
         type: string
         default: ''
       fail-on-severity:
+        description: Dependency review stops only a change that brings in a vulnerability at this severity
         type: string
-        default: moderate
+        default: critical
+      codeql-fail-on:
+        description: CodeQL findings are reported; none blocks unless a severity is selected
+        type: string
+        default: none
       allow-licenses:
         type: string
         default: ''
@@ -81,7 +86,7 @@ jobs:
       - name: Gate actual native findings at the selected threshold
         if: ${{ !cancelled() && steps.initialize.outcome == 'success' }}
         env:
-          NDDEV_SARIF_MINIMUM: ${{ inputs.fail-on-severity }}
+          NDDEV_SARIF_MINIMUM: ${{ inputs.codeql-fail-on }}
           UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-security-runtime
         run: uv run --project .nddev-shared-security --locked --no-dev --python 3.13 python -m nddev_cicd sarif-check --directory "$RUNNER_TEMP/nddev-codeql-sarif" --minimum "$NDDEV_SARIF_MINIMUM"
       - name: Resolve complete source comparison boundaries

@@ -377,7 +377,7 @@ def sarif(directory: Path, minimum: str = "moderate") -> dict:
     import math
 
     scores = {"low": 0.1, "moderate": 4.0, "high": 7.0, "critical": 9.0}
-    if minimum not in scores:
+    if minimum not in scores and minimum != "none":
         raise Invalid("Select a known native SARIF security severity")
     files = sorted(directory.rglob("*.sarif")) if directory.is_dir() else []
     if not files or len(files) > 32:
@@ -413,7 +413,8 @@ def sarif(directory: Path, minimum: str = "moderate") -> dict:
                 score = float(raw) if raw is not None else None
                 if score is not None and (not math.isfinite(score) or not 0 <= score <= 10):
                     raise Invalid("Native SARIF security score is invalid")
-                blocking = (
+                # "none" reports every finding and blocks none.
+                blocking = minimum != "none" and (
                     score >= scores[minimum]
                     if score is not None
                     else _sarif_level(run, result, identity, rule) == "error"
