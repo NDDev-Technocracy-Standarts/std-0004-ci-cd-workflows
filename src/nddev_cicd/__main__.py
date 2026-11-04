@@ -82,6 +82,10 @@ def parser() -> argparse.ArgumentParser:
     secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
     secret.add_argument("--root", type=Path, default=Path.cwd())
     secret.add_argument("--output", type=Path)
+    lock = sub.add_parser("tools-lock", help="Check tool versions against the lock, or regenerate it from a registry")
+    lock.add_argument("--root", type=Path, default=Path.cwd())
+    lock.add_argument("--registry", type=Path)
+    lock.add_argument("--write", action="store_true")
     daily = sub.add_parser(
         "security-daily", help="Scan history for live secrets and report dependency findings"
     )
@@ -284,6 +288,17 @@ def main(argv=None) -> int:
                 )
             )
             return 1 if rejected else 0
+        if args.operation == "tools-lock":
+            from . import tools_lock
+
+            root = args.root.resolve()
+            if args.write:
+                if args.registry is None:
+                    raise Invalid("Regenerating the lock needs --registry")
+                tools_lock.apply(root, tools_lock.build(root, args.registry.resolve()))
+            problems = tools_lock.check(root, args.registry.resolve() if args.registry else None)
+            print(json.dumps({"status": "failure" if problems else "success", "problems": problems}, indent=2))
+            return 1 if problems else 0
         if args.operation == "security-daily":
             from .security import daily as security_daily
 
