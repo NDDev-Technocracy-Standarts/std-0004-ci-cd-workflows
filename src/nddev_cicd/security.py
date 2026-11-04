@@ -237,3 +237,109 @@ def dependencies(root: Path, command: list[str], base: str | None, head: str, ou
     if pull_request and previous is None:
         detail += "; the base could not be scanned, so nothing stops the merge"
     return {**current, **summary, "status": "success", "detail": detail}
+
+
+TRUFFLEHOG = ["trufflehog", "git", "--json", "--no-update", "--results=verified,unknown"]
+DAILY_TITLE = "Daily security report"
+
+
+def _secret_findings(log: Path) -> list[dict]:
+    """Read TruffleHog JSON lines; the secret value itself is never kept."""
+    found = []
+    for line in log.read_text().splitlines():
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(record, dict) or "DetectorName" not in record:
+            continue
+        place = record.get("SourceMetadata", {}).get("Data", {}).get("Git", {})
+        found.append(
+            {
+                "detector": str(record.get("DetectorName", "")),
+                "verified": bool(record.get("Verified")),
+                "file": str(place.get("file", "")),
+                "commit": str(place.get("commit", ""))[:12],
+                "line": place.get("line"),
+            }
+        )
+    return found
+
+
+def _table(header: list[str], rows: list[list]) -> list[str]:
+    lines = ["| " + " | ".join(header) + " |", "|" + " --- |" * len(header)]
+    lines += ["| " + " | ".join(str(cell) for cell in row) + " |" for row in rows]
+    return lines
+
+
+def daily(root: Path, output: Path, day: str) -> dict:
+    """Scan the whole history for live secrets and report every dependency finding.
+
+    A finding never fails the run. A scanner that cannot run does.
+    """
+    output.mkdir(parents=True, exist_ok=True)
+    failures = []
+    secrets_log = output / "trufflehog.jsonl"
+    scanned = run(
+        [*TRUFFLEHOG[:2], "file://" + str(root.resolve()), *TRUFFLEHOG[2:]],
+        root,
+        secrets_log,
+        timeout=3600,
+        stderr_log=output / "trufflehog.stderr.log",
+    )
+    secrets = _secret_findings(secrets_log) if scanned["exit_code"] == 0 else []
+    if scanned["exit_code"] != 0:
+        failures.append("TruffleHog could not complete the history scan")
+    dependency = _scan(
+        ["osv-scanner", "scan", "source", "--recursive", "."], root, output / "osv.json", output / "osv.log"
+    )
+    findings = list(dependency.get("findings", {}).values()) if dependency["status"] == "success" else []
+    if dependency["status"] != "success":
+        failures.append(dependency["detail"])
+    lines = [f"Findings on {day}. Fix each one the same day, starting with verified secrets and critical"]
+    lines += ["vulnerabilities that have a fix.", ""]
+    lines += [f"## Live secrets in the whole history: {len(secrets)}", ""]
+    if secrets:
+        lines += _table(
+            ["Detector", "Verified", "File", "Commit", "Line"],
+            [
+                [x["detector"], "yes" if x["verified"] else "unknown", x["file"], x["commit"], x["line"]]
+                for x in secrets
+            ],
+        )
+        lines += [
+            "",
+            "Revoke a leaked secret first, then issue a new one and rotate what it could reach.",
+            "",
+        ]
+    lines += [f"## Dependency vulnerabilities: {len(findings)}", ""]
+    if findings:
+        ordered = sorted(findings, key=lambda x: (not x["critical"], not x["fixed"], x["package"], x["id"]))
+        lines += _table(
+            ["Package", "Version", "Vulnerability", "Critical", "Fix exists", "Source"],
+            [
+                [
+                    x["package"],
+                    x["version"],
+                    x["id"],
+                    "yes" if x["critical"] else "no",
+                    "yes" if x["fixed"] else "no",
+                    x["source"],
+                ]
+                for x in ordered
+            ],
+        )
+    if failures:
+        lines += ["", "## Scanners that could not run", "", *["- " + x for x in failures]]
+    (output / "report.md").write_text("\n".join(lines) + "\n")
+    summary = {
+        "status": "failure" if failures else "success",
+        "secrets": len(secrets),
+        "dependencies": len(findings),
+        "findings": len(secrets) + len(findings),
+        "failures": failures,
+        "report": str(output / "report.md"),
+    }
+    atomic = output / "summary.json"
+    atomic.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
+    return summary

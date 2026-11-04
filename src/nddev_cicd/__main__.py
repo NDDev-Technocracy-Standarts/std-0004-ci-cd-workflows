@@ -82,6 +82,12 @@ def parser() -> argparse.ArgumentParser:
     secret = sub.add_parser("secrets-check", help="Verify a real full-history scan for a short native gate")
     secret.add_argument("--root", type=Path, default=Path.cwd())
     secret.add_argument("--output", type=Path)
+    daily = sub.add_parser(
+        "security-daily", help="Scan history for live secrets and report dependency findings"
+    )
+    daily.add_argument("--root", type=Path, default=Path.cwd())
+    daily.add_argument("--output", type=Path, required=True)
+    daily.add_argument("--day", required=True)
     runners = sub.add_parser(
         "runners-check",
         help=(
@@ -278,6 +284,12 @@ def main(argv=None) -> int:
                 )
             )
             return 1 if rejected else 0
+        if args.operation == "security-daily":
+            from .security import daily as security_daily
+
+            summary = security_daily(args.root.resolve(), args.output.resolve(), args.day)
+            print(json.dumps(summary, sort_keys=True))
+            return 0 if summary["status"] == "success" else 1
         if args.operation == "secrets-check":
             root = args.root.resolve()
             output = (
