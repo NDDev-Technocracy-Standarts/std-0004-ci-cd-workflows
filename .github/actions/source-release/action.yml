@@ -1,8 +1,7 @@
 # Source release supply chain, moved from the retired ci-workflows release-supply-chain reusable
-# (STD-0004 #205). The caller job grants contents: write and, for attestations, id-token: write,
-# attestations: write and artifact-metadata: write.
+# (STD-0004 #205). The caller job grants contents: write. Releases are not signed or attested.
 name: Publish an immutable source release
-description: Build a deterministic tracked-source archive, SPDX SBOM, notes, manifest and SHA256SUMS for a numeric tag; attest where the plan allows; publish one immutable GitHub Release
+description: Build a deterministic tracked-source archive, SPDX SBOM, notes, manifest and SHA256SUMS for a numeric tag; publish one immutable GitHub Release
 inputs:
   version:
     description: Numeric SemVer X.Y.Z (must equal the tag / VERSION file).
@@ -14,35 +13,17 @@ inputs:
     description: Space-separated normalized relative tracked path selections. Quote a selection containing spaces.
     default: README.md LICENSE NOTICE VERSION CHANGELOG.md .github
   runtime-paths:
-    description: Optional space-separated normalized tracked path selections for a second, minimal runtime bundle attached alongside the source archive. Every selection must also be covered by archive_paths (the runtime bundle must be a subset of the source archive) so the source SPDX SBOM stays a complete inventory of everything the release ships. Empty (default) produces no runtime bundle and leaves every other asset, checksum, and attestation byte-for-byte unchanged.
+    description: Optional space-separated normalized tracked path selections for a second, minimal runtime bundle attached alongside the source archive. Every selection must also be covered by archive_paths (the runtime bundle must be a subset of the source archive) so the source SPDX SBOM stays a complete inventory of everything the release ships. Empty (default) produces no runtime bundle and leaves every other asset and checksum byte-for-byte unchanged.
     default: ''
   notes-file:
     description: Optional tracked UTF-8 notes path; a matching non-empty CHANGELOG section is required when empty.
     default: ''
-  attest:
-    description: 'Artifact attestations: auto (public repositories only; private Free/Pro/Team repositories cannot attest), true or false'
-    default: auto
   github-token:
     description: 'Token with contents: write for the single release create'
     default: ${{ github.token }}
 runs:
   using: composite
   steps:
-  - name: Select attestation mode
-    id: mode
-    shell: bash
-    env:
-      NDDEV_ATTEST: ${{ inputs.attest }}
-      NDDEV_PRIVATE: ${{ github.event.repository.private }}
-    run: |
-      set -euo pipefail
-      case "$NDDEV_ATTEST" in
-        true) attest=true ;;
-        false) attest=false ;;
-        auto) if [ "$NDDEV_PRIVATE" = true ]; then attest=false; else attest=true; fi ;;
-        *) echo 'attest must be auto, true or false' >&2; exit 2 ;;
-      esac
-      echo "attest=$attest" >> "$GITHUB_OUTPUT"
   - name: Validate release inputs before checkout
     env:
       RELEASE_VERSION: ${{ inputs.version }}
@@ -693,7 +674,7 @@ runs:
       # Every runtime-bundle file must also be in the source archive, whose
       # exact payload is the only thing Syft scans for sbom.spdx.json. If the
       # runtime bundle pulled in tracked files outside archive_paths they
-      # would ship attested-for-provenance but absent from the SBOM, so keep
+      # would ship but be absent from the SBOM, so keep
       # the runtime selection a subset of archive_paths -- that keeps the
       # source SBOM a complete inventory of everything the release ships.
       archive_raw = os.environ.get("ARCHIVE_PATHS", "")
@@ -851,22 +832,6 @@ runs:
               fail("every release asset must be a regular non-symlink file")
       PY
     shell: bash
-  - name: Attest build provenance (archive)
-    uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
-    with:
-      subject-path: ${{ runner.temp }}/release-dist/${{ inputs.package-name }}-${{ inputs.version }}.tar.gz
-    if: steps.mode.outputs.attest == 'true'
-  - name: Attest build provenance (runtime bundle)
-    if: steps.mode.outputs.attest == 'true' && (inputs.runtime-paths != '')
-    uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
-    with:
-      subject-path: ${{ runner.temp }}/release-dist/${{ inputs.package-name }}-runtime-${{ inputs.version }}.tar.gz
-  - name: Attest SBOM (archive)
-    uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
-    with:
-      subject-path: ${{ runner.temp }}/release-dist/${{ inputs.package-name }}-${{ inputs.version }}.tar.gz
-      sbom-path: ${{ runner.temp }}/release-dist/sbom.spdx.json
-    if: steps.mode.outputs.attest == 'true'
   - name: Upload workflow artifact
     uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
     with:

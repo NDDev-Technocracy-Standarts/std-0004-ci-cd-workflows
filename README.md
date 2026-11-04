@@ -39,8 +39,8 @@ refuses floating, retiring, larger or unknown labels ([usage](docs/usage.md#free
 Private jobs name a self-hosted runner class through one route expression (`nddev-cicd route-expression`);
 the fleet controller moves a run that waited ten minutes to Blacksmith, then to GitHub-hosted runners, within
 the free allowances ([usage](docs/usage.md#private-repositories-runner-classes-and-the-fallback)).
-Tagged repositories publish immutable source releases (archive, SBOM, notes, manifest, checksums and,
-where the plan allows, attestations) with the [source release](.github/actions/source-release/action.yml)
+Tagged repositories publish immutable source releases (archive, SBOM, notes, manifest and checksums,
+without signatures) with the [source release](.github/actions/source-release/action.yml)
 composite ([usage](docs/usage.md#source-releases-for-tagged-repositories)).
 
 [The package README](src/nddev_cicd/README.md) explains ownership, recovery and native-tool boundaries.
