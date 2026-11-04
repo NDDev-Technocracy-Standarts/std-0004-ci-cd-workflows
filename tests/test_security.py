@@ -186,3 +186,44 @@ def test_change_range_covers_only_the_commits_of_the_change(repository):
     git(root, "commit", "-qam", "change")
     head = git(root, "rev-parse", "HEAD")
     assert security.change_range(root, base, head) == f"{base}..{head}"
+
+
+FAKE_TRUFFLEHOG = """#!/bin/sh
+cat <<'JSON'
+{"level":"info-0","msg":"running source"}
+{"SourceMetadata":{"Data":{"Git":{"commit":"8c0dd9995b4cbeeaf49b7215974f10b2d64beb6c","file":"leak.txt","line":1}}},"DetectorName":"AWS","Verified":true,"Raw":"AKIA-secret-value"}
+JSON
+"""
+
+
+def test_daily_report_lists_findings_without_secret_values(repository, tmp_path, monkeypatch):
+    root = repository({"osv.json": json.dumps(osv_report())})
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    for name, body in (("trufflehog", FAKE_TRUFFLEHOG), ("osv-scanner", FAKE_OSV)):
+        (tools / name).write_text(body)
+        (tools / name).chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
+    summary = security.daily(root, tmp_path / "daily", "2026-11-04")
+    assert summary["status"] == "success"
+    assert (summary["secrets"], summary["dependencies"], summary["findings"]) == (1, 1, 2)
+    report = (tmp_path / "daily" / "report.md").read_text()
+    assert "| AWS | yes | leak.txt | 8c0dd9995b4c | 1 |" in report
+    assert "| left-pad | 1.0.0 | GHSA-0001 | yes | yes | package-lock.json |" in report
+    assert "AKIA-secret-value" not in report
+    assert "secret-value" not in (tmp_path / "daily" / "summary.json").read_text()
+
+
+def test_daily_fails_only_when_a_scanner_cannot_run(repository, tmp_path, monkeypatch):
+    root = repository({"osv.json": json.dumps({"results": []})})
+    tools = tmp_path / "tools"
+    tools.mkdir()
+    (tools / "trufflehog").write_text("#!/bin/sh\nexit 2\n")
+    (tools / "osv-scanner").write_text(FAKE_OSV)
+    for name in ("trufflehog", "osv-scanner"):
+        (tools / name).chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tools}:{os.environ['PATH']}")
+    summary = security.daily(root, tmp_path / "daily", "2026-11-04")
+    assert summary["status"] == "failure"
+    assert summary["failures"] == ["TruffleHog could not complete the history scan"]
+    assert "Scanners that could not run" in (tmp_path / "daily" / "report.md").read_text()

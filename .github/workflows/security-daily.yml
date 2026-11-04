@@ -1,0 +1,88 @@
+name: security-daily
+# Daily report: live secrets in the whole history and every dependency vulnerability.
+# A finding never fails the run. A scanner that cannot run does.
+on:
+  workflow_call:
+    inputs:
+      library-ref:
+        description: The exact commit of this library that the caller's uses line selects
+        type: string
+        required: true
+      runs-on:
+        description: JSON runner selection, such as "ubuntu-26.04" or ["self-hosted","linux","x64"]
+        type: string
+        default: '"ubuntu-26.04"'
+    outputs:
+      findings:
+        description: Number of findings in the report
+        value: ${{ jobs.scan.outputs.findings }}
+permissions: {}
+jobs:
+  scan:
+    name: Daily security report
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      issues: write # Keep one report issue per repository.
+    outputs:
+      findings: ${{ steps.report.outputs.findings }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Fetch this library at the caller's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows
+          ref: ${{ inputs.library-ref }}
+          path: .nddev-security-daily
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          version: '0.13.5'
+          enable-cache: 'false'
+      - name: Prepare TruffleHog and OSV-Scanner
+        run: bash .nddev-security-daily/scripts/prepare-linux-tools.sh security
+      - name: Scan the whole history and every dependency
+        id: scan
+        env:
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/nddev-security-daily-runtime
+          NDDEV_DAILY_OUTPUT: ${{ runner.temp }}/nddev-security-daily
+        run: |
+          set -euo pipefail
+          export PATH="$RUNNER_TEMP/nddev-native-tools:$PATH"
+          status=0
+          uv run --project .nddev-security-daily --locked --no-dev --python 3.13 \
+            python -m nddev_cicd security-daily --root . --output "$NDDEV_DAILY_OUTPUT" \
+            --day "$(date -u +%F)" || status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+      - name: Keep one report issue
+        id: report
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NDDEV_DAILY_OUTPUT: ${{ runner.temp }}/nddev-security-daily
+        run: |
+          set -euo pipefail
+          title='Daily security report'
+          summary="$NDDEV_DAILY_OUTPUT/summary.json"
+          findings="$(jq -r '.findings' "$summary")"
+          failures="$(jq -r '.failures | length' "$summary")"
+          echo "findings=$findings" >> "$GITHUB_OUTPUT"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" \
+            --json number,title --jq "map(select(.title == \"$title\"))[0].number // empty")"
+          if [ "$findings" -gt 0 ] || [ "$failures" -gt 0 ]; then
+            if [ -n "$number" ]; then
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file "$NDDEV_DAILY_OUTPUT/report.md"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
+                --body-file "$NDDEV_DAILY_OUTPUT/report.md"
+            fi
+          elif [ -n "$number" ]; then
+            gh issue close "$number" --repo "$GITHUB_REPOSITORY" --comment "No findings on $(date -u +%F)."
+          fi
+      - name: Fail when a scanner could not run
+        if: ${{ steps.scan.outputs.status != '0' }}
+        run: exit 1

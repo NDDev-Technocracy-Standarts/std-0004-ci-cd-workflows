@@ -650,6 +650,34 @@ jobs:
           archive-paths: README.md LICENSE VERSION CHANGELOG.md scripts
 ```
 
+## Daily security run
+
+`security-daily.yml` scans the whole history with TruffleHog for live secrets and runs a full
+OSV-Scanner scan of every dependency, once a day. It keeps one open issue titled "Daily security
+report" in the caller repository: the run creates or updates it while findings exist and closes it
+when they are gone. The report lists the detector, file, commit and line of each secret, never its
+value. A finding never fails the run. A scanner that cannot run does.
+
+```yaml
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  security:
+    permissions:
+      contents: read
+      issues: write
+    uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/security-daily.yml@<commit>
+    with:
+      library-ref: <commit>
+      runs-on: '["self-hosted","linux","x64"]'
+```
+
+`library-ref` is the same commit as the `uses` line. Public repositories keep the default
+`runs-on`, a free GitHub-hosted runner.
+
 ## Public security and release modules
 
 `public-security.yml` is a public source-analysis reusable module for main pushes and explicit legacy PR callers. It executes pinned native CodeQL,

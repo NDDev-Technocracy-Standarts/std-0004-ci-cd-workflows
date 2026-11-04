@@ -120,6 +120,9 @@ if [[ "$capability" == security ]]; then
   install_file 'https://github.com/google/osv-scanner/releases/download/v2.6.0/osv-scanner_linux_amd64' \
     'ca69b3d3cd08f889a49dc0a383122f71cc528b83803671df5fd874d97485b108' osv-scanner
   "$tools/osv-scanner" --version
+  install_archive 'https://github.com/trufflesecurity/trufflehog/releases/download/v3.99.7/trufflehog_3.99.7_linux_amd64.tar.gz' \
+    'bdbea0508e439b144f49de14e775908de5f902f3d14ea7ae8354bae72b0b72ef' trufflehog
+  "$tools/trufflehog" --version
   library="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   library_uv="$(bash "$library/scripts/library-uv.sh")"
   security_runtime="$(UV_PROJECT_ENVIRONMENT="$tools/security-runtime" UV_CACHE_DIR="${NDDEV_UV_CACHE_ROOT:-$tools/security-downloads}" \
