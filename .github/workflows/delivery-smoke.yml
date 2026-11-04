@@ -72,6 +72,9 @@ jobs:
     permissions:
       contents: read
       actions: read
+      # The pinned release.yml still attests. Drop these once the pin reaches a release.yml without attestations.
+      id-token: write
+      attestations: write
     uses: NDDev-Technocracy-Standarts/std-0004-ci-cd-workflows/.github/workflows/release.yml@a1e09cdd47c428b6d18729f4573955c18fe93c4e
     with:
       run-id: ${{ needs.artifact.outputs.source-run-id }}
