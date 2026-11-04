@@ -179,7 +179,7 @@ def prepare(archive: Path, manifest: dict, expected: dict, directory: Path, patt
         "syft_version": version,
         "sbom_sha256": digest(directory / "sbom.spdx.json"),
         "scope": "The SBOM inventories every selected released payload; generated verification metadata is separate.",
-        "authentication": "Content preparation only; GitHub-native attestations are a separate eligible workflow step.",
+        "authentication": "Content preparation only; releases are not signed or attested.",
     }
     record["release_identity"] = identity(record)
     atomic_json(directory / "release.json", record)

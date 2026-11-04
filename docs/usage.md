@@ -617,16 +617,8 @@ credentials. The action refuses any other checkout and never checks out code its
 All assets are attached in a single `gh release create --verify-tag`. The action refuses an existing
 release and never clobbers one.
 
-Attestations (SLSA build provenance for the archive and runtime bundle, plus an SBOM attestation)
-follow `attest`:
-
-- `auto` (default) attests in public repositories only, because private repositories on GitHub
-  Free, Pro or Team cannot store artifact attestations;
-- `true` forces attestations;
-- `false` skips them.
-
-The caller job runs on Linux and grants `contents: write`; for attestations it also grants
-`id-token: write`, `attestations: write` and `artifact-metadata: write`.
+Releases are not signed or attested, so nothing in a release waits on a signature. The caller job
+runs on Linux and grants `contents: write`.
 
 ```yaml
 jobs:
@@ -634,9 +626,6 @@ jobs:
     runs-on: ubuntu-26.04 # or a private runner class route
     permissions:
       contents: write
-      id-token: write
-      attestations: write
-      artifact-metadata: write
     steps:
       - uses: actions/checkout@<sha> # <release>
         with:
@@ -702,10 +691,10 @@ SHA256SUMS and native Syft SPDX inventory. Package containers are safely exposed
 the library does not invent a dependency list. Native cataloger support still bounds what can be
 identified. Supporting metadata describes those limits; an SBOM is not a vulnerability-free certificate.
 
-Public `release.yml` adds actual GitHub provenance and SBOM attestations, verifies both signatures,
-and uploads the candidate plus offline bundles. It follows successful full main CI or explicit main
-dispatch. It creates no tag or published release. Private free consumers use the preparation
-composite on their existing Linux job without assuming private GitHub attestations are available.
+Public `release.yml` uploads the candidate with its SPDX inventory and checksums, without
+signatures or attestations. It follows successful full main CI or explicit main dispatch. It creates
+no tag or published release. Private consumers use the preparation composite on their existing
+Linux job.
 Actions retention is bounded; retain an accepted/current candidate in the project's existing release
 store before expiration. Payloads are promoted unchanged; source is not rebuilt after integration.
 

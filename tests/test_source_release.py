@@ -13,17 +13,16 @@ def test_inputs_cover_the_retired_reusable_contract():
     inputs = _action()["inputs"]
     assert inputs["version"]["required"] is True
     assert inputs["package-name"]["required"] is True
-    for name in ("archive-paths", "runtime-paths", "notes-file", "attest", "github-token"):
+    for name in ("archive-paths", "runtime-paths", "notes-file", "github-token"):
         assert name in inputs
-    assert inputs["attest"]["default"] == "auto"
+    assert "attest" not in inputs
 
 
-def test_every_attestation_is_guarded_by_the_mode():
+def test_releases_carry_no_attestations():
     steps = _action()["runs"]["steps"]
-    assert steps[0]["id"] == "mode"
-    attest = [step for step in steps if step.get("name", "").startswith("Attest")]
-    assert len(attest) == 3
-    assert all("steps.mode.outputs.attest == 'true'" in step["if"] for step in attest)
+    assert not [
+        step for step in steps if "attest" in step.get("uses", "") or "Attest" in step.get("name", "")
+    ]
 
 
 def test_composite_steps_are_shell_explicit_and_pinned():
