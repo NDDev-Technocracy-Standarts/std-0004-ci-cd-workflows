@@ -266,28 +266,33 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     # Old reports cannot make a no-op test command green.
                     report = contract.get("reports", {}).get(profile_id, definition.get("report", {}))
                     reports.fresh(root, report)
-                if profile_id == "security" and stage == "secrets" and command == default:
+                secret_scan = profile_id == "security" and stage == "secrets" and command == default
+                if secret_scan:
                     require_secret_history(root)
+                    command = secret_command(root, command)
                 if profile_id == "documentation" and stage == "external-links":
                     native_report = contract.get("documentation", {}).get("external_link_report")
                     if native_report:
                         reports.fresh(root, {"path": native_report})
-                entry.update(
-                    run(
-                        command,
-                        root,
-                        output / f"{name}.log",
-                        timeout=contract.get("timeouts", {}).get(profile_id, 900),
-                        env=env,
-                        stderr_log=output / f"{name}.stderr.log" if semgrep else None,
+                if profile_id == "security" and stage == "dependencies" and command == default:
+                    source = source_identity(root)
+                    entry.update(
+                        security.dependencies(
+                            root, command, source.get("base"), source["head"], output / name
+                        )
                     )
-                )
-                if (
-                    profile_id == "security"
-                    and stage == "secrets"
-                    and command == default
-                    and entry["status"] == "success"
-                ):
+                else:
+                    entry.update(
+                        run(
+                            command,
+                            root,
+                            output / f"{name}.log",
+                            timeout=contract.get("timeouts", {}).get(profile_id, 900),
+                            env=env,
+                            stderr_log=output / f"{name}.stderr.log" if semgrep else None,
+                        )
+                    )
+                if secret_scan and entry["status"] == "success":
                     verify_secret_scan(entry)
                 if (
                     entry["status"] == "success"
@@ -312,6 +317,7 @@ def _execute(root: Path, contract: dict, output: Path) -> dict:
                     entry["sast_targets"] = security.verify_semgrep(
                         root, contract["security"], Path(entry["log"])
                     )
+                    entry["sast_findings"] = security.semgrep_findings(Path(entry["log"]))
                 if (
                     entry["status"] == "success"
                     and profile_id == "rust"
@@ -689,7 +695,7 @@ def diagnostics(result: dict, contract: dict) -> None:
 def secrets_check(root: Path, output: Path) -> dict:
     """Run the same default history scanner with explicit completeness for a short gate."""
     require_secret_history(root)
-    command = config.catalog()["security"]["stages"]["secrets"]
+    command = secret_command(root, config.catalog()["security"]["stages"]["secrets"])
     result = {"name": "security.secrets", **run(command, root, output / "gitleaks.log", timeout=120)}
     try:
         verify_secret_scan(result)
@@ -698,6 +704,13 @@ def secrets_check(root: Path, output: Path) -> dict:
     diagnostics({"results": [result]}, {})
     atomic_json(output / "result.json", result)
     return result
+
+
+def secret_command(root: Path, command: list[str]) -> list[str]:
+    """Scan the commits of the change when its base is known; the daily run covers the full history."""
+    source = source_identity(root)
+    scope = security.change_range(root, source.get("base"), source["head"])
+    return [*command, "--log-opts", scope] if scope else list(command)
 
 
 def require_secret_history(root: Path) -> None:

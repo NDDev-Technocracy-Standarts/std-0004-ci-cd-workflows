@@ -1,5 +1,6 @@
 """Native input transport retries must never retry or waive audit findings."""
 
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -45,7 +46,7 @@ def test_real_shallow_git_reuses_objects_and_advances_to_current_source(tmp_path
     assert rustsec.audit(tmp_path, storage, reserve=0) == 0
     assert (database / ".git/objects").stat().st_ino == before
     assert len(commands) == 3
-    assert all(command[-3:] == ["--no-fetch", "--deny", "warnings"] for command in commands)
+    assert all(command[-2:] == ["--no-fetch", "--json"] for command in commands)
 
 
 @pytest.mark.parametrize("failure", ["timed out", "early EOF", "authentication failed"])
@@ -166,3 +167,13 @@ def test_cache_refuses_a_foreign_git_directory_pointer_before_git_runs(tmp_path,
     monkeypatch.setattr(rustsec, "git", unexpected)
     with pytest.raises(Invalid, match="foreign worktree"):
         rustsec.audit(tmp_path, storage, reserve=0)
+
+
+def test_reported_advisories_do_not_fail_the_audit(tmp_path):
+    report = tmp_path / "audit.json"
+    report.write_text(json.dumps({"vulnerabilities": {"found": True, "count": 1, "list": [{}]}}))
+    assert rustsec.reported_vulnerabilities(report)
+    report.write_text(json.dumps({"vulnerabilities": {"found": False, "count": 0, "list": []}}))
+    assert not rustsec.reported_vulnerabilities(report)
+    report.write_text("error: lockfile missing")
+    assert not rustsec.reported_vulnerabilities(report)

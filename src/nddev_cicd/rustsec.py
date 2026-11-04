@@ -17,6 +17,15 @@ from .process import run as native_run
 SOURCE = "https://github.com/RustSec/advisory-db"
 
 
+def reported_vulnerabilities(output: Path) -> bool:
+    """True when cargo-audit completed and reported vulnerabilities in its JSON output."""
+    try:
+        report = json.loads(output.read_text())
+    except (OSError, ValueError):
+        return False
+    return isinstance(report, dict) and bool(report.get("vulnerabilities", {}).get("found"))
+
+
 def isolated_git_context(command: list[str]) -> list[str]:
     # The shared process owner merges the caller's environment. Native env removes
     # pre-commit/bare-repository selectors without changing that global owner API.
@@ -116,9 +125,7 @@ def audit(root: Path, storage: Path, *, reserve: int = 32 * 1024**3) -> int:
             with tempfile.TemporaryDirectory(prefix="nddev-rustsec-audit-") as temporary:
                 output, errors = (Path(temporary) / name for name in ("stdout", "stderr"))
                 result = native_run(
-                    isolated_git_context(
-                        ["cargo", "audit", "--db", str(repository), "--no-fetch", "--deny", "warnings"]
-                    ),
+                    isolated_git_context(["cargo", "audit", "--db", str(repository), "--no-fetch", "--json"]),
                     root,
                     output,
                     timeout=900,
@@ -132,6 +139,9 @@ def audit(root: Path, storage: Path, *, reserve: int = 32 * 1024**3) -> int:
                 if result["detail"] == "timeout":
                     return 124
                 code = result["exit_code"]
+                if code == 1 and reported_vulnerabilities(output):
+                    # Advisories are reported and fixed by the daily run; they never stop a merge.
+                    return 0
                 return 127 if code is None else code if code >= 0 else 128 - code
     except BlockingIOError as error:
         raise Unavailable("infrastructure.cache-busy: this native RustSec cache is in use") from error

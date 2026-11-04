@@ -188,6 +188,7 @@ def test_free_security_defaults_require_real_scopes_and_license_policy(repositor
     assert security.native_command("security-sast", root, contract) == [
         "bandit",
         "--quiet",
+        "--exit-zero",
         "--",
         "src/app.py",
     ]

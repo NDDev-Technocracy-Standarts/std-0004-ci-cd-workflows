@@ -105,8 +105,9 @@ See [Docker contexts](https://docs.docker.com/engine/manage-resources/contexts/)
 [rootless clients](https://docs.docker.com/engine/security/rootless/tips/#client).
 
 The Linux `.github/actions/rustsec-audit` composite refreshes the public RustSec database through
-native shallow Git, then executes the caller's `cargo audit --deny warnings` against that successfully
-refreshed repository with `--no-fetch`. Select the directory containing the lockfile through
+native shallow Git, then executes the caller's `cargo audit --json` against that successfully
+refreshed repository with `--no-fetch`. Advisories are reported and do not fail the action. Only an
+audit that cannot complete fails. Select the directory containing the lockfile through
 `working-directory`. Cargo-audit must already be prepared. Each lane reuses its existing `CARGO_HOME`
 cache with a 512 MiB namespace budget, seven-day unused TTL and explicit free-space reserve. Only
 known transient fetch failures receive one bounded retry; native findings are never retried or
@@ -656,6 +657,9 @@ SARIF finding thresholds, Dependency Review and community runner hardening. Enab
 free dependency graph before selecting Dependency Review. The module grants no private Code Security
 entitlement, starts no private hosted helper, and returns no successful status for an inapplicable event.
 Its successful output means both the native analysis and the selected finding gates completed.
+Dependency Review stops only a change that brings in a vulnerability at `fail-on-severity`
+(default `critical`). CodeQL findings are reported, and `codeql-fail-on` (default `none`) selects a
+blocking severity only when a project asks for one.
 
 When a CodeQL rule has no numeric security severity, the gate resolves its effective result level
 using [the SARIF specification and its approved errata](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html):
@@ -849,8 +853,13 @@ python = ["src/**/*.py"]
 licenses = ["MIT", "Apache-2.0"]
 ```
 
-`python` scopes must each match tracked source. Bandit findings fail SAST; OSV checks lock-derived
-dependencies and the caller's SPDX license allowlist. The sample licenses are illustrative, not a
+`python` scopes must each match tracked source. A merge stops only for three security cases: a
+secret in the commits of the change, a dangerous workflow, or a change that brings in a critical
+vulnerability with a fixed version. Gitleaks scans the commits of the change when its base is known,
+and the full history otherwise. On a pull request OSV scans the change and its base and stops only
+for a newly introduced critical vulnerability that has a fix. Every other finding, including Bandit
+and Semgrep results, is reported in the run and never stops a merge. OSV also checks the caller's
+SPDX license allowlist. The sample licenses are illustrative, not a
 legal grant or a universal allowlist. Missing scopes, missing policy, unavailable tools and scanner
 errors fail. Other languages can select local Semgrep CE rules or their explicit native
 `commands.security.sast` checks; the Python default does not claim to analyze them. OSV uses its native advisory and deps.dev metadata
@@ -869,7 +878,8 @@ paths=["src/**/*.py", "web/**/*.js"]
 Rules must be tracked local regular files with their original grants preserved. Language-specific
 rules remain the project's responsibility. The helper uses only the OSS engine, disables metrics
 and version checks, isolates its settings from host accounts, and accepts no remote rule URL.
-Native findings, scanner errors or a source scope missing from the native scanned-file result fail.
+Scanner errors or a source scope missing from the native scanned-file result fail. Native findings
+are reported with their count.
 The original JSON and separate diagnostic stream remain in the source result. Selecting this helper
 does not select the full security profile or authorize a license policy.
 

@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
+import tempfile
 from pathlib import Path
 
 from .impact import matches
-from .model import Invalid, contained, git
+from .model import Invalid, contained, git, git_environment
+from .process import run
+
+CRITICAL_SCORE = 9.0
+# osv-scanner exits 1 when it found vulnerabilities and 128 when the source has no packages.
+OSV_COMPLETED = {0, 1, 128}
 
 
 def semgrep_sources(root: Path, settings: dict) -> list[str]:
@@ -31,8 +39,8 @@ def semgrep_sources(root: Path, settings: dict) -> list[str]:
 
 def verify_semgrep(root: Path, settings: dict, log: Path) -> int:
     report = json.loads(log.read_text())
-    if not report.get("version") or report.get("errors") or report.get("results"):
-        raise Invalid("Semgrep did not establish a clean complete native analysis")
+    if not report.get("version") or report.get("errors"):
+        raise Invalid("Semgrep did not establish a complete native analysis")
     scanned = report.get("paths", {}).get("scanned", [])
     actual = set()
     for name in scanned:
@@ -44,6 +52,11 @@ def verify_semgrep(root: Path, settings: dict, log: Path) -> int:
     if actual != set(semgrep_sources(root, settings)):
         raise Invalid("Semgrep did not analyze every explicitly selected source file")
     return len(actual)
+
+
+def semgrep_findings(log: Path) -> int:
+    """Count reported Semgrep findings; they inform and never stop a merge."""
+    return len(json.loads(log.read_text()).get("results") or [])
 
 
 def native_command(helper: str, root: Path, contract: dict) -> list[str]:
@@ -70,7 +83,6 @@ def native_command(helper: str, root: Path, contract: dict) -> list[str]:
             "--metrics=off",
             "--disable-version-check",
             "--strict",
-            "--error",
             "--json",
             "--no-git-ignore",
         ]
@@ -101,4 +113,127 @@ def native_command(helper: str, root: Path, contract: dict) -> list[str]:
             if (root / relative).is_symlink() or not contained(root, relative, exists=True).is_file():
                 raise Invalid("Python SAST requires contained regular source files")
         selected.update(found)
-    return ["bandit", "--quiet", "--", *sorted(selected)]
+    # Findings are reported, not blocking: a merge stops only for the three security cases.
+    return ["bandit", "--quiet", "--exit-zero", "--", *sorted(selected)]
+
+
+def change_range(root: Path, base: str | None, head: str) -> str | None:
+    """Return the commit range of the change, or None when only the full history can be scanned."""
+    if not base or not re.fullmatch(r"[0-9a-f]{40}", base):
+        return None
+    try:
+        count = int(git(root, "rev-list", "--count", f"{base}..{head}"))
+    except (Invalid, ValueError):
+        return None
+    return f"{base}..{head}" if count else None
+
+
+def _critical(vulnerability: dict, max_severity: str | None) -> bool:
+    try:
+        if max_severity and float(max_severity) >= CRITICAL_SCORE:
+            return True
+    except ValueError:
+        pass
+    level = str(vulnerability.get("database_specific", {}).get("severity", ""))
+    return level.upper() == "CRITICAL"
+
+
+def _fixed(vulnerability: dict, name: str) -> bool:
+    for affected in vulnerability.get("affected", []):
+        package = affected.get("package", {})
+        if package.get("name") not in (None, name):
+            continue
+        for selected in affected.get("ranges", []):
+            if any(event.get("fixed") for event in selected.get("events", [])):
+                return True
+    return False
+
+
+def osv_findings(report: dict) -> dict[tuple[str, str, str], dict]:
+    """Index osv-scanner JSON findings by ecosystem, package and vulnerability."""
+    findings = {}
+    for result in report.get("results") or []:
+        for package in result.get("packages") or []:
+            info = package.get("package", {})
+            severity = {}
+            for group in package.get("groups") or []:
+                for identifier in [*group.get("ids", []), *group.get("aliases", [])]:
+                    severity[identifier] = group.get("max_severity")
+            for vulnerability in package.get("vulnerabilities") or []:
+                identifier = vulnerability.get("id", "")
+                key = (str(info.get("ecosystem", "")), str(info.get("name", "")), identifier)
+                findings[key] = {
+                    "id": identifier,
+                    "package": info.get("name", ""),
+                    "version": info.get("version", ""),
+                    "ecosystem": info.get("ecosystem", ""),
+                    "source": result.get("source", {}).get("path", ""),
+                    "critical": _critical(vulnerability, severity.get(identifier)),
+                    "fixed": _fixed(vulnerability, str(info.get("name", ""))),
+                }
+    return findings
+
+
+def _scan(command: list[str], root: Path, report: Path, log: Path) -> dict:
+    result = run([*command, "--format", "json", "--output", str(report)], root, log, timeout=900)
+    if result["exit_code"] not in OSV_COMPLETED:
+        return {**result, "status": "failure", "detail": "osv-scanner could not complete the scan"}
+    try:
+        data = json.loads(report.read_text()) if report.is_file() and report.stat().st_size else {}
+    except ValueError:
+        return {**result, "status": "failure", "detail": "osv-scanner wrote no readable JSON report"}
+    return {**result, "status": "success", "findings": osv_findings(data)}
+
+
+def dependencies(root: Path, command: list[str], base: str | None, head: str, output: Path) -> dict:
+    """Report every dependency finding; stop only a pull request that brings in a critical one with a fix."""
+    output.mkdir(parents=True, exist_ok=True)
+    current = _scan(command, root, output / "osv-head.json", output / "dependencies.log")
+    if current["status"] != "success":
+        return {key: value for key, value in current.items() if key != "findings"}
+    findings = current.pop("findings")
+    pull_request = os.environ.get("GITHUB_EVENT_NAME") in {"pull_request", "pull_request_target"}
+    previous: dict | None = None
+    if pull_request and change_range(root, base, head):
+        with tempfile.TemporaryDirectory(prefix="nddev-osv-base-") as temporary:
+            tree = Path(temporary) / "base"
+            added = subprocess.run(
+                ["git", "-C", str(root), "worktree", "add", "--detach", "--quiet", str(tree), str(base)],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=git_environment(),
+            )
+            if added.returncode == 0:
+                try:
+                    scanned = _scan(command, tree, output / "osv-base.json", output / "dependencies-base.log")
+                    if scanned["status"] == "success":
+                        previous = scanned["findings"]
+                finally:
+                    subprocess.run(
+                        ["git", "-C", str(root), "worktree", "remove", "--force", str(tree)],
+                        check=False,
+                        capture_output=True,
+                        env=git_environment(),
+                    )
+    introduced = [item for key, item in findings.items() if previous is not None and key not in previous]
+    stopping = [item for item in introduced if item["critical"] and item["fixed"]]
+    summary = {
+        "findings": len(findings),
+        "introduced": len(introduced) if previous is not None else None,
+        "stopping": [f"{x['package']} {x['version']}: {x['id']}" for x in stopping],
+    }
+    with open(current["log"], "a") as log:
+        log.write("Dependency findings: " + json.dumps(summary, sort_keys=True) + "\n")
+    if stopping:
+        return {
+            **current,
+            **summary,
+            "status": "failure",
+            "detail": "The change brings in a critical vulnerability that has a fix: "
+            + ", ".join(summary["stopping"]),
+        }
+    detail = f"{len(findings)} dependency findings reported"
+    if pull_request and previous is None:
+        detail += "; the base could not be scanned, so nothing stops the merge"
+    return {**current, **summary, "status": "success", "detail": detail}
